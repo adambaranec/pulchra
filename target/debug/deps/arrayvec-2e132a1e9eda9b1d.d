@@ -1,0 +1,12 @@
+/Users/adambaranec/a-four/target/debug/deps/arrayvec-2e132a1e9eda9b1d.rmeta: /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/lib.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/maybe_uninit.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array_string.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/char.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/errors.rs
+
+/Users/adambaranec/a-four/target/debug/deps/libarrayvec-2e132a1e9eda9b1d.rlib: /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/lib.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/maybe_uninit.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array_string.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/char.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/errors.rs
+
+/Users/adambaranec/a-four/target/debug/deps/arrayvec-2e132a1e9eda9b1d.d: /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/lib.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/maybe_uninit.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array_string.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/char.rs /Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/errors.rs
+
+/Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/lib.rs:
+/Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/maybe_uninit.rs:
+/Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array.rs:
+/Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/array_string.rs:
+/Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/char.rs:
+/Users/adambaranec/.cargo/registry/src/github.com-1ecc6299db9ec823/arrayvec-0.5.2/src/errors.rs:

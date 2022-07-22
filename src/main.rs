@@ -1,4 +1,5 @@
-pub mod render;
+mod render;
+mod grammar;
 
 fn main() {
     render::create_win();

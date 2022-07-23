@@ -9,5 +9,4 @@ edition = "2021"
 three-d = "0.12.2"
 # audio
 twang = "0.8.0"
-# web assembly
-wasm-bindgen = "0.2"
+

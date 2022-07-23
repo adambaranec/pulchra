@@ -1349,7 +1349,6 @@ version = "0.1.0"
 dependencies = [
  "three-d",
  "twang",
- "wasm-bindgen",
 ]
 
 [[package]]

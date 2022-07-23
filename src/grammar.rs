@@ -45,5 +45,4 @@ Unexpected,
 NotFound,
 Mismatched
 }
-
 //example: screen 0.5 mul 5 cube 2 rgb(0.1,0.3,0.5)

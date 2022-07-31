@@ -1,11 +1,18 @@
 use three_d::*;
-use twang::*;
+//use twang::*;
 
 /*VARIABLES FOR RENDERING AND VISUALS*/
+
 // 1. 3D shapes to be rendered //
-static mut Objects : &[&dyn Object] = &[];
+static mut Objects : Vec<&dyn Object> = vec![];
+
 // 2. Lights for them //
-static mut Lights : &[&dyn Light] = &[];
+static mut Lights : Vec<&dyn Light> = vec![];
+
+// 3. The shapes //
+static cube : Vec<Vec3> = vec![];
+static cuboid : Vec<Vec3> = vec![];
+static sphere : Vec<Vec3> = vec![];
 
 /*VARIABLES FOR OSCILLATORS AND SYNTH*/
 
@@ -14,12 +21,10 @@ pub fn start(){
     let window = Window::new(WindowSettings {
         title: "Pulchra".to_string(),
         min_size: (512, 512),
-        max_size: Some((1280, 720)),
         ..Default::default()
     })
     .unwrap();
     let context = window.gl().unwrap();
-
     let mut camera = Camera::new_perspective(
         &context,
         window.viewport().unwrap(),
@@ -44,7 +49,6 @@ pub fn start(){
         ).unwrap()
     );
     let mut gui = three_d::GUI::new(&context).unwrap();
-    start_interpreter();
     window.render_loop(move |mut frame_input| {
         let mut panel_width = 0.0;
         gui.update(&mut frame_input, |gui_context| {
@@ -80,35 +84,3 @@ pub fn start(){
         FrameOutput::default()
     });
 }
-
-//functions for the interpreter
-fn start_interpreter(){
-    println!("Starting the interpreter...");
-}
-fn interpret(input: &[&str]){
-for word in input.iter(){
-
-}
-}
-
-//creating shapes
-fn create_cube(side: f32){}
-fn create_cuboid(a: f32, b: f32, c: f32){}
-fn create_cuboid_oneside(side: f32){}
-fn create_sphere(side: f32){}
-//colors
-fn set_rgb(red: u8, green: u8, blue: u8){}
-fn set_rgba(red: u8, green: u8, blue: u8, alpha: u8){}
-fn set_grayscale(gray: f32){}
-fn set_screen_rgb(red: u8, green: u8, blue: u8){}
-fn set_screen_rgba(red: u8, green: u8, blue: u8, alpha: u8){}
-fn set_screen_gray(gray: f32){}
-//multiplication
-fn mul(many: u8){}
-
-//sounds
-fn init(){}
-fn create_sine(){}
-fn create_square(){}
-fn create_saw(){}
-fn create_noise(){}

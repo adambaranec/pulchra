@@ -1,4 +1,5 @@
-use three_d::core::prelude::Color;
+use three_d::core::prelude::*;
+use regex::Regex;
 
 enum Token {
     Character,
@@ -12,150 +13,84 @@ enum Token {
     Comma,
     Dot
     }
+
+// What the individual tokens mean //
     enum Type{
-    Keyword,
-    DecimalSeparator,
-    Function,
-    Number,
-    Effect,
-    Error
-    }
-    enum Keyword{
-    Screen,
-    Cube,
-    Cuboid,
-    Sphere
-    }
-    enum Number{
-    Range, //floats 0 - 1
-    Quantity //u8
+        Screen,
+        Cube,
+        Cuboid,
+        Sphere,
+        MulEffect,
+        RangeParam,
+        QuantityParam,
+        Function,
+        Unknown
+        }
+    enum FnType{
+      Rgb,
+      Rgba,
+      Fft,
+      Unknown
     }
     enum Function{
-    Name,
-    FnType,
-    Begin,
-    Parameter,
-    ParamSeparator,
-    End
+      Begin,
+      End
+      }
+
+    // All possible statements //
+    enum Statement {
+      ObjectOnly,
+      ObjectWithSides,
+      ObjectWithSidesAndColor,
+      ObjectWithColor,
+      Mul,
+      WrongStatement
     }
-    enum Name{
-    RgbString,
-    RgbaString
-    }
-    enum FnType{
-    Rgb,
-    Rgba
-    }
-    enum Parameter{
-    Number
-    }
-    enum Effect{
-    Multiplication 
-    }
-    enum Error{
-    MismatchedTypes,
-    LessThanExpected,
-    MoreThanExpected,
-    NotFound,
-    Syntax 
-    }
-    
-    static keywords : Vec<&str> = vec!["screen","cube","cuboid","sphere"];
-    static fx : Vec<&str> = vec!["mul"];
-    static func_names: Vec<&str> = vec!["rgb","rgba","gray"];
-    static rgb : Vec<Function> = vec![Function::Name::RgbString,Function::Begin,Function::Parameter::Number::Range,Function:: ParamSeparator,Function::Parameter::Number::Range,Function:: ParamSeparator,Function::Parameter::Number::Range, Function::End];
-    static rgba : Vec<Function> = vec![Function::Name::RgbaString,Function::Begin,Function::Parameter::Number::Range,Function:: ParamSeparator,Function::Parameter::Number::Range,Function:: ParamSeparator,Function::Parameter::Number::Range, Function::ParamSeparator, Function::Parameter::Number::Range,Function::End];
-    
-    enum Statement{
-    ObjectDefinition,
-    EffectDefinition
-    }
-    enum ObjectDefinition {
-    ObjectNoParams,
-    ObjectWithSides,
-    ObjectWithSidesAndColor,
-    ObjectWithColor
-    }
-    enum EffectDefinition {
-    Mul
-    }
-    
-    //parameter: jeden znak z inputu
-    /*fn token_type(character: char) -> Token{
-    match character{
-    ""=>Token::Whitespace
-    new Regex::/a-z=>Token::Character
-    new Regex::/0-9=>Token::Figure
-    "("=>Token::LeftBracket
-    ")"=>Token::RightBracket
-    ","=>Token::Comma
-    "."=>Token::Dot
-    _=>Type::Error::Syntax
-    }
-    }*/
     
     //parameter: jedno slovo
     fn get_type(word: &str) -> Type{
-    match word{
-    "screen"=>Type::Keyword::Screen
-    "cube"=>Type::Keyword::Cube
-    "cuboid"=>Type::Keyword::Cuboid
-    "sphere"=>Type::Keyword::Sphere
-    "mul"=>Type::Effect::Multiplication
-    new Regex(/0-9)=>Type::Number::Quantity
-    new Regex(/všetky čísla aj desatinné od 0 do 1)=>Type::Number::Range
-    new Regex(/ma to aj zatvorky a ciarky)=>analyse_func(word);
-    _=>Type::Error::MismatchedTypes
-    }
+    if word =="screen"{return Type::Screen;}
+    else if word=="cube"{return Type::Cube;}
+    else if word=="cuboid"{return Type::Cuboid;}
+    else if word=="sphere"{return Type::Sphere;}
+    else if word=="mul"{return Type::MulEffect;}
+    else if word.to_string().parse::<u32>(){return Type::QuantityParam;}
+    else if word.to_string().parse::<f32>().unwrap() < 1.0{return Type::RangeParam;}
+    else if Regex::new(r"[a-z]+\(\)").unwrap().is_match(word){return Type::Function;}
+    else {return Type::Unknown;}
     }
     
     //parameter: slovo ako funkcia rgb()...
-    fn analyze_func(word: &str) -> Type{
-    match word{
-    regex pre rgb=>Type::Function::FnType::Rgb
-    regex pre rgba=>Type:: Function::FnType::Rgba
+    fn analyze_func(word: &str) -> FnType{
+    if Regex::new(r"rgb\(0(\.\d+)?|1\.0,0(\.\d+)?|1\.0,0(\.\d+)?|1\.0\)").unwrap().is_match(word){return FnType::Rgb;}
+    else if Regex::new(r"rgba\(0(\.\d+)?|1\.0,0(\.\d+)?|1\.0,0(\.\d+)?|1\.0,0(\.\d+)?|1\.0\)").unwrap().is_match(word){return FnType::Rgba;}
+    else if Regex::new(r"fft\[[0-9]+]").unwrap().is_match(word){return FnType::Fft;}
+    else {return FnType::Unknown;}
     }
-    }
-    static mut color = Color{r: 0, g: 0, b: 0, a: 0};
-    fn get_color_channels(word: &str) -> color{
+  
+    fn get_color_channels(word: &str) -> Color{
     let channels : Vec<f32> = vec![];
-    match word{
-    "regex pre rgb"=>for type in word.split(&['(', ','][..]){
-    if get_type(type) == Type::Number::Range{
-        channels.push((type.parse::<f32>().unwrap() * 255).round() as u8);
-       }
-       color.r=channels[0];
-       color.g=channels[1];
-       color.b=channels[2];
-    return color;
-    }
-    "regex pre rgba"=>for type in word.split(&['(', ','][..]){
-    if get_type(type) == Type::Number::Range{
-         channels.push((type.parse::<f32>().unwrap() * 255).round() as u8);
-        }
-       color.r=channels[0];
-       color.g=channels[1];
-       color.b=channels[2];
-       color.a=channels[3];
-    return color;
-    }
+    match analyze_func(word){
+      FnType::Rgb=>
+      FnType::Rgba=>
+      _=>
     }
     }
     
     //Parameter: jeden celý príkaz z inputu
     fn analyze_statement(string: &str) -> Statement{
-    let types= string.split_whitespace();
+    let types : Vec<&str>= string.split_whitespace().collect();
     let statement : Vec<Type> = vec![];
     for word in types{
       statement.push(get_type(word));
     }
     match statement{
-    <objectNoParam>=>Statement::ObjectDefinition::ObjectOnly
-    <ObjectWithSides>=>Statement::ObjectDefinition::ObjectWithSides
-    <ObjectWithSidesAndColor>=>Statement::ObjectDefinition::ObjectWithSidesAndColor
-    <ObjectWithColor>=>Statement::ObjectDefinition::ObjectWithColor
-    <mul>=>Statement::EffectDefinition::Mul
-    _=>Type::Error::WrongStatement
+    []=>Statement::ObjectOnly,
+    []=>Statement::ObjectWithSides,
+    []=>Statement::ObjectWithSidesAndColor,
+    []>=>Statement::ObjectWithColor,
+    []=>Statement::Mul,
+    _=>Statement::WrongStatement
     }
     }
     
@@ -163,54 +98,59 @@ enum Token {
     pub fn interpret(input: &str){
     Objects.clear();
     Lights.clear();
-    let statements = input.split(&[String::from("screen"), String::from("cube"), 
-    String::from("cuboid"), String::from("sphere"), String::from("mul")][..]);
-    for statement in statements{
+    let statements : Vec<&str> = input.split_whitespace().collect();
+    let types : Vec<Type> = vec![];
+    for word in statements{
+      if get_type(word) == Type::Screen || Type::Cube || Type::Cuboid || Type::Sphere || Type::MulEffect{
+        types.clear();
+        types.push(get_type(word));
+      }
+    }
       match analyze_statement(statement){
       //Definition of an object which we want to 
       //see
-      Statement::ObjectDefinition::ObjectOnly=>
-        match get_type(statement[0]){
-        Type::Keyword::Screen=>
-        Type::Keyword::Cube=>
-        Type::Keyword::Cuboid=>
-        Type::Keyword::Sphere=>
-        }
-        //object definition also giving their length of sides Statement::ObjectDefinition::ObjectWithSides=>
+      ObjectDefinition::ObjectOnly=>
+        match get_type(statements[0]){
+        Keyword::Screen=>
+        Keyword::Cube=>
+        Keyword::Cuboid=>
+        Keyword::Sphere=>
+        },
+        //object definition also giving their length of sides 
+        ObjectDefinition::ObjectWithSides=>
           match get_type(statement[0]){
-          Type::Keyword::Screen=>
-          if get_type(statement[1]) == Type::Parameter::Number::Range{
+          Keyword::Screen=>
+          if get_type(statement[1]) == Parameter::Range{
           let gray:f32 = statement[1] as f32;
           set_screen_grayscale(gray);
           }
-          else if analyze_func(statement[1]) == Type::Function::FnType::Rgb{
-    set_screen_rgb(get_color_channels(statement[1]));
+          else if analyze_func(statement[1]) == FnType::Rgb{
+          set_screen_rgb(get_color_channels(statement[1]));
           }
-          else if analyze_func(statement[1]) == Type::Function::FnType::Rgba{ 
-            set_screen_rgba(get_color_channels(statement[1]));
+          else if analyze_func(statement[1]) == FnType::Rgba{ 
+          set_screen_rgba(get_color_channels(statement[1]));
           }
-          Type::Keyword::Cube=>
-          if get_type(statement[1]) == Type::Parameter::Number::Range{
+          Keyword::Cube=>
+          if get_type(statement[1]) == Type::RangeParam{
           let length:f32 = statement[1] as f32;
           }
-          Type::Keyword::Cuboid=>
-          if get_type(statement[1]) == Type::Parameter::Number::Range &&
-          if get_type(statement[2]) == Type::Parameter::Number::Range &&
-          if get_type(statement[3]) == Type::Parameter::Number::Range{
+          Keyword::Cuboid=>
+          if get_type(statement[1]) == Type::RangeParam &&
+          if get_type(statement[2]) == Type::RangeParam &&
+          if get_type(statement[3]) == Type::RangeParam{
           let length:f32=statement[1] as f32;
           let height:f32=statement[2] as f32;
           let width:f32=statement[3] as f32;
           }
-          Type::Keyword::Sphere=>
-          if get_type(statement[1]) == Type::Parameter::Number::Range{
+          Keyword::Sphere=>
+          if get_type(statement[1]) == Type::RangeParam{
           let radius:f32 = statement[1] as f32;
           }
           }
-    Statement::ObjectDefinition::ObjectWithSidesAndColor=>
-    Statement::ObjectDefinition::ObjectWithColor=>
-    Statement::EffectDefinition::Mul=>
-    Type::Error::WrongStatement=>send_err();
-    }
-    }
+        }
+    ObjectDefinition::ObjectWithSidesAndColor=>
+    ObjectDefinition::ObjectWithColor=>
+    EffectDefinition::Mul=>
+    Error::WrongStatement=>send_err();
     }
     fn send_err(err: &str){}

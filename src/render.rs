@@ -1,21 +1,6 @@
 use three_d::*;
 //use twang::*;
 
-/*VARIABLES FOR RENDERING AND VISUALS*/
-
-// 1. 3D shapes to be rendered //
-static mut Objects : Vec<&dyn Object> = vec![];
-
-// 2. Lights for them //
-static mut Lights : Vec<&dyn Light> = vec![];
-
-// 3. The shapes //
-static cube : Vec<Vec3> = vec![];
-static cuboid : Vec<Vec3> = vec![];
-static sphere : Vec<Vec3> = vec![];
-
-/*VARIABLES FOR OSCILLATORS AND SYNTH*/
-
 pub fn start(){
     println!("Creating a window...");
     let window = Window::new(WindowSettings {
@@ -71,7 +56,7 @@ pub fn start(){
          Event::KeyPress{kind: Key::Enter, 
              modifiers: Modifiers{alt: false, ctrl: false, shift: true, command: false},
              handled: false
-            }=>
+            }=>println!("Starting the interpreter...")
         };*/
         frame_input
             .screen()

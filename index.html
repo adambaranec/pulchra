@@ -5,11 +5,15 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Live coding language for 3D visuals.">
-    <meta name="keywords" content="Live coding, live coding music, rendering">
+    <meta name="keywords" content="Digital art, live coding, rendering, graphics">
     <title>Pulchra</title>
 </head>
 <body>
-<script type="module"></script>
+<script type="module">
+    //initiates the Rust code for Pulchra
+    WebAssembly.instantiateStreaming(fetch('pulchra.wasm'));
+    //.then(module => {console.log(module.instance.exports)});
+</script>
 <textarea></textarea>
 <canvas></canvas>
 </body>

@@ -5,16 +5,18 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Live coding language for 3D visuals.">
-    <meta name="keywords" content="Digital art, live coding, rendering, graphics">
+    <meta name="keywords" content="Digital art, 3d art, live coding, rendering, graphics">
     <title>Pulchra</title>
 </head>
 <body>
 <script type="module">
     //initiates the Rust code for Pulchra
-    WebAssembly.instantiateStreaming(fetch('pulchra.wasm'));
-    //.then(module => {console.log(module.instance.exports)});
+    import init from '/pkg/pulchra.js';
+    init()
+    .then(()=>{console.log('Pulchra is running!');})
+    .catch(()=>alert('An error occurred. Try again later.'));
 </script>
-<textarea></textarea>
-<canvas></canvas>
+<textarea id="input"></textarea>
+<canvas id="visuals"></canvas>
 </body>
 </html>

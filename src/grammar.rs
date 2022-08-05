@@ -1,8 +1,7 @@
 use three_d::core::prelude::*;
+use three_d::core::render_target::ClearState;
 use three_d::renderer::*;
 use regex::Regex;
-
-
 
 // What the individual tokens mean //
 #[derive(PartialEq)]
@@ -62,8 +61,7 @@ use regex::Regex;
     else {return FnType::Unknown;}
     }
   
-    fn get_color_channels(word: &str) -> Color{
-      use std::convert::TryFrom;
+    fn object_color(word: &str) -> Color{
     match analyze_func(word){
       FnType::Rgb=>{
         let mut channels:Vec<u8> = vec![];
@@ -75,7 +73,7 @@ use regex::Regex;
         let value = (float.iter().collect::<String>().parse::<f32>().unwrap() * 255.0) as u8;
         channels.push(value);
       };
-      return Color{r: channels[0], g: channels[1], b: channels[2], a: 255};
+      return Color::new_opaque(r: channels[0], g: channels[1], b: channels[2]);
       }, 
       FnType::Rgba=>{
         let mut channels:Vec<u8> = vec![];
@@ -87,9 +85,33 @@ use regex::Regex;
         let value = (float.iter().collect::<String>().parse::<f32>().unwrap() * 255.0) as u8;
         channels.push(value);
       }; 
-      return Color{r: channels[0], g: channels[1], b: channels[2], a: channels[3]}},
-      _=>return Color{r: 0, g: 1, b: 2, a: 3},
+      return Color::new(r: channels[0], g: channels[1], b: channels[2], a: channels[3]);
+      },
     }
+    }
+
+    fn screen_color(word: &str)->ClearState{
+      match analyze_func(word){
+        let mut channels:Vec<u8> = vec![];
+        for param in Regex::new(r"(0.(\d+)|1)").unwrap().find_iter(word){
+        let mut float:Vec<char> = vec![];
+        for i in param.start()..param.end(){
+        float.push(word.chars().nth(i).unwrap());
+        };
+        let value = float.iter().collect::<String>().parse::<f32>().unwrap();
+        channels.push(value);
+      }; 
+      return ClearState{red: channels[0], green: channels[1], blue: channels[2], alpha: channels[3]}
+    }
+    }
+
+    #[derive(PartialEq)]
+    enum Shape{Cube,Sphere}
+    fn create_shape(context: &Context, radius: f32, shape: Shape, color: Color)->Gm{
+      return Gm::new(Mesh::new(context, CpuMesh{positions: Postions::F32(vec![])}), ColorMaterial::default);
+    }
+    fn create_cuboid(context: &Context, a: f32, b: f32, c: f32, color: Color)->Gm{
+      return Gm::new(Mesh::new(context, CpuMesh{positions: Postions::F32(vec![])}), ColorMaterial::default);
     }
   
     fn interpret(input: &str){
@@ -107,7 +129,7 @@ use regex::Regex;
     /*  SCREEN  */
     "screen"=>{
     if get_type(words[1])==Type::RangeParam{}
-    else if analyze_func(words[1])==FnType::Rgb{}
+    else if analyze_func(words[1])==FnType::Rgba{}
     },
     /*  CUBE  */
     "cube"=>{

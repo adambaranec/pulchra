@@ -5,7 +5,7 @@ pub fn start(){
     println!("Creating a window...");
     let window = Window::new(WindowSettings {
         title: "Pulchra".to_string(),
-        min_size: (512, 512),
+        min_size: (100, 100),
         ..Default::default()
     })
     .unwrap();
@@ -56,11 +56,11 @@ pub fn start(){
          Event::KeyPress{kind: Key::Enter, 
              modifiers: Modifiers{alt: false, ctrl: false, shift: true, command: false},
              handled: false
-            }=>println!("Starting the interpreter...")
+            }=>{println!("Starting the interpreter...")}
         };*/
         frame_input
             .screen()
-            .clear(ClearState::color_and_depth(0.5, 0.5, 0.5, 1.0, 1.0))
+            .clear(ClearState::color(0.5, 0.5, 0.5, 1.0))
             .unwrap()
             .render(&camera, &[&model], &[&light])
             .unwrap()

@@ -1,12 +1,14 @@
 [package]
 name = "pulchra"
+authors = "Adam Baranec"
 version = "0.1.0"
 edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-# 3d rendering
 three-d = "0.12.2"
-# audio
 twang = "0.8.0"
 regex = "1.6.0"
+
+[lib]
+crate-type = ["cdylib"]

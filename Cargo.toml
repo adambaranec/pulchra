@@ -7,8 +7,19 @@ edition = "2021"
 
 [dependencies]
 three-d = "0.12.2"
-twang = "0.8.0"
 regex = "1.6.0"
+
+[dependencies.web-sys]
+version = "0.3.4"
+features = [
+  'AudioContext',
+  'AudioDestinationNode',
+  'AudioNode',
+  'AudioParam',
+  'GainNode',
+  'OscillatorNode',
+  'OscillatorType',
+]
 
 [lib]
 crate-type = ["cdylib"]

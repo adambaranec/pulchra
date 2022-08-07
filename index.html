@@ -6,17 +6,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Live coding language for 3D visuals.">
     <meta name="keywords" content="Digital art, 3d art, live coding, rendering, graphics">
+    <link rel="stylesheet" href="index.css">
     <title>Pulchra</title>
 </head>
 <body>
+<textarea id="input" placeholder="Example: cube 0.5 rgb(0.2,0.3,0.5) sphere 1 
+Just type any key." rows="10" autofocus="true"></textarea>
 <script type="module">
     //initiates the Rust code for Pulchra
     import init from '/pkg/pulchra.js';
     init()
-    .then(()=>{console.log('Pulchra is running!');})
+    .then(()=>{console.log('Pulchra is loaded');})
     .catch(()=>alert('An error occurred. Try again later.'));
+    document.getElementById('input').addEventListener('keydown', (event)=>{
+        if (event.ctrlKey){/*interprets input*/}
+    });
 </script>
-<textarea id="input"></textarea>
-<canvas id="visuals"></canvas>
 </body>
 </html>

@@ -18,17 +18,7 @@ use regex::Regex;
     }
     #[derive(PartialEq)]
     enum Effect{
-      Multiplication
-    }
-
-    struct Input {
-      models: Vec<dyn Object>,
-      clear_state: Option<ClearState>,
-      effects: Option<Vec<Effect>>
-    }
-    impl Input{
-      fn models(&self){return self.models;}
-      fn clear_state(&self){return self.clear_state;}
+      Multiplication(u8,u8)
     }
       
     //parameter: slovo ako funkcia rgb()...
@@ -40,10 +30,10 @@ use regex::Regex;
     else {return FnType::NotFunction;}
     }
   
-    fn object_color(word: &str) -> Color{
+    fn get_color(word: &str) -> Vec<f32>{
     match analyze_func(word){
       FnType::Rgb=>{
-        let mut channels:Vec<u8> = vec![];
+        let mut channels:Vec<f32> = vec![];
         for param in Regex::new(r"(0.(\d+)|1)").unwrap().find_iter(word){
         let mut float:Vec<char> = vec![];
         for i in param.start()..param.end(){
@@ -52,10 +42,10 @@ use regex::Regex;
         let value = float.iter().collect::<String>().parse::<f32>().unwrap();
         channels.push(value);
       };
-      return Color::from_rgb_slice(channels);
+      return channels;
       }, 
       FnType::Rgba=>{
-        let mut channels:Vec<u8> = vec![];
+        let mut channels:Vec<f32> = vec![];
         for param in Regex::new(r"(0.(\d+)|1)").unwrap().find_iter(word){
         let mut float:Vec<char> = vec![];
         for i in param.start()..param.end(){
@@ -64,14 +54,14 @@ use regex::Regex;
         let value = float.iter().collect::<String>().parse::<f32>().unwrap();
         channels.push(value);
       }; 
-      return Color::from_rgba_slice(channels);
+      return channels;
       },
     }
     }
 
     fn screen_color(word: &str)->ClearState{
       match analyze_func(word){
-        let mut channels:Vec<u8> = vec![];
+        let mut channels:Vec<f32> = vec![];
         for param in Regex::new(r"(0.(\d+)|1)").unwrap().find_iter(word){
         let mut float:Vec<char> = vec![];
         for i in param.start()..param.end(){
@@ -84,15 +74,10 @@ use regex::Regex;
     }
     }
 
-    fn create_model(context: &Context, shape: Shape, sides: Option<f32>, color: Option<Color>)->Result<Gm, &'static str>{
+    fn create_model(context: Context, shape: Shape, radius: Option<f32>, color: Option<Color>)->Result<Gm, &'static str>{
       match shape{
-        Shape::Cube=>return Ok(Gm::new(Mesh::new(context, CpuMesh{positions: Postions::F32(vec![]), colors: vec![color]}), ColorMaterial::default(), ..Default: default())),
-        Shape::Sphere=>return Ok(Gm::new(Mesh::new(context, CpuMesh{positions: Postions::F32(vec![]), colors: vec![color]}), ColorMaterial::default(), ..Default: default())),
+        Shape::Cube=>return Ok(Gm::new(Mesh::new(&context, CpuMesh{positions: Postions::F32(vec![]), colors: vec![color]}), ColorMaterial::default(), ..Default: default())),
+        Shape::Sphere=>return Ok(Gm::new(Mesh::new(&context, CpuMesh{positions: Postions::F32(vec![]), colors: vec![color]}), ColorMaterial::default(), ..Default: default())),
         _=>return Err("Unknown shape"),
       }
-    }
-
-    fn mul(rows: u8, columns: u8){}
-
-    fn interpret(input: &str) -> Input{
     }

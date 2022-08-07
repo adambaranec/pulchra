@@ -1,16 +1,27 @@
 use three_d::*;
-//use twang::*;
+use regex::Regex;
 
-pub fn start(){
-    println!("Creating a window...");
-    let window = Window::new(WindowSettings {
+struct Canvas{
+    window: Window,
+    context: Context,
+    camera: Camera
+}
+
+struct Input {
+    models: [&dyn Object],
+    clear_state: Option<ClearState>,
+    effects: Option<Vec<Effect>>
+  }
+
+static canvas = Canvas{
+    window: Window::new(WindowSettings {
         title: "Pulchra".to_string(),
         min_size: (100, 100),
         ..Default::default()
-    })
-    .unwrap();
-    let context = window.gl().unwrap();
-    let mut camera = Camera::new_perspective(
+})
+    .unwrap(),
+    context: window.gl().unwrap(),
+    camera: Camera::new_perspective(
         &context,
         window.viewport().unwrap(),
         vec3(-3.0, 1.0, 2.5),
@@ -19,20 +30,36 @@ pub fn start(){
         degrees(45.0),
         0.1,
         1000.0
-    ).unwrap();
-    let mut control = OrbitControl::new(*camera.target(), 1.0, 100.0);
-    let light = AmbientLight::new(&context, 1.0, Color{r: 1, g: 200, b: 10, a: 1}).unwrap();
-    let mut model = Gm::new(
-        Mesh::new(&context, &CpuMesh::cube()).unwrap(),
-        PhysicalMaterial::new_opaque(
-            &context,
-            &CpuMaterial {
-                roughness: 0.2,
-                metallic: 0.8,
-                ..Default::default()
-            },
-        ).unwrap()
-    );
+    ).unwrap()
+};
+
+fn interpret(input: &str)->Result<Input,()>{
+    let statements:Vec<&str> = input.split(";").collect();
+    let models = [&dyn Object];
+    let clear_state:Option<ClearState> = None;
+    let effects:Option<Vec<Effect>> = None;
+    for statement in statements{
+      let words:Vec<&str> = statement.split_whitespace().collect();
+      match words[0]{
+      "screen"=>{
+        let float = words[1].iter().collect::<String>().parse::<f32>().unwrap();
+        if float{
+        let clear_state = ClearState::color(float,float,float);
+        }
+        else if Regex::new(r"(rgb)+\([^\)]*\)?").is_match(words[1]){
+        let clear_state = ClearState::color(get_color[0], get_color[1], get_color[2]);
+        }
+       },
+      "mul"=>{
+        let num = words[1].iter().collect::<String>().parse::<u8>().unwrap();
+      },
+      "cube"=>{},
+      "sphere"=>{},
+      } 
+    }
+}
+
+pub fn render(context: Context, window: Window, camera: Camera){
     let mut gui = three_d::GUI::new(&context).unwrap();
     window.render_loop(move |mut frame_input| {
         let mut panel_width = 0.0;
@@ -50,19 +77,12 @@ pub fn start(){
             height: frame_input.viewport.height,
         };
         camera.set_viewport(viewport);
-        control.handle_events(&mut camera, &mut frame_input.events);
         if frame_input.first_frame {println!("Pulchra is running!")}
-        /*match frame_input.events.last().unwrap(){
-         Event::KeyPress{kind: Key::Enter, 
-             modifiers: Modifiers{alt: false, ctrl: false, shift: true, command: false},
-             handled: false
-            }=>{println!("Starting the interpreter...")}
-        };*/
         frame_input
             .screen()
             .clear(ClearState::color(0.5, 0.5, 0.5, 1.0))
             .unwrap()
-            .render(&camera, &[&model], &[&light])
+            .render(&camera, &[], &[])
             .unwrap()
             .write(|| gui.render());
 

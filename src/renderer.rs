@@ -1,16 +1,18 @@
 use three_d::*;
-use regex::Regex;
 
-static canvas_settings = WindowSettings {
-        title: "Pulchra".to_string(),
+
+fn canvas() -> WindowSettings{
+    WindowSettings {
+        title: String::from("Pulchra"),
         min_size: (100, 100),
         ..Default::default()
-};
+} 
+}
 
-pub fn render(window_setings: WindowSettings){
-    let window = Window::new(window_setings);
+fn render(window_setings: WindowSettings){
+    let window = Window::new(canvas()).unwrap();
     let context = window.gl().unwrap();
-    let camera =  Camera::new_perspective(
+    let mut camera =  Camera::new_perspective(
         &context,
         window.viewport().unwrap(),
         vec3(-3.0, 1.0, 2.5),

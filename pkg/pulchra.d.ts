@@ -1,10 +1,14 @@
 /* tslint:disable */
 /* eslint-disable */
+/**
+*/
+export function draw(): void;
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
+  readonly draw: () => void;
 }
 
 /**

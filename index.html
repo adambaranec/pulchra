@@ -16,9 +16,6 @@ Just press any key." autofocus="true" rows="8"></textarea>
     //initiates the Rust code for Pulchra
     import init from '/pkg/pulchra.js';
     window.onload = (e) =>{
-    init()
-    .then(()=>{console.log('Pulchra is loaded');})
-    .catch(()=>alert('An error occurred. Try again later.'));
     document.getElementById('input').addEventListener('keydown', (pressed)=>{
         if (pressed.ctrlKey){/*interprets input*/}
     });

@@ -4,9 +4,6 @@ use wasm_bindgen::prelude::*;
 use web_sys::{Document,Element,HtmlElement,Node,Window};
 
 #[wasm_bindgen]
-pub fn draw(){
-    match interpreter::interpret(""){
-        Ok(input) => {},
-        Err(err) => {},
-    }
+pub fn start(){
+renderer::start();
 }

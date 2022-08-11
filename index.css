@@ -1,13 +1,16 @@
-#input{
+*{
+    background-color: black;
+}
+#input,#error{
     font-size: 1.5em;
-    font-family:'Courier New', Courier, monospace;
+    font-family:'Courier New', Courier, monospace; 
+}
+#input{
     border-style:none; 
     color: wheat;
     width: 100%;
 }
 #error{
-    font-size: 1.5em;
-    font-family:'Courier New', Courier, monospace;
     color: red;
     text-align: center;
 }

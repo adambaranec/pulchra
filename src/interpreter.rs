@@ -23,7 +23,7 @@ use three_d::*;
     }
     #[derive(PartialEq)]
     enum Effect{
-      Multiplication(u8,u8)
+      Multiplication
     }
       
     //parameter: slovo ako funkcia rgb()...
@@ -76,13 +76,18 @@ use three_d::*;
       }
       }
       
-      pub struct Input {
+      #[derive(PartialEq)]
+      struct Multiplication{
+        rows: u32,
+        columns: u32
+      }
+      struct Input {
         models: Vec<CpuMesh>,
         clear_state: Option<ClearState>,
-        effects: Option<Vec<Effect>>
+        muls: Option<Vec<Multiplication>>
       }
 
-      pub fn interpret(input: &str)->Result<Input,&'static str>{
+      fn interpret(input: &str)->Result<Input,&'static str>{
         if input == ""{
           return Err("No input")
         }
@@ -91,11 +96,11 @@ use three_d::*;
         let statements:Vec<&str> = input.split(";").collect();
         let mut shapes:Vec<CpuMesh> = vec![];
         let mut clear_color:Option<ClearState> = None;
-        let mut fx:Option<Vec<Effect>> = None;
+        let mut multiplications:Option<Vec<Multiplication>> = None;
         let mut input_values:Input = Input{
           models: shapes,
           clear_state: clear_color,
-          effects: fx
+          muls: multiplications
         };
         for statement in statements{
           let words:Vec<&str> = statement.split_whitespace().collect();
@@ -112,19 +117,25 @@ use three_d::*;
               }
             },
           "mul"=>{
-            let num = words[1].chars().collect::<String>().parse::<u8>();
+            let num = words[1].chars().collect::<String>().parse::<u32>();
             match num{
-              Ok(val) => input_values.effects = Some(vec![Effect::Multiplication(val,val)]),
-              Err(err) => {return Err("Unknown parameter for multiplication.");},
+              Ok(val) => input_values.muls = Some(vec![Multiplication{rows: val, columns: val}]),
+              Err(err) => {return Err("Unknown parameter for multiplication.")},
             }
           },
           "cube"=>{
-            let radius = words[1].chars().collect::<String>().parse::<u8>();
-            //shapes.push();
+            let radius = words[1].chars().collect::<String>().parse::<f32>();
+            match radius{
+              Ok(val)=> input_values.models.push(create_model(Shape::Cube,Some(val),None).unwrap()),
+              Err(err) => {return Err("Unknown parameter for shape radius.")},
+            }
           },
           "sphere"=>{
-            let radius = words[1].chars().collect::<String>().parse::<u8>();
-            //shapes.push();
+            let radius = words[1].chars().collect::<String>().parse::<f32>();
+            match radius{
+              Ok(val)=> input_values.models.push(create_model(Shape::Sphere,Some(val),None).unwrap()),
+              Err(err) => {return Err("Unknown parameter for shape radius.")},
+            }
           },
           _=>{return Err("Unknown type.")}
           } 
@@ -132,3 +143,59 @@ use three_d::*;
         return Ok(input_values);
       }
     }
+
+    fn render(code: &mut Input, context: &Context, camera: &Camera, f_input: &mut FrameInput){
+      let render_target:RenderTarget = f_input.screen();
+      if code.clear_state == None{
+        render_target.clear(ClearState::color(0.0, 0.0, 0.0, 1.0));
+      } else{
+        render_target.clear(code.clear_state.unwrap());
+      }
+      /*let mut gm_array = Vec::new();
+      for model in &code.models{
+        let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
+        gm_array.push(object);
+      }*/
+      if code.muls == None{
+        render_target.render(&camera, &[], &[]);  
+      }else{
+            let rows:u32 = 1;
+            let columns:u32 = 1;
+            let scissor_box = ScissorBox::new_at_origo(f_input.viewport.width/rows,f_input.viewport.height/columns);
+            render_target.render_partially(scissor_box, &camera, &[], &[]);
+      }
+    }
+
+    fn start(){
+      let window = Window::new(WindowSettings{title: String::from("Pulchra"),
+      min_size: (100, 100),
+      ..Default::default()
+  }).unwrap();
+      let context = window.gl().unwrap();
+      let mut camera = Camera::new_perspective(
+          &context,
+          window.viewport().unwrap(),
+          vec3(-3.0, 1.0, 2.5),
+          vec3(0.0, 0.0, 0.0),
+          vec3(0.0, 1.0, 0.0),
+          degrees(45.0),
+          0.1,
+          1000.0
+      ).unwrap();
+      let mut gui = three_d::GUI::new(&context).unwrap();
+      window.render_loop(move |mut frame_input| {
+          let viewport = Viewport::new_at_origo(frame_input.viewport.width, frame_input.viewport.height);
+          camera.set_viewport(viewport);
+          frame_input
+          .screen()
+          .clear(ClearState::color(0.0, 0.0, 0.0, 1.0))
+          .unwrap()
+          .render(&camera, &[], &[])
+          .unwrap()
+          .write(|| gui.render());
+
+          render(&mut interpret("").unwrap(), &context, &camera, &mut frame_input);
+  
+          FrameOutput::default()
+      });
+  }

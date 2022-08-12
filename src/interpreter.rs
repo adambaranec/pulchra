@@ -151,18 +151,23 @@ use three_d::*;
       } else{
         render_target.clear(code.clear_state.unwrap());
       }
-      /*let mut gm_array = Vec::new();
-      for model in &code.models{
-        let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
-        gm_array.push(object);
-      }*/
       if code.muls == None{
-        render_target.render(&camera, &[], &[]);  
+        let mut gm_array = Vec::new();
+        for model in &code.models{
+          let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
+          gm_array.push(&object);
+        }
+        render_target.render(&camera, &gm_array[..], &[]);  
       }else{
+        let mut gm_array = Vec::new();
+        for model in &code.models{
+          let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
+          gm_array.push(&object);
+        }
             let rows:u32 = 1;
             let columns:u32 = 1;
             let scissor_box = ScissorBox::new_at_origo(f_input.viewport.width/rows,f_input.viewport.height/columns);
-            render_target.render_partially(scissor_box, &camera, &[], &[]);
+            render_target.render_partially(scissor_box, &camera, &gm_array[..], &[]);
       }
     }
 

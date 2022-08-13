@@ -1,9 +1,13 @@
-import init from '/pkg/pulchra.js';
+import start from '/pkg/pulchra.js';
+export function get_input(){
+ return String(document.getElementById('input').value);
+}
 window.onload = (e) =>{
-init()
-.then((m)=>console.table(m))
+start()
 .catch('An error occurred. Try again later.')
 document.getElementById('input').addEventListener('keydown', (pressed)=>{
-    if (pressed.altKey && pressed.key == 'Enter'){}
+    if (pressed.ctrlKey && pressed.key == 'Enter'){
+        console.log(get_input());
+    }
 });
 }

@@ -87,7 +87,7 @@ use three_d::*;
         muls: Option<Vec<Multiplication>>
       }
 
-      fn interpret(input: &str)->Result<Input,&'static str>{
+      fn interpret(input: String)->Result<Input,&'static str>{
         if input == ""{
           return Err("No input")
         }
@@ -151,27 +151,45 @@ use three_d::*;
       } else{
         render_target.clear(code.clear_state.unwrap());
       }
+      let mut gm_array = Vec::new();
+      for model in &code.models{
+        let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
+        gm_array.push(object);
+      }
       if code.muls == None{
-        let mut gm_array = Vec::new();
-        for model in &code.models{
-          let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
-          gm_array.push(&object);
-        }
-        render_target.render(&camera, &gm_array[..], &[]);  
+        render_target.render(&camera, &[], &[]);  
       }else{
-        let mut gm_array = Vec::new();
-        for model in &code.models{
-          let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
-          gm_array.push(&object);
-        }
-            let rows:u32 = 1;
-            let columns:u32 = 1;
-            let scissor_box = ScissorBox::new_at_origo(f_input.viewport.width/rows,f_input.viewport.height/columns);
-            render_target.render_partially(scissor_box, &camera, &gm_array[..], &[]);
+         for muls in code.muls.as_ref(){
+          let mut i:u32 = 0;
+            for screen in muls{
+              let rows:u32 = screen.rows;
+              let columns:u32 = screen.columns;
+              let scissor_box = ScissorBox{
+                height: f_input.viewport.height/columns,
+                width: f_input.viewport.width/rows,
+                x: ((f_input.viewport.width/rows)*i) as i32,
+                y: ((f_input.viewport.height/columns)*i) as i32
+              };
+              render_target.render_partially(scissor_box, &camera, &[], &[]);
+              i += 1;
+            }
+         }
       }
     }
 
-    fn start(){
+  
+    use wasm_bindgen::prelude::*;
+    #[wasm_bindgen(module = "/index.js")]
+    extern "C"{
+      fn get_input() -> String;
+    }
+
+    #[wasm_bindgen]
+    pub fn get_code() -> String{
+      get_input()
+    }
+    
+  pub fn start(){
       let window = Window::new(WindowSettings{title: String::from("Pulchra"),
       min_size: (100, 100),
       ..Default::default()
@@ -191,15 +209,15 @@ use three_d::*;
       window.render_loop(move |mut frame_input| {
           let viewport = Viewport::new_at_origo(frame_input.viewport.width, frame_input.viewport.height);
           camera.set_viewport(viewport);
-          frame_input
+          /*frame_input
           .screen()
           .clear(ClearState::color(0.0, 0.0, 0.0, 1.0))
           .unwrap()
           .render(&camera, &[], &[])
           .unwrap()
-          .write(|| gui.render());
+          .write(|| gui.render());*/
 
-          render(&mut interpret("").unwrap(), &context, &camera, &mut frame_input);
+          render(&mut interpret(String::from("")).unwrap(), &context, &camera, &mut frame_input);
   
           FrameOutput::default()
       });

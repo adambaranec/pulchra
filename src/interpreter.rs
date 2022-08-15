@@ -120,8 +120,17 @@ GainNode,OscillatorNode,OscillatorType};
         for i in param.start()..param.end(){
         float.push(word.chars().nth(i).unwrap());
         };
-        let value:f32 = float.iter().collect::<String>().parse::<f32>().unwrap();
-        floats.push(value);
+        let int = float.iter().collect::<String>().parse::<u8>();
+        let value = float.iter().collect::<String>().parse::<f32>();
+        match value{
+          Ok(v)=>floats.push(v),
+          Err(err)=>{
+            match int{
+            Ok(v)=>floats.push(v as f32),
+            Err(err)=>{return Err("Invalid values.")}
+            }
+          },
+        }
       };
       Ok(floats)
     }
@@ -148,145 +157,98 @@ GainNode,OscillatorNode,OscillatorType};
         gain: Option<f32>,
         wave: OscillatorType
       }
-      struct Input {
-        models: Vec<CpuMesh>,
-        clear_state: Option<ClearState>,
-        muls: Option<Vec<Multiplication>>,
-        sounds: Option<Vec<Oscillator>>
+    
+     enum Input{
+      Visual{
+        object: Variant,
+        radius: Option<f32>,
+        color: Option<Color>
+      },
+      Audio{
+        wave: OscillatorType,
+        gain: Option<f32>
       }
+     }
+      
+      fn interpret(expr: String)->Result<(),&'static str>{
+      let words:Vec<&str> = expr.split_whitespace().collect();
+      let medium = || -> Medium {get_medium(words[0])};
+      let variant = || -> Variant {get_variant(words[0])};
+      let param = |w: &str| -> Param {get_param(w)};
 
-      enum State{
-        Success,
-        Wrong
-      }
-      fn inspect(input: String){
-         let object = Medium::Visuals;
-         let object_radius = (Medium::Visuals, Param::Range);
-         let object_radius_color = (Medium::Visuals, Param::Range, FnType::Rgb);
-         let object_color = (Medium::Visuals, FnType::Rgb);
-         let osc_freq = (Medium::Audio, Param::Quantity);
-         let osc_freq_amp = (Medium::Audio, Param::Quantity, Operator::Mul, Param::Range);
-         let multiplication = (Effect::Multiplication, Param::Quantity);
-      }
-
-      fn execute(input: String)->Result<Input,&'static str>{
-        if input == ""{
-          Err("No input")
+      let create_color = |w : &str| -> Result<(), &'static str>{
+        match floats_from(w){
+          Ok(vec)=>{
+            match vec.len(){
+                   3=>{return Ok(())},
+                   4=>{return Ok(())},
+                   _=>{return Err("Too many or little parameters.")},
+                     }
+          },
+          Err(err)=>{return Err("Invalid values.")},
+        }
+        Ok(())
+      };
+   
+      let control_functions = |w: &str| -> Result<(), &'static str> {
+        if medium() == Medium::Visuals{
+          match analyze_func(w){
+            FnType::Rgb=>create_color(w),
+            FnType::Rgba=>create_color(w),
+            FnType::Fft=>Ok(()),
+            FnType::Unknown=>Err("This function does not exist."),
+            _=>Err("This function does not suit."),
+          }
         }
         else{
-        let mut shapes:Vec<CpuMesh> = vec![];
-        let mut clear_color:Option<ClearState> = None;
-        let mut multiplications:Option<Vec<Multiplication>> = None;
-        let mut oscs:Option<Vec<Oscillator>> = None;
-        let mut input_values:Input = Input{
-          models: shapes,
-          clear_state: clear_color,
-          muls: multiplications,
-          sounds: oscs
-        };
-        let mut words:Vec<&str> = vec![];
-        Ok(input_values)
-      }
-      }
-        /*for statement in statements{
-          match words[0]{
-          "screen"=>{
-            if Regex::new(r"(rgb)+\([^\)]*\)?").unwrap().is_match(words[1]){
-              input_values.clear_state = Some(ClearState::color(floats_from(words[1]).unwrap()[0], floats_from(words[1]).unwrap()[1], floats_from(words[1]).unwrap()[2],1.0));
-              } else{ 
-                let float = words[1].chars().collect::<String>().parse::<f32>();
-                match float{
-                  Ok(val) => input_values.clear_state = Some(ClearState::color(val,val,val,1.0)),
-                  Err(err) => {return Err("Unknown parameter for screen color.");},
-                }
-              }
-            },
-          "mul"=>{
-            let num = words[1].chars().collect::<String>().parse::<u32>();
-            match num{
-              Ok(val) => input_values.muls = Some(vec![Multiplication{rows: val, columns: val}]),
-              Err(err) => {return Err("Unknown parameter for multiplication.")},
-            }
-          },
-          "cube"=>{
-            let radius = words[1].chars().collect::<String>().parse::<f32>();
-            match radius{
-              Ok(val)=> input_values.models.push(create_model(Shape::Cube,Some(val),None).unwrap()),
-              Err(err) => input_values.models.push(create_model(Shape::Cube,None,None).unwrap()),
-            }
-          },
-          "sphere"=>{
-            let radius = words[1].chars().collect::<String>().parse::<f32>();
-            match radius{
-              Ok(val)=> input_values.models.push(create_model(Shape::Sphere,Some(val),None).unwrap()),
-              Err(err) =>input_values.models.push(create_model(Shape::Sphere,None,None).unwrap()),
-            }
-          },
-          "sin"=>{
-            let mut array = vec![];
-            let freq =  words[1].chars().collect::<String>().parse::<u32>();
-            if words[2] == "*"{
-              let gain = words[3].chars().collect::<String>().parse::<f32>();
-              match freq{
-                Ok(f)=>{
-                  match gain{
-                    Ok(g) => {array.push(Oscillator{freq: f, gain: Some(g), wave: OscillatorType::Sine});
-                    input_values.sounds = Some(array)
-                  },
-                    Err(err) =>{array.push(Oscillator{freq: f, gain: Some(1.0), wave: OscillatorType::Sine});
-                    input_values.sounds = Some(array)}
-                  }
-                },
-                Err(err)=>{return Err("You must always supply the frequency value.")}
-              }
-            }
-          },
-          "saw"=>{
-            let mut array = vec![];
-            let freq =  words[1].chars().collect::<String>().parse::<u32>();
-            if words[2] == "*"{
-              let gain = words[3].chars().collect::<String>().parse::<f32>();
-              match freq{
-                Ok(f)=>{
-                  match gain{
-                    Ok(g) => {array.push(Oscillator{freq: f, gain: Some(g), wave: OscillatorType::Sawtooth});
-                    input_values.sounds = Some(array)
-                  },
-                    Err(err) =>{array.push(Oscillator{freq: f, gain: Some(1.0), wave: OscillatorType::Sawtooth});
-                    input_values.sounds = Some(array)}
-                  }
-                },
-                Err(err)=>{return Err("You must always supply the frequency value.")}
-              }
-            }
-          },
-          "sqr"=>{
-            let mut array = vec![];
-            let freq =  words[1].chars().collect::<String>().parse::<u32>();
-            if words[2] == "*"{
-              let gain = words[3].chars().collect::<String>().parse::<f32>();
-              match freq{
-                Ok(f)=>{
-                  match gain{
-                    Ok(g) => {array.push(Oscillator{freq: f, gain: Some(g), wave: OscillatorType::Square});
-                    input_values.sounds = Some(array)
-                  },
-                    Err(err) =>{array.push(Oscillator{freq: f, gain: Some(1.0), wave: OscillatorType::Square});
-                    input_values.sounds = Some(array)}
-                  }
-                },
-                Err(err)=>{return Err("You must always supply the frequency value.")}
-              }
-            }
-          },
-          "noise"=>{},
-          _=>{return Err("Unknown type.")}
-          } 
+          match analyze_func(w){
+            FnType::Unknown=>Err("This function does not exist."),
+            _=>Err("This function does not suit here."),
+          }
         }
-         Ok(input_values)
-      }*/
+      };
 
-    fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
+      let video_params = |w: &str| -> Result<(), &'static str> {
+        if param(w) != Param::Unknown && param(w) != Param::Quantity{
+         match param(w){
+         Param::Range=>Ok(()),
+         Param::Function=>control_functions(w),
+         Param::Quantity=>Err("Unknown parameter."),
+         Param::Unknown=>todo!(),
+         }
+        } else {
+          Err("Unknown parameter.")
+        }
+      };
+
+      let audio_params = |w: &str| -> Result<(), &'static str> {
+        if param(w) != Param::Unknown && param(w) != Param::Quantity{
+          match param(w){
+          Param::Range=>Ok(()),
+          Param::Function=>control_functions(w),
+          Param::Quantity=>Err("Unknown parameter."),
+          Param::Unknown=>todo!(),
+          }
+         } else {
+           Err("Unknown parameter.")
+         }
+      };
+
+      let control_media = || -> Result<(), &'static str> {
+        if medium() != Medium::Unknown {
+          match medium(){
+            Medium::Visuals=>video_params(words[1]),
+            Medium::Audio=>audio_params(words[1]),
+            _=>todo!(),
+          }
+        } else {
+          Err("Unknown type of media.")
+        }
+      };
+      control_media()
+      }
+
+    /*fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
       let render_target:RenderTarget = f_input.screen();
       if code.clear_state == None{
         render_target.clear(ClearState::color(0.0, 0.0, 0.0, 1.0)).unwrap();
@@ -332,7 +294,7 @@ GainNode,OscillatorNode,OscillatorType};
        gain.connect_with_audio_node(&ctx.destination());
        }
      }
-    }
+    }*/
   
     use wasm_bindgen::prelude::*;
     #[wasm_bindgen(module = "/index.js")]
@@ -367,12 +329,7 @@ GainNode,OscillatorNode,OscillatorType};
           .unwrap()
           .render(&camera, &[], &[])
           .unwrap()
-          .write(|| gui.render());*/
-          
-          match execute(String::from(get_input())){
-            Ok(values)=>render(&values, &context, &camera, &mut frame_input, &mut gui),
-            Err(err)=>send_err(err),
-          }  
+          .write(|| gui.render());*/ 
           FrameOutput::default()
       });
   }

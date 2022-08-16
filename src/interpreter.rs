@@ -25,6 +25,7 @@ GainNode,OscillatorNode,OscillatorType};
     Quantity,
     Range,
     Function,
+    Realtime,
     Unknown
   }
   #[derive(PartialEq)]
@@ -107,15 +108,15 @@ GainNode,OscillatorNode,OscillatorType};
     //parameter: slovo ako funkcia rgb()...
     fn analyze_func(word: &str) -> FnType{
     if Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgb;}
-    if Regex::new(r"rgba\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgba;}
-    if Regex::new(r"fft\[[0-9]+]").unwrap().is_match(word){return FnType::Fft;}
-    if Regex::new(r"(?!.*(rgb|rgba|fft))").unwrap().is_match(word){return FnType::Unknown;}
+    else if Regex::new(r"rgba\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgba;}
+    else if Regex::new(r"fft\[[0-9]+]").unwrap().is_match(word){return FnType::Fft;}
+    else if Regex::new(r"(?!.*(rgb|rgba|fft))").unwrap().is_match(word){return FnType::Unknown;}
     else {return FnType::NotFunction;}
     }
 
     fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
       let mut floats:Vec<f32> = vec![];
-      for param in Regex::new(r"(0.(\d+)|1|0)").unwrap().find_iter(word){
+      for param in Regex::new(r"((0\.[\d]+)|1)").unwrap().find_iter(word){
         let mut float:Vec<char> = vec![];
         for i in param.start()..param.end(){
         float.push(word.chars().nth(i).unwrap());
@@ -151,101 +152,125 @@ GainNode,OscillatorNode,OscillatorType};
         rows: u32,
         columns: u32
       }
-      #[derive(PartialEq)]
-      struct Oscillator{
-        freq: u32,
-        gain: Option<f32>,
-        wave: OscillatorType
-      }
-    
-     enum Input{
-      Visual{
-        object: Variant,
-        radius: Option<f32>,
-        color: Option<Color>
-      },
-      Audio{
-        wave: OscillatorType,
-        gain: Option<f32>
-      }
-     }
-      
-      fn interpret(expr: String)->Result<(),&'static str>{
+        
+      fn interpret(expr: String){
       let words:Vec<&str> = expr.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
+      let operator = |c: char| -> Operator {get_operator(c)};
 
-      let create_color = |w : &str| -> Result<(), &'static str>{
-        match floats_from(w){
-          Ok(vec)=>{
-            match vec.len(){
-                   3=>{return Ok(())},
-                   4=>{return Ok(())},
-                   _=>{return Err("Too many or little parameters.")},
-                     }
-          },
-          Err(err)=>{return Err("Invalid values.")},
-        }
-        Ok(())
-      };
-   
-      let control_functions = |w: &str| -> Result<(), &'static str> {
-        if medium() == Medium::Visuals{
-          match analyze_func(w){
-            FnType::Rgb=>create_color(w),
-            FnType::Rgba=>create_color(w),
-            FnType::Fft=>Ok(()),
-            FnType::Unknown=>Err("This function does not exist."),
-            _=>Err("This function does not suit."),
-          }
-        }
-        else{
-          match analyze_func(w){
-            FnType::Unknown=>Err("This function does not exist."),
-            _=>Err("This function does not suit here."),
-          }
-        }
-      };
-
-      let video_params = |w: &str| -> Result<(), &'static str> {
-        if param(w) != Param::Unknown && param(w) != Param::Quantity{
-         match param(w){
-         Param::Range=>Ok(()),
-         Param::Function=>control_functions(w),
-         Param::Quantity=>Err("Unknown parameter."),
-         Param::Unknown=>todo!(),
-         }
-        } else {
-          Err("Unknown parameter.")
-        }
-      };
-
-      let audio_params = |w: &str| -> Result<(), &'static str> {
-        if param(w) != Param::Unknown && param(w) != Param::Quantity{
-          match param(w){
-          Param::Range=>Ok(()),
-          Param::Function=>control_functions(w),
-          Param::Quantity=>Err("Unknown parameter."),
-          Param::Unknown=>todo!(),
-          }
-         } else {
-           Err("Unknown parameter.")
-         }
-      };
-
-      let control_media = || -> Result<(), &'static str> {
-        if medium() != Medium::Unknown {
-          match medium(){
-            Medium::Visuals=>video_params(words[1]),
-            Medium::Audio=>audio_params(words[1]),
+      let create_audio = |freq: u32, gain: f32| {
+        if variant() != Variant::Unknown {
+          match variant(){
+            Variant::SinOsc=>{},
+            Variant::SawOsc=>{},
+            Variant::SqrOsc=>{},
+            Variant::NoiseOsc=>{},
             _=>todo!(),
           }
         } else {
-          Err("Unknown type of media.")
+  
         }
       };
-      control_media()
+
+      let create_visual = |range: Option<f32>, color: Option<Vec<f32>>| {
+        if variant() != Variant::Unknown {
+        match variant(){
+          Variant::Screen=>{},
+          Variant::Cube=>{},
+          Variant::Sphere=>{},
+          _=>todo!(),
+        }
+      } else {
+
+      }
+      };
+
+      let prepare_visual = |w: &[&str]| {
+      if w.len() == 1{
+        if param(w[0]) == Param::Range{
+          match String::from(w[0]).parse::<f32>(){
+            Ok(val)=>create_visual(Some(val), None),
+            Err(err)=>todo!(),
+          }
+        }
+        else if analyze_func(w[0]) == FnType::Rgb{
+          match floats_from(w[0]){
+            Ok(val)=>create_visual(None, Some(val)),
+            Err(err)=>todo!(),
+          }
+        }
+        else {
+          todo!();
+        }
+      }
+      else if w.len() == 2{
+         if variant() != Variant::Screen{
+          if param(w[0]) == Param::Range && analyze_func(w[1]) == FnType::Rgb{
+            let mut range:f32 = 0.0;
+            let mut color:Vec<f32> = vec![];
+            match String::from(w[0]).parse::<f32>(){
+            Ok(val)=>{range = val},
+            Err(err)=>todo!(),
+            }
+            match floats_from(w[0]){
+            Ok(val)=>{for v in val{color.push(v)}},
+            Err(err)=>todo!(),
+            }
+            create_visual(Some(range), Some(color));
+          }
+          else{
+            todo!();
+          }
+         } else {todo!();}
+      }
+      else if w.len() < 1 || w.len() > 2{
+        todo!();
+      } 
+      else {
+      todo!()
+      }
+      };
+
+      let prepare_audio = |w: &str| {
+        if Regex::new(r"([a-z]+) ([\d]+) \* (0.(\d+)|1|0)").unwrap().is_match(w) ||
+        Regex::new(r"([a-z]+) ([\d]+)\*(0.(\d+)|1|0)").unwrap().is_match(w){
+        let freq_result = Regex::new(r"[\d]+").unwrap().find(w);
+        let gain_result = Regex::new(r"(0\.[\d]+)|1").unwrap().find(w);
+        let mut freq:u32=0;
+        let mut gain:f32=0.0;
+        if freq_result != None{
+          match String::from(freq_result.unwrap().as_str()).parse::<u32>(){
+            Ok(val)=>{freq = val},
+            Err(err)=>todo!(),
+          }
+          if gain_result == None{
+            gain = 1.0;
+            create_audio(freq, gain);
+          }
+          else{
+            match String::from(gain_result.unwrap().as_str()).parse::<f32>(){
+              Ok(val)=>{gain = val; create_audio(freq, gain)},
+              Err(err)=>todo!(),
+            }
+          }
+        }
+        } else {
+          todo!();
+        }
+      };
+
+      let control_media = || {
+        if medium() != Medium::Unknown {
+          match medium(){
+            Medium::Visuals=>prepare_visual(&words[1.. ]),
+            Medium::Audio=>prepare_audio(&expr),
+            _=>todo!(),
+          }
+        }
+      };
+      control_media();
       }
 
     /*fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
@@ -320,7 +345,7 @@ GainNode,OscillatorNode,OscillatorType};
           1000.0
       ).unwrap();
       let mut gui = three_d::GUI::new(&context).unwrap();
-      window.render_loop(move |mut frame_input| {
+      window.render_loop(move |frame_input| {
           let viewport = Viewport::new_at_origo(frame_input.viewport.width, frame_input.viewport.height);
           camera.set_viewport(viewport);
           /*frame_input

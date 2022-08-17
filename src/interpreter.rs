@@ -152,6 +152,18 @@ GainNode,OscillatorNode,OscillatorType};
         rows: u32,
         columns: u32
       }
+      struct Input{
+        v_range: Option<f32>,
+        v_color: Option<Vec<f32>>,
+        v_type: Option<Variant>,
+        a_freq: Option<u32>,
+        a_gain: Option<f32>,
+        a_type: Option<Variant>
+      }
+      impl Input{
+        fn new_visual(variant: Variant, range: Option<f32>, color:Option<Vec<f32>>){}
+        fn new_audio(variant: Variant, freq: u32, gain: Option<f32>){}
+      }
         
       fn interpret(expr: String){
       let words:Vec<&str> = expr.split_whitespace().collect();
@@ -273,7 +285,61 @@ GainNode,OscillatorNode,OscillatorType};
       control_media();
       }
 
-    /*fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
+
+  
+    use wasm_bindgen::prelude::*;
+    #[wasm_bindgen(module = "/index.js")]
+    extern "C"{
+      fn get_input() -> String;
+      fn send_err(error: &str);
+    }
+
+    fn execute(input: String){
+      if input.contains(";"){
+        let exprs = input.split(';');
+          for expr in exprs{
+
+          }
+      }
+      else{
+        let exprs = input.split_whitespace();
+          for expr in exprs{
+            
+          }
+    }
+  }
+    
+  pub fn start(){
+      let window = Window::new(WindowSettings{title: String::from("Pulchra"),
+      min_size: (100, 100),
+      ..Default::default()
+  }).unwrap();
+      let context = window.gl().unwrap();
+      let mut camera = Camera::new_perspective(
+          &context,
+          window.viewport().unwrap(),
+          vec3(-3.0, 1.0, 2.5),
+          vec3(0.0, 0.0, 0.0),
+          vec3(0.0, 1.0, 0.0),
+          degrees(45.0),
+          0.1,
+          1000.0
+      ).unwrap();
+      let mut gui = three_d::GUI::new(&context).unwrap();
+      let ctx = AudioContext::new().unwrap();
+  }
+
+  fn render(window: Window, input: &Input){
+    window.render_loop(move |frame_input| {
+      FrameOutput::default()
+  }); 
+  }
+
+  fn play(context: &AudioContext, input: &Input){
+
+  }
+
+  /*fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
       let render_target:RenderTarget = f_input.screen();
       if code.clear_state == None{
         render_target.clear(ClearState::color(0.0, 0.0, 0.0, 1.0)).unwrap();
@@ -305,56 +371,4 @@ GainNode,OscillatorNode,OscillatorType};
          }
       }
       render_target.write(|| gui.render());
-    }
-
-    fn sound(code: &Input){
-     let ctx = AudioContext::new().unwrap();
-     for arr in &code.sounds{
-       for osc in arr {
-       let synth = ctx.create_oscillator().unwrap();
-       let gain = ctx.create_gain().unwrap();
-       synth.set_type(osc.wave);
-       gain.gain().set_value(osc.gain.unwrap());
-       synth.connect_with_audio_node(&gain);
-       gain.connect_with_audio_node(&ctx.destination());
-       }
-     }
     }*/
-  
-    use wasm_bindgen::prelude::*;
-    #[wasm_bindgen(module = "/index.js")]
-    extern "C"{
-      fn get_input() -> String;
-      fn send_err(error: &str);
-    }
-    
-  pub fn start(){
-      let window = Window::new(WindowSettings{title: String::from("Pulchra"),
-      min_size: (100, 100),
-      ..Default::default()
-  }).unwrap();
-      let context = window.gl().unwrap();
-      let mut camera = Camera::new_perspective(
-          &context,
-          window.viewport().unwrap(),
-          vec3(-3.0, 1.0, 2.5),
-          vec3(0.0, 0.0, 0.0),
-          vec3(0.0, 1.0, 0.0),
-          degrees(45.0),
-          0.1,
-          1000.0
-      ).unwrap();
-      let mut gui = three_d::GUI::new(&context).unwrap();
-      window.render_loop(move |frame_input| {
-          let viewport = Viewport::new_at_origo(frame_input.viewport.width, frame_input.viewport.height);
-          camera.set_viewport(viewport);
-          /*frame_input
-          .screen()
-          .clear(ClearState::color(0.0, 0.0, 0.0, 1.0))
-          .unwrap()
-          .render(&camera, &[], &[])
-          .unwrap()
-          .write(|| gui.render());*/ 
-          FrameOutput::default()
-      });
-  }

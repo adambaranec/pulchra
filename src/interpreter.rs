@@ -1,7 +1,7 @@
 use regex::Regex;
 use three_d::*;
 use web_sys::{AudioContext,AudioDestinationNode,AudioNode,AudioParam,
-GainNode,OscillatorNode,OscillatorType};
+GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
 
   #[derive(PartialEq)]
   enum Medium{
@@ -135,17 +135,32 @@ GainNode,OscillatorNode,OscillatorType};
       };
       Ok(floats)
     }
+
+    fn create_osc(ctx: &AudioContext, wave: Variant, freq: u32, gain: f32){
+    if wave != Variant::NoiseOsc{
+    let osc = OscillatorNode::new(ctx).unwrap();
+    let gain_node = GainNode::new(ctx).unwrap();
+    osc.frequency().set_value(freq as f32);
+    gain_node.gain().set_value(gain);
+    match wave{
+    Variant::SinOsc=>osc.set_type(OscillatorType::Sine),
+    Variant::SawOsc=>osc.set_type(OscillatorType::Sawtooth),
+    Variant::SqrOsc=>osc.set_type(OscillatorType::Square),
+    _=>todo!(),
+    }
+    } else {
+      use rand::prelude::*;
+      let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * ctx.sample_rate() as u32, ctx.sample_rate())).unwrap();
+      let mut output:Vec<f32> = noise_buf.get_channel_data(0).unwrap();
+      for mut val in output{
+       val = rand::thread_rng().gen::<f32>() - 1.0 * 2.0;
+      }
+    }
+    }
   
-    fn create_model(shape: Shape, radius: Option<f32>, color: Option<Color>)->Result<CpuMesh, &'static str>{
-      let cube_pos = vec![];
-      let sphere_pos = vec![];
-      match shape{
-        Shape::Cube=>{if radius != None{return Ok(CpuMesh{positions: Positions::F32(cube_pos), colors: Some(vec![]), ..Default::default()})}
-        else{return Ok(CpuMesh::cube())}},
-        Shape::Sphere=>{if radius != None{return Ok(CpuMesh{positions: Positions::F32(sphere_pos), colors: Some(vec![]), ..Default::default()})}
-        else{return Ok(CpuMesh::sphere(20))}},
-      }
-      }
+    fn create_model(shape: Variant, range: f32, color: Vec<f32>){
+     
+    }
       
       #[derive(PartialEq)]
       struct Multiplication{
@@ -165,7 +180,7 @@ GainNode,OscillatorNode,OscillatorType};
         fn new_audio(variant: Variant, freq: u32, gain: Option<f32>){}
       }
         
-      fn interpret(expr: String){
+      fn interpret(expr: String, ctx: &AudioContext){
       let words:Vec<&str> = expr.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
@@ -175,9 +190,9 @@ GainNode,OscillatorNode,OscillatorType};
       let create_audio = |freq: u32, gain: f32| {
         if variant() != Variant::Unknown {
           match variant(){
-            Variant::SinOsc=>{},
-            Variant::SawOsc=>{},
-            Variant::SqrOsc=>{},
+            Variant::SinOsc=>create_osc(ctx, Variant::SinOsc, freq, gain),
+            Variant::SawOsc=>create_osc(ctx, Variant::SawOsc, freq, gain),
+            Variant::SqrOsc=>create_osc(ctx, Variant::SqrOsc, freq, gain),
             Variant::NoiseOsc=>{},
             _=>todo!(),
           }
@@ -186,12 +201,12 @@ GainNode,OscillatorNode,OscillatorType};
         }
       };
 
-      let create_visual = |range: Option<f32>, color: Option<Vec<f32>>| {
+      let create_visual = |range: f32, color: Vec<f32>| {
         if variant() != Variant::Unknown {
         match variant(){
           Variant::Screen=>{},
-          Variant::Cube=>{},
-          Variant::Sphere=>{},
+          Variant::Cube=>create_model(Variant::Cube, range, color),
+          Variant::Sphere=>create_model(Variant::Sphere, range, color),
           _=>todo!(),
         }
       } else {
@@ -203,13 +218,13 @@ GainNode,OscillatorNode,OscillatorType};
       if w.len() == 1{
         if param(w[0]) == Param::Range{
           match String::from(w[0]).parse::<f32>(){
-            Ok(val)=>create_visual(Some(val), None),
+            Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
             Err(err)=>todo!(),
           }
         }
         else if analyze_func(w[0]) == FnType::Rgb{
           match floats_from(w[0]){
-            Ok(val)=>create_visual(None, Some(val)),
+            Ok(val)=>create_visual(1.0, val),
             Err(err)=>todo!(),
           }
         }
@@ -230,7 +245,7 @@ GainNode,OscillatorNode,OscillatorType};
             Ok(val)=>{for v in val{color.push(v)}},
             Err(err)=>todo!(),
             }
-            create_visual(Some(range), Some(color));
+            create_visual(range, color);
           }
           else{
             todo!();
@@ -314,18 +329,16 @@ GainNode,OscillatorNode,OscillatorType};
       min_size: (100, 100),
       ..Default::default()
   }).unwrap();
-      let context = window.gl().unwrap();
+      let context = window.gl();
       let mut camera = Camera::new_perspective(
-          &context,
-          window.viewport().unwrap(),
+          window.viewport(),
           vec3(-3.0, 1.0, 2.5),
           vec3(0.0, 0.0, 0.0),
           vec3(0.0, 1.0, 0.0),
           degrees(45.0),
           0.1,
           1000.0
-      ).unwrap();
-      let mut gui = three_d::GUI::new(&context).unwrap();
+      );
       let ctx = AudioContext::new().unwrap();
   }
 

@@ -42,12 +42,6 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
       NotFunction
     }
     #[derive(PartialEq)]
-    enum Operator{
-      Mul,
-      Division,
-      Unknown
-    }
-    #[derive(PartialEq)]
     enum Effect{
       Multiplication
     }
@@ -94,14 +88,6 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
                 false=>Param::Unknown
                }
         },
-      }
-    }
-
-    fn get_operator(symbol: char)->Operator{
-      match symbol{
-      '*'=>Operator::Mul,
-      '/'=>Operator::Division,
-      _=>Operator::Unknown
       }
     }
       
@@ -158,8 +144,44 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
     }
     }
   
-    fn create_model(shape: Variant, range: f32, color: Vec<f32>){
-     
+    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color){
+     match shape{
+      Variant::Cube=>{
+        let cube_pos:Vec<Vector3<f32>>=vec![
+        vec3(range*(-1.0),range*(-1.0),0.0),vec3(range,range*(-1.0),0.0),
+        vec3(range,range,0.0),vec3(range*(-1.0),range,0.0),
+        vec3(range*(-1.0),range*(-1.0),range),vec3(range,range*(-1.0),range),
+        vec3(range,range,range),vec3(range*(-1.0),range,range)];
+        let model = Gm::new(Mesh::new(ctx, 
+        &CpuMesh{positions: Positions::F32(cube_pos), colors: Some(vec![color]),
+         ..Default::default()}),
+        ColorMaterial::default());
+      },
+      Variant::Sphere=>{
+        let angle = Rad::<f32>::full_turn();
+        let longitude = angle / 20.0;
+        let rotation = angle / 30.0;
+        let mut x:f32 = 0.0;
+        let mut y:f32 = 0.0;
+        let mut z:f32 = 0.0;
+        let mut sphere_pos:Vec<Vector3<f32>>=vec![];
+        //rotations of longitudes
+        for i in 1..30{
+        z = Rad::sin((rotation * i as f32) * range);
+          //positions of vertices creating the longitude
+          for i in 1..20{
+          y = Rad::sin((longitude * i as f32) * range);
+          x = Rad::cos((longitude * i as f32) * range);
+          sphere_pos.push(vec3(x,y,z));
+          }
+        }
+        let model = Gm::new(Mesh::new(ctx, 
+          &CpuMesh{positions: Positions::F32(sphere_pos), colors: Some(vec![color]),
+           ..Default::default()}),
+          ColorMaterial::default());
+      },
+      _=>todo!(),
+     }
     }
       
       #[derive(PartialEq)]
@@ -167,32 +189,19 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
         rows: u32,
         columns: u32
       }
-      struct Input{
-        v_range: Option<f32>,
-        v_color: Option<Vec<f32>>,
-        v_type: Option<Variant>,
-        a_freq: Option<u32>,
-        a_gain: Option<f32>,
-        a_type: Option<Variant>
-      }
-      impl Input{
-        fn new_visual(variant: Variant, range: Option<f32>, color:Option<Vec<f32>>){}
-        fn new_audio(variant: Variant, freq: u32, gain: Option<f32>){}
-      }
         
-      fn interpret(expr: String, ctx: &AudioContext){
+      fn interpret(expr: String, audio_ctx: &AudioContext, gl_ctx: &Context){
       let words:Vec<&str> = expr.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
-      let operator = |c: char| -> Operator {get_operator(c)};
 
       let create_audio = |freq: u32, gain: f32| {
         if variant() != Variant::Unknown {
           match variant(){
-            Variant::SinOsc=>create_osc(ctx, Variant::SinOsc, freq, gain),
-            Variant::SawOsc=>create_osc(ctx, Variant::SawOsc, freq, gain),
-            Variant::SqrOsc=>create_osc(ctx, Variant::SqrOsc, freq, gain),
+            Variant::SinOsc=>create_osc(audio_ctx, Variant::SinOsc, freq, gain),
+            Variant::SawOsc=>create_osc(audio_ctx, Variant::SawOsc, freq, gain),
+            Variant::SqrOsc=>create_osc(audio_ctx, Variant::SqrOsc, freq, gain),
             Variant::NoiseOsc=>{},
             _=>todo!(),
           }
@@ -205,8 +214,8 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
         if variant() != Variant::Unknown {
         match variant(){
           Variant::Screen=>{},
-          Variant::Cube=>create_model(Variant::Cube, range, color),
-          Variant::Sphere=>create_model(Variant::Sphere, range, color),
+          Variant::Cube=>create_model(gl_ctx, Variant::Cube, range, Color::from_rgb_slice(&[color[0],color[1],color[2]])),
+          Variant::Sphere=>create_model(gl_ctx, Variant::Sphere, range, Color::from_rgb_slice(&[color[0],color[1],color[2]])),
           _=>todo!(),
         }
       } else {
@@ -342,13 +351,13 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
       let ctx = AudioContext::new().unwrap();
   }
 
-  fn render(window: Window, input: &Input){
+  fn render(window: Window){
     window.render_loop(move |frame_input| {
       FrameOutput::default()
   }); 
   }
 
-  fn play(context: &AudioContext, input: &Input){
+  fn play(context: &AudioContext){
 
   }
 

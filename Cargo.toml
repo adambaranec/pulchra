@@ -16,8 +16,12 @@ getrandom = { version = "0.2.7", features = ["js"] }
 [dependencies.web-sys]
 version = "0.3.59"
 features = [
+  'AnalyserNode',
+  'AnalyserOptions',
   'AudioBuffer',
   'AudioBufferOptions',
+  'AudioBufferSourceNode',
+  'AudioBufferSourceOptions',
   'AudioContext',
   'AudioDestinationNode',
   'AudioNode',

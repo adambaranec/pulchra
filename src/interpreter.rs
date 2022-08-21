@@ -1,7 +1,14 @@
 use regex::Regex;
 use three_d::*;
-use web_sys::{AudioContext,AudioDestinationNode,AudioNode,AudioParam,
-GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
+use web_sys::{AudioContext,GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions,
+AudioBufferSourceNode,AudioBufferSourceOptions};
+use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen(module = "/index.js")]
+extern "C"{
+  fn get_input() -> String;
+  fn send_err(error: &str);
+}
 
   #[derive(PartialEq)]
   enum Medium{
@@ -46,8 +53,6 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
       Multiplication
     }
 
-    /* These functions find meaning of individual words.*/
-
     fn get_medium(word: &str)->Medium{
     match word{
       "screen"=>Medium::Visuals,
@@ -56,7 +61,7 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
       "sin"=>Medium::Audio,
       "saw"=>Medium::Audio,
       "sqr"=>Medium::Audio,
-      "noise"=>Medium::Audio,
+      "rnd"=>Medium::Audio,
       _=>Medium::Unknown
     }
     }
@@ -69,7 +74,7 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
       "sin"=>Variant::SinOsc,
       "saw"=>Variant::SawOsc,
       "sqr"=>Variant::SqrOsc,
-      "noise"=>Variant::NoiseOsc,
+      "rnd"=>Variant::NoiseOsc,
       _=>Variant::Unknown
       }
     }
@@ -90,8 +95,7 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
         },
       }
     }
-      
-    //parameter: slovo ako funkcia rgb()...
+
     fn analyze_func(word: &str) -> FnType{
     if Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgb;}
     else if Regex::new(r"rgba\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgba;}
@@ -134,16 +138,29 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
     Variant::SqrOsc=>osc.set_type(OscillatorType::Square),
     _=>todo!(),
     }
+    osc.connect_with_audio_node(&gain_node);
+    gain_node.connect_with_audio_node(&ctx.destination());
+    osc.stop();
+    osc.start();
     } else {
       use rand::prelude::*;
       let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * ctx.sample_rate() as u32, ctx.sample_rate())).unwrap();
       let mut output:Vec<f32> = noise_buf.get_channel_data(0).unwrap();
       for mut val in output{
-       val = rand::thread_rng().gen::<f32>() - 1.0 * 2.0;
+       val = (rand::thread_rng().gen::<f32>() * gain) - 1.0 * 2.0;
       }
+      let mut options = AudioBufferSourceOptions::new();
+      options.buffer(Some(&noise_buf));
+      options.loop_(true);
+      let buf_player = AudioBufferSourceNode::new_with_options(ctx, &options).unwrap();
+      buf_player.connect_with_audio_node(&ctx.destination());
+      buf_player.stop();
+      buf_player.start();
     }
     }
   
+    static SHAPES:Vec<CpuMesh> = vec![];
+    static COLORS:Vec<Color> = vec![];
     fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color){
      match shape{
       Variant::Cube=>{
@@ -190,7 +207,7 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
         columns: u32
       }
         
-      fn interpret(expr: String, audio_ctx: &AudioContext, gl_ctx: &Context){
+      fn interpret(expr: &String, audio_ctx: &AudioContext, gl_ctx: &Context){
       let words:Vec<&str> = expr.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
@@ -202,7 +219,7 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
             Variant::SinOsc=>create_osc(audio_ctx, Variant::SinOsc, freq, gain),
             Variant::SawOsc=>create_osc(audio_ctx, Variant::SawOsc, freq, gain),
             Variant::SqrOsc=>create_osc(audio_ctx, Variant::SqrOsc, freq, gain),
-            Variant::NoiseOsc=>{},
+            Variant::NoiseOsc=>create_osc(audio_ctx, Variant::NoiseOsc, freq, gain),
             _=>todo!(),
           }
         } else {
@@ -308,34 +325,11 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
       };
       control_media();
       }
-
-
-  
-    use wasm_bindgen::prelude::*;
-    #[wasm_bindgen(module = "/index.js")]
-    extern "C"{
-      fn get_input() -> String;
-      fn send_err(error: &str);
-    }
-
-    fn execute(input: String){
-      if input.contains(";"){
-        let exprs = input.split(';');
-          for expr in exprs{
-
-          }
-      }
-      else{
-        let exprs = input.split_whitespace();
-          for expr in exprs{
-            
-          }
-    }
-  }
     
   pub fn start(){
       let window = Window::new(WindowSettings{title: String::from("Pulchra"),
       min_size: (100, 100),
+      borderless: true,
       ..Default::default()
   }).unwrap();
       let context = window.gl();
@@ -349,17 +343,22 @@ GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions};
           1000.0
       );
       let ctx = AudioContext::new().unwrap();
+      window.render_loop(move |frame_input| {
+        FrameOutput::default()
+    }); 
   }
 
-  fn render(window: Window){
-    window.render_loop(move |frame_input| {
-      FrameOutput::default()
-  }); 
+  fn execute(input: &String, au: &AudioContext, gl: &Context){
+    if input.contains(";"){
+      let exprs = input.split(';');
+        for expr in exprs{
+         interpret(input, au, gl);
+        }
+    }
+    else{
+      interpret(input, au, gl);
   }
-
-  fn play(context: &AudioContext){
-
-  }
+}
 
   /*fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
       let render_target:RenderTarget = f_input.screen();

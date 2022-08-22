@@ -1,6 +1,6 @@
 use regex::Regex;
 use three_d::*;
-use web_sys::{AudioContext,GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions,
+use web_sys::{AudioContext,AudioNode,GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions,
 AudioBufferSourceNode,AudioBufferSourceOptions};
 use wasm_bindgen::prelude::*;
 
@@ -126,22 +126,19 @@ extern "C"{
       Ok(floats)
     }
 
-    fn create_osc(ctx: &AudioContext, wave: Variant, freq: u32, gain: f32){
+    fn create_osc(ctx: &AudioContext, wave: Variant, freq: u32, gain: f32) -> Result<AudioNode,&'static str>{
     if wave != Variant::NoiseOsc{
     let osc = OscillatorNode::new(ctx).unwrap();
     let gain_node = GainNode::new(ctx).unwrap();
     osc.frequency().set_value(freq as f32);
     gain_node.gain().set_value(gain);
     match wave{
-    Variant::SinOsc=>osc.set_type(OscillatorType::Sine),
-    Variant::SawOsc=>osc.set_type(OscillatorType::Sawtooth),
-    Variant::SqrOsc=>osc.set_type(OscillatorType::Square),
+    Variant::SinOsc=>{osc.set_type(OscillatorType::Sine); Ok(AudioNode::from(osc))},
+    Variant::SawOsc=>{osc.set_type(OscillatorType::Sawtooth); Ok(AudioNode::from(osc))},
+    Variant::SqrOsc=>{osc.set_type(OscillatorType::Square); Ok(AudioNode::from(osc))},
     _=>todo!(),
     }
-    osc.connect_with_audio_node(&gain_node);
-    gain_node.connect_with_audio_node(&ctx.destination());
-    osc.stop();
-    osc.start();
+
     } else {
       use rand::prelude::*;
       let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * ctx.sample_rate() as u32, ctx.sample_rate())).unwrap();
@@ -152,16 +149,15 @@ extern "C"{
       let mut options = AudioBufferSourceOptions::new();
       options.buffer(Some(&noise_buf));
       options.loop_(true);
-      let buf_player = AudioBufferSourceNode::new_with_options(ctx, &options).unwrap();
-      buf_player.connect_with_audio_node(&ctx.destination());
-      buf_player.stop();
-      buf_player.start();
+      let buf_player = AudioBufferSourceNode::new_with_options(ctx, &options);
+      match buf_player{
+        Ok(val) =>{return Ok(AudioNode::from(val))},
+        Err(err)=>{return Err("Invalid buffer player.")},
+      }
     }
     }
-  
-    static SHAPES:Vec<CpuMesh> = vec![];
-    static COLORS:Vec<Color> = vec![];
-    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color){
+
+    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color) -> Result<CpuMesh,&'static str>{
      match shape{
       Variant::Cube=>{
         let cube_pos:Vec<Vector3<f32>>=vec![
@@ -169,10 +165,8 @@ extern "C"{
         vec3(range,range,0.0),vec3(range*(-1.0),range,0.0),
         vec3(range*(-1.0),range*(-1.0),range),vec3(range,range*(-1.0),range),
         vec3(range,range,range),vec3(range*(-1.0),range,range)];
-        let model = Gm::new(Mesh::new(ctx, 
-        &CpuMesh{positions: Positions::F32(cube_pos), colors: Some(vec![color]),
-         ..Default::default()}),
-        ColorMaterial::default());
+        Ok(CpuMesh{positions: Positions::F32(cube_pos), colors: Some(vec![color]),
+         ..Default::default()})
       },
       Variant::Sphere=>{
         let angle = Rad::<f32>::full_turn();
@@ -192,12 +186,10 @@ extern "C"{
           sphere_pos.push(vec3(x,y,z));
           }
         }
-        let model = Gm::new(Mesh::new(ctx, 
-          &CpuMesh{positions: Positions::F32(sphere_pos), colors: Some(vec![color]),
-           ..Default::default()}),
-          ColorMaterial::default());
+        Ok(CpuMesh{positions: Positions::F32(sphere_pos), colors: Some(vec![color]),
+           ..Default::default()})
       },
-      _=>todo!(),
+      _=>Err("Not suitable for 3d modelling."),
      }
     }
       
@@ -207,55 +199,116 @@ extern "C"{
         columns: u32
       }
         
-      fn interpret(expr: &String, audio_ctx: &AudioContext, gl_ctx: &Context){
-      let words:Vec<&str> = expr.split_whitespace().collect();
+      fn interpret(input: &str, audio_ctx: &AudioContext, gl_ctx: &Context){
+      let mut Shapes:Vec<CpuMesh> = vec![];
+      let mut Colors:Vec<Color> = vec![];
+      let mut Oscillators:Vec<AudioNode> = vec![];
+      let mut Amps:Vec<GainNode>=vec![];
+      let mut screen_color:Color; 
+
+      //an expression as a string
+      let mut expr:&str = "";
+      //individual words of the expression
+      let mut words:Vec<&str> = expr.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
 
-      let create_audio = |freq: u32, gain: f32| {
+      let mut create_audio = |freq: u32, gain: f32| {
         if variant() != Variant::Unknown {
           match variant(){
-            Variant::SinOsc=>create_osc(audio_ctx, Variant::SinOsc, freq, gain),
-            Variant::SawOsc=>create_osc(audio_ctx, Variant::SawOsc, freq, gain),
-            Variant::SqrOsc=>create_osc(audio_ctx, Variant::SqrOsc, freq, gain),
-            Variant::NoiseOsc=>create_osc(audio_ctx, Variant::NoiseOsc, freq, gain),
-            _=>todo!(),
+            Variant::SinOsc=>{
+              let osc = create_osc(audio_ctx, Variant::SinOsc, freq, gain);
+              match osc{
+                Ok(val) => Oscillators.push(val),
+                Err(err) => send_err(err),
+              }
+            },
+            Variant::SawOsc=>{
+              let osc = create_osc(audio_ctx, Variant::SawOsc, freq, gain);
+              match osc{
+                Ok(val)=>Oscillators.push(val),
+                Err(err)=>send_err(err),
+              }
+            },
+            Variant::SqrOsc=>{
+              let osc = create_osc(audio_ctx, Variant::SqrOsc, freq, gain);
+              match osc{
+                Ok(val)=>Oscillators.push(val),
+                Err(err)=>send_err(err),
+              }
+            },
+            Variant::NoiseOsc=>{
+              let osc = create_osc(audio_ctx, Variant::NoiseOsc, freq, gain);
+              match osc{
+                Ok(val)=>Oscillators.push(val),
+                Err(err)=>send_err(err),
+              }
+            },
+            _=>send_err("Not suitable for audio."),
           }
         } else {
-  
+         send_err("Unknown audio type to play.")
         }
       };
 
-      let create_visual = |range: f32, color: Vec<f32>| {
+      let mut create_visual = |range: f32, color: Vec<f32>| {
         if variant() != Variant::Unknown {
         match variant(){
           Variant::Screen=>{},
-          Variant::Cube=>create_model(gl_ctx, Variant::Cube, range, Color::from_rgb_slice(&[color[0],color[1],color[2]])),
-          Variant::Sphere=>create_model(gl_ctx, Variant::Sphere, range, Color::from_rgb_slice(&[color[0],color[1],color[2]])),
-          _=>todo!(),
+          Variant::Cube=>{
+            let model = create_model(gl_ctx, Variant::Cube, range, 
+              Color::from_rgb_slice(&[color[0],color[1],color[2]]));
+              match model{
+                Ok(val)=>Shapes.push(val),
+                Err(err)=>send_err(err),
+              }
+            },
+          Variant::Sphere=>{
+            let model = create_model(gl_ctx, Variant::Sphere, range, 
+              Color::from_rgb_slice(&[color[0],color[1],color[2]]));
+              match model{
+                Ok(val)=>Shapes.push(val),
+                Err(err)=>send_err(err),
+              }
+            },
+          _=>send_err("Not suitable for creating models."),
         }
       } else {
-
+       send_err("Unknown shape type.")
       }
       };
 
-      let prepare_visual = |w: &[&str]| {
+      let mut prepare_visual = |w: &[&str]| {
       if w.len() == 1{
         if param(w[0]) == Param::Range{
+          if variant() != Variant::Screen{
           match String::from(w[0]).parse::<f32>(){
             Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
-            Err(err)=>todo!(),
+            Err(err)=>send_err("Invalid radius for the object."),
           }
+        } else {
+          match String::from(w[0]).parse::<f32>(){
+            Ok(val)=>create_visual(val, vec![val,val,val]),
+            Err(err)=>send_err("Invalid grayscale for the screen."),
+          }
+        }
         }
         else if analyze_func(w[0]) == FnType::Rgb{
+          if variant() != Variant::Screen{
           match floats_from(w[0]){
             Ok(val)=>create_visual(1.0, val),
-            Err(err)=>todo!(),
+            Err(err)=>send_err("Invalid rgb values for the object."),
+          }
+        } else {
+          match floats_from(w[0]){
+            Ok(val)=>create_visual(0.0, val),
+            Err(err)=>send_err("Invalid rgb values for the screen."),
           }
         }
+        }
         else {
-          todo!();
+          send_err("Unknown parameter for the object.");
         }
       }
       else if w.len() == 2{
@@ -265,65 +318,92 @@ extern "C"{
             let mut color:Vec<f32> = vec![];
             match String::from(w[0]).parse::<f32>(){
             Ok(val)=>{range = val},
-            Err(err)=>todo!(),
+            Err(err)=>send_err("Invalid value for the object radius."),
             }
-            match floats_from(w[0]){
+            match floats_from(w[1]){
             Ok(val)=>{for v in val{color.push(v)}},
-            Err(err)=>todo!(),
+            Err(err)=>send_err("Invalid values for the rgb."),
             }
-            create_visual(range, color);
+            if range != 0.0 && color.len() != 0{
+              create_visual(range, color);
+            }
           }
           else{
-            todo!();
+            send_err("Invalid parameters for the object.");
           }
-         } else {todo!();}
+         } else {send_err("Too many parameters for the screen.")}
       }
       else if w.len() < 1 || w.len() > 2{
-        todo!();
+        send_err("Too many or little parameters for the media.");
       } 
       else {
-      todo!()
+      todo!();
       }
       };
 
-      let prepare_audio = |w: &str| {
-        if Regex::new(r"([a-z]+) ([\d]+) \* (0.(\d+)|1|0)").unwrap().is_match(w) ||
-        Regex::new(r"([a-z]+) ([\d]+)\*(0.(\d+)|1|0)").unwrap().is_match(w){
+      let mut prepare_audio = |w: &str| {
+        if Regex::new(r"(sin|saw|sqr) ([\d]+) \* (0.(\d+)|1|0)").unwrap().is_match(w) ||
+        Regex::new(r"(sin|saw|sqr) ([\d]+)\*(0.(\d+)|1|0)").unwrap().is_match(w){
         let freq_result = Regex::new(r"[\d]+").unwrap().find(w);
         let gain_result = Regex::new(r"(0\.[\d]+)|1").unwrap().find(w);
         let mut freq:u32=0;
         let mut gain:f32=0.0;
-        if freq_result != None{
+        if freq_result != None && gain_result != None{
           match String::from(freq_result.unwrap().as_str()).parse::<u32>(){
             Ok(val)=>{freq = val},
-            Err(err)=>todo!(),
+            Err(err)=>send_err("Invalid frequency."),
           }
-          if gain_result == None{
-            gain = 1.0;
+          match String::from(gain_result.unwrap().as_str()).parse::<f32>(){
+            Ok(val)=>{gain = val},
+            Err(err)=>send_err("Invalid gain."),
+          }
+          if freq != 0 && gain != 0.0{
             create_audio(freq, gain);
           }
-          else{
-            match String::from(gain_result.unwrap().as_str()).parse::<f32>(){
-              Ok(val)=>{gain = val; create_audio(freq, gain)},
-              Err(err)=>todo!(),
-            }
+        }
+        } else if Regex::new(r"(sin|sqr|saw) ([\d]+)").unwrap().is_match(w)  {
+          let freq_result = Regex::new(r"[\d]+").unwrap().find(w);
+          let mut freq:u32=0;
+          match String::from(freq_result.unwrap().as_str()).parse::<u32>(){
+            Ok(val)=>{freq = val; create_audio(freq, 1.0)},
+            Err(err)=>send_err("Invalid frequency."),
+          }
+        } else if Regex::new(r"rnd (0.(\d+)|1)").unwrap().is_match(w) {
+          let gain_result = Regex::new(r"(0\.[\d]+)|1").unwrap().find(w);
+          let mut gain:f32=0.0;
+          match String::from(gain_result.unwrap().as_str()).parse::<f32>(){
+            Ok(val)=>{gain = val; create_audio(0,gain)},
+            Err(err)=>send_err("Invalid gain."),
           }
         }
-        } else {
-          todo!();
+         else {
+          send_err("Unknown type of audio.")
         }
       };
 
-      let control_media = || {
+      let mut control_media = || {
         if medium() != Medium::Unknown {
           match medium(){
             Medium::Visuals=>prepare_visual(&words[1.. ]),
             Medium::Audio=>prepare_audio(&expr),
-            _=>todo!(),
+            _=>send_err("Not suitable."),
           }
+        } else {
+          send_err("Unknown media.");
         }
       };
-      control_media();
+
+      if input.contains(";"){
+        let exprs = input.split(';');
+        for mut expression in exprs{
+          expression = &expr;
+          control_media();
+        }
+      } else {
+        let mut expr_ref = &*expr;
+        expr_ref = input;
+        control_media();
+      }
       }
     
   pub fn start(){
@@ -347,18 +427,6 @@ extern "C"{
         FrameOutput::default()
     }); 
   }
-
-  fn execute(input: &String, au: &AudioContext, gl: &Context){
-    if input.contains(";"){
-      let exprs = input.split(';');
-        for expr in exprs{
-         interpret(input, au, gl);
-        }
-    }
-    else{
-      interpret(input, au, gl);
-  }
-}
 
   /*fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
       let render_target:RenderTarget = f_input.screen();

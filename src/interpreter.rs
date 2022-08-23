@@ -1,8 +1,8 @@
 use regex::Regex;
 use three_d::*;
-use web_sys::{AudioContext,AudioNode,GainNode,OscillatorNode,OscillatorType,AudioBuffer,AudioBufferOptions,
-AudioBufferSourceNode,AudioBufferSourceOptions};
+use web_sys::*;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::JsCast;
 
 #[wasm_bindgen(module = "/index.js")]
 extern "C"{
@@ -34,11 +34,6 @@ extern "C"{
     Function,
     Realtime,
     Unknown
-  }
-  #[derive(PartialEq)]
-  enum Shape{
-    Cube,
-    Sphere
   }
   #[derive(PartialEq)]
     enum FnType{
@@ -126,38 +121,38 @@ extern "C"{
       Ok(floats)
     }
 
-    fn create_osc(ctx: &AudioContext, wave: Variant, freq: u32, gain: f32) -> Result<AudioNode,&'static str>{
+    fn create_osc(ctx: &AudioContext, wave: Variant, freq: u32, gain: f32) -> Result<(AudioNode,GainNode),&'static str>{
+    let gain_node = GainNode::new(ctx).unwrap();
+    gain_node.gain().set_value(gain);
     if wave != Variant::NoiseOsc{
     let osc = OscillatorNode::new(ctx).unwrap();
-    let gain_node = GainNode::new(ctx).unwrap();
     osc.frequency().set_value(freq as f32);
-    gain_node.gain().set_value(gain);
     match wave{
-    Variant::SinOsc=>{osc.set_type(OscillatorType::Sine); Ok(AudioNode::from(osc))},
-    Variant::SawOsc=>{osc.set_type(OscillatorType::Sawtooth); Ok(AudioNode::from(osc))},
-    Variant::SqrOsc=>{osc.set_type(OscillatorType::Square); Ok(AudioNode::from(osc))},
+    Variant::SinOsc=>osc.set_type(OscillatorType::Sine),
+    Variant::SawOsc=>osc.set_type(OscillatorType::Sawtooth),
+    Variant::SqrOsc=>osc.set_type(OscillatorType::Square),
     _=>todo!(),
     }
-
+    Ok((AudioNode::from(osc),gain_node))
     } else {
       use rand::prelude::*;
       let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * ctx.sample_rate() as u32, ctx.sample_rate())).unwrap();
       let mut output:Vec<f32> = noise_buf.get_channel_data(0).unwrap();
       for mut val in output{
-       val = (rand::thread_rng().gen::<f32>() * gain) - 1.0 * 2.0;
+       val = rand::thread_rng().gen::<f32>() - 1.0 * 2.0;
       }
       let mut options = AudioBufferSourceOptions::new();
       options.buffer(Some(&noise_buf));
       options.loop_(true);
       let buf_player = AudioBufferSourceNode::new_with_options(ctx, &options);
       match buf_player{
-        Ok(val) =>{return Ok(AudioNode::from(val))},
+        Ok(val) =>{return Ok((AudioNode::from(val),gain_node))},
         Err(err)=>{return Err("Invalid buffer player.")},
       }
     }
     }
 
-    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color) -> Result<CpuMesh,&'static str>{
+    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color) -> Result<Box<dyn Object>,&'static str>{
      match shape{
       Variant::Cube=>{
         let cube_pos:Vec<Vector3<f32>>=vec![
@@ -165,8 +160,8 @@ extern "C"{
         vec3(range,range,0.0),vec3(range*(-1.0),range,0.0),
         vec3(range*(-1.0),range*(-1.0),range),vec3(range,range*(-1.0),range),
         vec3(range,range,range),vec3(range*(-1.0),range,range)];
-        Ok(CpuMesh{positions: Positions::F32(cube_pos), colors: Some(vec![color]),
-         ..Default::default()})
+        Ok(Box::new(Gm::new(Mesh::new(ctx, &CpuMesh{positions: Positions::F32(cube_pos), colors: Some(vec![color]),
+          ..Default::default()}), ColorMaterial::default())))
       },
       Variant::Sphere=>{
         let angle = Rad::<f32>::full_turn();
@@ -186,8 +181,8 @@ extern "C"{
           sphere_pos.push(vec3(x,y,z));
           }
         }
-        Ok(CpuMesh{positions: Positions::F32(sphere_pos), colors: Some(vec![color]),
-           ..Default::default()})
+        Ok(Box::new(Gm::new(Mesh::new(ctx, &CpuMesh{positions: Positions::F32(sphere_pos), colors: Some(vec![color]),
+          ..Default::default()}), ColorMaterial::default())))
       },
       _=>Err("Not suitable for 3d modelling."),
      }
@@ -198,13 +193,28 @@ extern "C"{
         rows: u32,
         columns: u32
       }
+
+      struct Input{
+        shapes: Vec<Box<dyn Object>>,
+        colors: Vec<Color>,
+        oscs: Vec<AudioNode>,
+        amps: Vec<GainNode>,
+        screen_color: Color
+      }
+      impl Input{
+        fn new(shapes:Vec<Box<dyn Object>>, colors:Vec<Color>, 
+          oscs:Vec<AudioNode>, amps:Vec<GainNode>, screen_color:Color)->Self{
+          Input{shapes: shapes, colors: colors, oscs: oscs, amps: amps,
+          screen_color: screen_color}
+        }
+      }
         
-      fn interpret(input: &str, audio_ctx: &AudioContext, gl_ctx: &Context){
-      let mut Shapes:Vec<CpuMesh> = vec![];
+      fn interpret(input: &str, audio_ctx: &AudioContext, gl_ctx: &Context)->Input{
+      let mut Shapes:Vec<Box<dyn Object>> = vec![];
       let mut Colors:Vec<Color> = vec![];
       let mut Oscillators:Vec<AudioNode> = vec![];
       let mut Amps:Vec<GainNode>=vec![];
-      let mut screen_color:Color; 
+      let mut screen_color:Color = Color::new_opaque(0,0,0); 
 
       //an expression as a string
       let mut expr:&str = "";
@@ -220,28 +230,28 @@ extern "C"{
             Variant::SinOsc=>{
               let osc = create_osc(audio_ctx, Variant::SinOsc, freq, gain);
               match osc{
-                Ok(val) => Oscillators.push(val),
+                Ok(val) => {Oscillators.push(val.0); Amps.push(val.1)},
                 Err(err) => send_err(err),
               }
             },
             Variant::SawOsc=>{
               let osc = create_osc(audio_ctx, Variant::SawOsc, freq, gain);
               match osc{
-                Ok(val)=>Oscillators.push(val),
+                Ok(val)=>{Oscillators.push(val.0); Amps.push(val.1)},
                 Err(err)=>send_err(err),
               }
             },
             Variant::SqrOsc=>{
               let osc = create_osc(audio_ctx, Variant::SqrOsc, freq, gain);
               match osc{
-                Ok(val)=>Oscillators.push(val),
+                Ok(val)=>{Oscillators.push(val.0); Amps.push(val.1)},
                 Err(err)=>send_err(err),
               }
             },
             Variant::NoiseOsc=>{
               let osc = create_osc(audio_ctx, Variant::NoiseOsc, freq, gain);
               match osc{
-                Ok(val)=>Oscillators.push(val),
+                Ok(val)=>{Oscillators.push(val.0); Amps.push(val.1)},
                 Err(err)=>send_err(err),
               }
             },
@@ -255,7 +265,7 @@ extern "C"{
       let mut create_visual = |range: f32, color: Vec<f32>| {
         if variant() != Variant::Unknown {
         match variant(){
-          Variant::Screen=>{},
+          Variant::Screen=>screen_color = Color::from_rgb_slice(&[color[0],color[1],color[2]]),
           Variant::Cube=>{
             let model = create_model(gl_ctx, Variant::Cube, range, 
               Color::from_rgb_slice(&[color[0],color[1],color[2]]));
@@ -399,17 +409,21 @@ extern "C"{
           expression = &expr;
           control_media();
         }
+        Input::new(Shapes,Colors,Oscillators,Amps,screen_color)
       } else {
         let mut expr_ref = &*expr;
         expr_ref = input;
         control_media();
+        Input::new(Shapes,Colors,Oscillators,Amps,screen_color)
       }
       }
-    
+
   pub fn start(){
-      let window = Window::new(WindowSettings{title: String::from("Pulchra"),
-      min_size: (100, 100),
-      borderless: true,
+     let canvas = 
+     web_sys::window().unwrap().document().unwrap().get_element_by_id("graphics").unwrap()
+     .dyn_into::<web_sys::HtmlCanvasElement>()
+     .unwrap();
+      let window = three_d::Window::new(WindowSettings{title: String::from("Pulchra"),
       ..Default::default()
   }).unwrap();
       let context = window.gl();
@@ -418,7 +432,7 @@ extern "C"{
           vec3(-3.0, 1.0, 2.5),
           vec3(0.0, 0.0, 0.0),
           vec3(0.0, 1.0, 0.0),
-          degrees(45.0),
+          degrees(0.0),
           0.1,
           1000.0
       );

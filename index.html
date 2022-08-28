@@ -5,12 +5,16 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Live coding language for 3D visuals.">
-    <meta name="keywords" content="Digital art, 3d art, live coding, rendering, graphics">
+    <meta name="keywords" content="Art, Digital art, 3d art, live coding, rendering, graphics">
     <link rel="stylesheet" href="index.css">
     <title>Pulchra</title>
 </head>
 <body>
 <script type="module">
+      import init from './pkg/pulchra.js';
+      init()
+      .then((m)=>console.table(m))
+      .catch((e)=>alert("An error occurred. Try again later."))
 </script>
 <textarea id="input" placeholder="Welcome to Pulchra!
 Just press any key." autofocus="true" rows="8"></textarea>

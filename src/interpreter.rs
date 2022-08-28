@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 
 #[wasm_bindgen(module = "/index.js")]
-extern "C"{
+extern "C" {
   fn get_input() -> String;
   fn send_err(error: &str);
 }
@@ -211,7 +211,7 @@ extern "C"{
         }
       }
         
-      async fn interpret(input: &str, audio_ctx: &AudioContext, gl_ctx: &Context)->Input{
+      fn interpret(input: &str, audio_ctx: &AudioContext, gl_ctx: &Context)->Input{
       let mut Shapes:Vec<Box<dyn Object>> = vec![];
       let mut Colors:Vec<Color> = vec![];
       let mut Oscillators:Vec<OscillatorNode> = vec![];
@@ -438,7 +438,7 @@ extern "C"{
       }
       }
 
-  pub async fn start(){
+  pub fn start(){
      let canvas = 
      web_sys::window().unwrap().document().unwrap().get_element_by_id("graphics").unwrap()
      .dyn_into::<web_sys::HtmlCanvasElement>()
@@ -460,7 +460,7 @@ extern "C"{
       );
       let mut ctx:Option<AudioContext> = Some(AudioContext::new().unwrap());
       let audio_context= ctx.unwrap();
-      let input:Input = interpret(&get_input(), &audio_context, &gl).await;
+      let input:Input = interpret(&get_input(), &audio_context, &gl);
       if input.oscs.len() != 0{
       for i in 0..input.oscs.len(){
       input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);

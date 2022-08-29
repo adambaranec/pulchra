@@ -26,6 +26,7 @@ features = [
   'AudioDestinationNode',
   'AudioNode',
   'AudioParam',
+  'EventTarget',
   'EventListener',
   'GainNode',
   'OscillatorNode',
@@ -34,6 +35,7 @@ features = [
   'Element',
   'HtmlElement',
   'HtmlCanvasElement',
+  'HtmlTextAreaElement',
   'Node',
   'Window',
 ]

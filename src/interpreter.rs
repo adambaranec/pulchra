@@ -439,15 +439,16 @@ extern "C" {
       }
 
   pub fn start(){
-     let canvas = 
-     web_sys::window().unwrap().document().unwrap().get_element_by_id("graphics").unwrap()
-     .dyn_into::<web_sys::HtmlCanvasElement>()
-     .unwrap();
-      let window = three_d::Window::new(WindowSettings{
+     let document = web_sys::window().unwrap().document().unwrap();
+     let canvas = document.get_element_by_id("graphics").unwrap()
+     .dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
+     let textarea = document.get_element_by_id("input").unwrap()
+     .dyn_into::<web_sys::HtmlTextAreaElement>().unwrap();
+    let window = three_d::Window::new(WindowSettings{
         title: String::from("Pulchra"),
         canvas: Some(canvas),
-      ..Default::default()
-  }).unwrap();
+        ..Default::default()
+     }).unwrap();
       let gl = window.gl();
       let mut camera = Camera::new_perspective(
           window.viewport(),
@@ -456,66 +457,62 @@ extern "C" {
           vec3(0.0, 1.0, 0.0),
           degrees(0.0),
           0.1,
-          1000.0
+          10.0
       );
-      let mut ctx:Option<AudioContext> = Some(AudioContext::new().unwrap());
-      let audio_context= ctx.unwrap();
-      let input:Input = interpret(&get_input(), &audio_context, &gl);
-      if input.oscs.len() != 0{
-      for i in 0..input.oscs.len(){
-      input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
-      input.osc_amps[i].connect_with_audio_node(&audio_context.destination());
-      }
-    } else if input.noises.len() != 0{
-      for i in 0..input.noises.len(){
-      input.noises[i].connect_with_audio_node(&input.noise_amps[i]);
-      input.noise_amps[i].connect_with_audio_node(&audio_context.destination());
-      }
-    } else if input.oscs.len() != 0 && input.noises.len() != 0{
-      for i in 0..input.oscs.len(){
-        input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
-        input.osc_amps[i].connect_with_audio_node(&audio_context.destination());
+      let audio_context= AudioContext::new().unwrap();
+      //variables needed for changing the environment
+      let mut previous_code = textarea.value();
+      let mut current_code = textarea.value();
+      let input:Input = interpret(&current_code, &audio_context, &gl);
+      let objs = input.shapes.len();
+      let red:f32=(input.screen_color.r / 255) as f32;
+      let green:f32=(input.screen_color.g / 255) as f32;
+      let blue:f32=(input.screen_color.b / 255) as f32;
+      let alpha:f32=(input.screen_color.a / 255) as f32;
+      let clear_state = ClearState::color(red,green,blue,alpha);
+      let oscillators = input.oscs.len();
+      let rnds = input.noises.len();
+      //closures for JS
+      let onchange = &mut || {current_code = textarea.value()};
+      let event = &mut |pressed: KeyboardEvent|{
+        if pressed.alt_key() && pressed.key() == "Enter"{
+          if previous_code != current_code{
+            if oscillators != 0{
+            for i in 0..oscillators{
+            input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
+            input.osc_amps[i].connect_with_audio_node(&audio_context.destination());
+            }
+          } else if rnds != 0{
+            for i in 0..rnds{
+            input.noises[i].connect_with_audio_node(&input.noise_amps[i]);
+            input.noise_amps[i].connect_with_audio_node(&audio_context.destination());
+            }
+          } else if oscillators != 0 && rnds != 0{
+            for i in 0..oscillators{
+              input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
+              input.osc_amps[i].connect_with_audio_node(&audio_context.destination());
+              }
+            for i in 0..rnds{
+              input.noises[i].connect_with_audio_node(&input.noise_amps[i]);
+              input.noise_amps[i].connect_with_audio_node(&audio_context.destination());
+             }
+             }
+            current_code = previous_code;
         }
-      for i in 0..input.noises.len(){
-        input.noises[i].connect_with_audio_node(&input.noise_amps[i]);
-        input.noise_amps[i].connect_with_audio_node(&audio_context.destination());
-       }
-    }
-
-    let red = (input.screen_color.r / 255) as f32;
-    let green = (input.screen_color.g / 255) as f32;
-    let blue = (input.screen_color.b / 255) as f32;
-    let alpha = (input.screen_color.a / 255) as f32;
-    
-    window.render_loop(move |frame_input| { 
-      let screen = frame_input.screen();
-      screen
-      .clear(ClearState::color(red,green,blue,alpha));
-      FrameOutput::default()
-  }); 
-    }
-  
-
-  /*fn render(code: &Input, context: &Context, camera: &Camera, f_input: &mut FrameInput, gui: &mut three_d::GUI){
-      let render_target:RenderTarget = f_input.screen();
-      if code.clear_state == None{
-        render_target.clear(ClearState::color(0.0, 0.0, 0.0, 1.0)).unwrap();
-      } else{
-        render_target.clear(code.clear_state.unwrap());
-      }
-      let mut gm_array = Vec::new();
-      for model in &code.models{
-        let object = Gm::new(Mesh::new(&context, &model).unwrap(), ColorMaterial::default());
-        gm_array.push(object);
-      }
-      if code.muls == None{
-        render_target.render(&camera, &[], &[]).unwrap();  
-      }else{
-         for muls in code.muls.as_ref(){
-          let mut i:u32 = 0;
-            for screen in muls{
-              let rows:u32 = screen.rows;
-              let columns:u32 = screen.columns;
+      };
+     window.render_loop(move |frame_input| { 
+        let screen = frame_input.screen();
+        screen.clear(clear_state);
+        if objs != 0{
+          for i in 0..objs{
+            screen.render(&camera, &[&*input.shapes[i]], &[]);
+          }
+        }
+        FrameOutput::default()
+    });
+    };
+  }
+  /*
               let scissor_box = ScissorBox{
                 height: f_input.viewport.height/columns,
                 width: f_input.viewport.width/rows,
@@ -523,9 +520,5 @@ extern "C" {
                 y: ((f_input.viewport.height/columns)*i) as i32
               };
               render_target.render_partially(scissor_box, &camera, &[], &[]).unwrap();
-              i += 1;
-            }
-         }
-      }
-      render_target.write(|| gui.render());
+
     }*/

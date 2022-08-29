@@ -290,10 +290,10 @@ async function load(module, imports) {
         }
 
         const bytes = await module.arrayBuffer();
-        return await WebAssembly.instantiate(bytes, imports);
+        return await WebAssembly.instantiate(bytes);
 
     } else {
-        const instance = await WebAssembly.instantiate(module, imports);
+        const instance = await WebAssembly.instantiate(module);
 
         if (instance instanceof WebAssembly.Instance) {
             return { instance, module };

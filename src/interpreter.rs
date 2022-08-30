@@ -1,19 +1,15 @@
 use regex::Regex;
-use three_d::*;
+use three_d::renderer::*;
+use three_d::window::*;
+use three_d::core::*;
 use web_sys::*;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-
-#[wasm_bindgen(module = "/index.js")]
-extern "C" {
-  fn get_input() -> String;
-  fn send_err(error: &str);
-}
 
   #[derive(PartialEq)]
   enum Medium{
     Visuals,
     Audio,
+    Effect,
     Unknown
   }
   #[derive(PartialEq)]
@@ -121,6 +117,12 @@ extern "C" {
       Ok(floats)
     }
 
+    fn send_err(error: &str){
+      let document = web_sys::window().unwrap().document().unwrap();
+      let error_p = document.get_element_by_id("error").unwrap();
+      error_p.set_inner_html(error);
+    }
+
     fn create_osc(ctx: &AudioContext, wave: Variant, freq: u32, gain: f32) -> Result<(Option<OscillatorNode>,Option<AudioBufferSourceNode>,GainNode),&'static str>{
     let gain_node = GainNode::new(ctx).unwrap();
     gain_node.gain().set_value(gain);
@@ -189,6 +191,8 @@ extern "C" {
     }
       
       #[derive(PartialEq)]
+      #[derive(Clone)]
+      #[derive(Copy)]
       struct Multiplication{
         rows: u32,
         columns: u32
@@ -201,13 +205,15 @@ extern "C" {
         noises: Vec<AudioBufferSourceNode>,
         osc_amps: Vec<GainNode>,
         noise_amps: Vec<GainNode>,
-        screen_color: Color
+        screen_color: Color,
+        muls: Vec<Multiplication>
       }
       impl Input{
         fn new(shapes:Vec<Box<dyn Object>>, colors:Vec<Color>, 
-          oscs:Vec<OscillatorNode>, noises:Vec<AudioBufferSourceNode>, osc_amps:Vec<GainNode>, noise_amps:Vec<GainNode>,screen_color:Color)->Self{
+          oscs:Vec<OscillatorNode>, noises:Vec<AudioBufferSourceNode>, osc_amps:Vec<GainNode>, 
+          noise_amps:Vec<GainNode>,screen_color:Color, muls:Vec<Multiplication>)->Self{
           Input{shapes: shapes, colors: colors, oscs: oscs, noises: noises, osc_amps: osc_amps,
-          noise_amps: noise_amps, screen_color: screen_color}
+          noise_amps: noise_amps, screen_color: screen_color, muls: muls}
         }
       }
         
@@ -219,6 +225,7 @@ extern "C" {
       let mut Oscamps:Vec<GainNode>=vec![];
       let mut Noiseamps:Vec<GainNode>=vec![];
       let mut screen_color:Color = Color::new_opaque(0,0,0); 
+      let mut multiplications:Vec<Multiplication> = vec![];
 
       //an expression as a string
       let mut expr:&str = "";
@@ -227,6 +234,10 @@ extern "C" {
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
+
+      let mut create_effect = || {
+
+      };
 
       let mut create_audio = |freq: u32, gain: f32| {
         if variant() != Variant::Unknown {
@@ -309,66 +320,8 @@ extern "C" {
       }
       };
 
-      let mut prepare_visual = |w: &[&str]| {
-      if w.len() == 1{
-        if param(w[0]) == Param::Range{
-          if variant() != Variant::Screen{
-          match String::from(w[0]).parse::<f32>(){
-            Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
-            Err(err)=>send_err("Invalid radius for the object."),
-          }
-        } else {
-          match String::from(w[0]).parse::<f32>(){
-            Ok(val)=>create_visual(val, vec![val,val,val]),
-            Err(err)=>send_err("Invalid grayscale for the screen."),
-          }
-        }
-        }
-        else if analyze_func(w[0]) == FnType::Rgb{
-          if variant() != Variant::Screen{
-          match floats_from(w[0]){
-            Ok(val)=>create_visual(1.0, val),
-            Err(err)=>send_err("Invalid rgb values for the object."),
-          }
-        } else {
-          match floats_from(w[0]){
-            Ok(val)=>create_visual(0.0, val),
-            Err(err)=>send_err("Invalid rgb values for the screen."),
-          }
-        }
-        }
-        else {
-          send_err("Unknown parameter for the object.");
-        }
-      }
-      else if w.len() == 2{
-         if variant() != Variant::Screen{
-          if param(w[0]) == Param::Range && analyze_func(w[1]) == FnType::Rgb{
-            let mut range:f32 = 0.0;
-            let mut color:Vec<f32> = vec![];
-            match String::from(w[0]).parse::<f32>(){
-            Ok(val)=>{range = val},
-            Err(err)=>send_err("Invalid value for the object radius."),
-            }
-            match floats_from(w[1]){
-            Ok(val)=>{for v in val{color.push(v)}},
-            Err(err)=>send_err("Invalid values for the rgb."),
-            }
-            if range != 0.0 && color.len() != 0{
-              create_visual(range, color);
-            }
-          }
-          else{
-            send_err("Invalid parameters for the object.");
-          }
-         } else {send_err("Too many parameters for the screen.")}
-      }
-      else if w.len() < 1 || w.len() > 2{
-        send_err("Too many or little parameters for the media.");
-      } 
-      else {
-      todo!();
-      }
+      let mut prepare_effect = |w: &str|{
+      create_effect();
       };
 
       let mut prepare_audio = |w: &str| {
@@ -411,11 +364,74 @@ extern "C" {
         }
       };
 
+      let mut prepare_visual = |w: &[&str]| {
+        if w.len() == 1{
+          if param(w[0]) == Param::Range{
+            if variant() != Variant::Screen{
+            match String::from(w[0]).parse::<f32>(){
+              Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
+              Err(err)=>send_err("Invalid radius for the object."),
+            }
+          } else {
+            match String::from(w[0]).parse::<f32>(){
+              Ok(val)=>create_visual(val, vec![val,val,val]),
+              Err(err)=>send_err("Invalid grayscale for the screen."),
+            }
+          }
+          }
+          else if analyze_func(w[0]) == FnType::Rgb{
+            if variant() != Variant::Screen{
+            match floats_from(w[0]){
+              Ok(val)=>create_visual(1.0, val),
+              Err(err)=>send_err("Invalid rgb values for the object."),
+            }
+          } else {
+            match floats_from(w[0]){
+              Ok(val)=>create_visual(0.0, val),
+              Err(err)=>send_err("Invalid rgb values for the screen."),
+            }
+          }
+          }
+          else {
+            send_err("Unknown parameter for the object.");
+          }
+        }
+        else if w.len() == 2{
+           if variant() != Variant::Screen{
+            if param(w[0]) == Param::Range && analyze_func(w[1]) == FnType::Rgb{
+              let mut range:f32 = 0.0;
+              let mut color:Vec<f32> = vec![];
+              match String::from(w[0]).parse::<f32>(){
+              Ok(val)=>{range = val},
+              Err(err)=>send_err("Invalid value for the object radius."),
+              }
+              match floats_from(w[1]){
+              Ok(val)=>{for v in val{color.push(v)}},
+              Err(err)=>send_err("Invalid values for the rgb."),
+              }
+              if range != 0.0 && color.len() != 0{
+                create_visual(range, color);
+              }
+            }
+            else{
+              send_err("Invalid parameters for the object.");
+            }
+           } else {send_err("Too many parameters for the screen.")}
+        }
+        else if w.len() < 1 || w.len() > 2{
+          send_err("Too many or little parameters for the media.");
+        } 
+        else {
+        todo!();
+        }
+        };
+
       let mut control_media = || {
         if medium() != Medium::Unknown {
           match medium(){
             Medium::Visuals=>prepare_visual(&words[1.. ]),
             Medium::Audio=>prepare_audio(&expr),
+            Medium::Effect=>prepare_effect(&expr),
             _=>send_err("Not suitable."),
           }
         } else {
@@ -429,12 +445,12 @@ extern "C" {
           expression = &expr;
           control_media();
         }
-        Input::new(Shapes,Colors,Oscillators,Noises,Oscamps,Noiseamps,screen_color)
+        Input::new(Shapes,Colors,Oscillators,Noises,Oscamps,Noiseamps,screen_color,multiplications)
       } else {
         let mut expr_ref = &*expr;
         expr_ref = input;
         control_media();
-        Input::new(Shapes,Colors,Oscillators,Noises,Oscamps,Noiseamps,screen_color)
+        Input::new(Shapes,Colors,Oscillators,Noises,Oscamps,Noiseamps,screen_color,multiplications)
       }
       }
 
@@ -460,52 +476,95 @@ extern "C" {
           10.0
       );
       let audio_context= AudioContext::new().unwrap();
-      //variables needed for changing the environment
+      //mutable variables needed for changing the environment
       let mut previous_code = textarea.value();
       let mut current_code = textarea.value();
-      let input:Input = interpret(&current_code, &audio_context, &gl);
-      let objs = input.shapes.len();
-      let red:f32=(input.screen_color.r / 255) as f32;
-      let green:f32=(input.screen_color.g / 255) as f32;
-      let blue:f32=(input.screen_color.b / 255) as f32;
-      let alpha:f32=(input.screen_color.a / 255) as f32;
-      let clear_state = ClearState::color(red,green,blue,alpha);
-      let oscillators = input.oscs.len();
-      let rnds = input.noises.len();
+      let mut input:Input = interpret(&current_code, &audio_context, &gl);
+      let mut objs = input.shapes.len();
+      let mut muls = input.muls.len();
+      let mut red:f32=(input.screen_color.r / 255) as f32;
+      let mut green:f32=(input.screen_color.g / 255) as f32;
+      let mut blue:f32=(input.screen_color.b / 255) as f32;
+      let mut alpha:f32=(input.screen_color.a / 255) as f32;
+      let mut clear_state = ClearState::color(red,green,blue,alpha);
       //closures for JS
       let onchange = &mut || {current_code = textarea.value()};
       let event = &mut |pressed: KeyboardEvent|{
         if pressed.alt_key() && pressed.key() == "Enter"{
           if previous_code != current_code{
+            input = interpret(&current_code, &audio_context, &gl);
+            muls = input.muls.len();
+            objs = input.shapes.len();
+            red=(input.screen_color.r / 255) as f32;
+            green=(input.screen_color.g / 255) as f32;
+            blue=(input.screen_color.b / 255) as f32;
+            alpha=(input.screen_color.a / 255) as f32;
+            clear_state = ClearState::color(red,green,blue,alpha);
+            let oscillators = input.oscs.len();
+            let rnds = input.noises.len();
+
+            let mut new_amp:f32 = 0.0;
             if oscillators != 0{
             for i in 0..oscillators{
             input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
             input.osc_amps[i].connect_with_audio_node(&audio_context.destination());
+            new_amp = input.osc_amps[i].gain().value() / oscillators as f32;
+            input.oscs[i].stop();
+            input.oscs[i].start();
             }
           } else if rnds != 0{
             for i in 0..rnds{
             input.noises[i].connect_with_audio_node(&input.noise_amps[i]);
             input.noise_amps[i].connect_with_audio_node(&audio_context.destination());
+            new_amp = input.noise_amps[i].gain().value() / oscillators as f32;
+            input.noises[i].stop();
+            input.noises[i].start();
             }
           } else if oscillators != 0 && rnds != 0{
             for i in 0..oscillators{
               input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
               input.osc_amps[i].connect_with_audio_node(&audio_context.destination());
+              new_amp = input.osc_amps[i].gain().value() / oscillators as f32;
+              input.oscs[i].stop();
+              input.oscs[i].start();
               }
             for i in 0..rnds{
               input.noises[i].connect_with_audio_node(&input.noise_amps[i]);
               input.noise_amps[i].connect_with_audio_node(&audio_context.destination());
+              new_amp = input.noise_amps[i].gain().value() / oscillators as f32;
+              input.noises[i].stop();
+              input.noises[i].start();
              }
              }
             current_code = previous_code;
         }
       };
+      //finally the window rendering
      window.render_loop(move |frame_input| { 
         let screen = frame_input.screen();
         screen.clear(clear_state);
         if objs != 0{
-          for i in 0..objs{
-            screen.render(&camera, &[&*input.shapes[i]], &[]);
+          if muls == 0{
+            for i in 0..objs{
+              screen.render(&camera, &[&*input.shapes[i]], &[]);
+            }
+          } else {
+            for i in 0..muls{
+              let rows:u32 = input.muls[i].rows;
+              let columns:u32 = input.muls[i].columns;
+              for i in 0..rows{
+                let x = frame_input.viewport.width/rows;
+                for i in 0..columns{
+
+                }
+              }
+              let scissor_box = ScissorBox{
+                height: frame_input.viewport.height/columns,
+                width: frame_input.viewport.width/rows,
+                x: ((frame_input.viewport.width/rows)*1) as i32,
+                y: ((frame_input.viewport.height/columns)*1) as i32
+              };
+            }
           }
         }
         FrameOutput::default()

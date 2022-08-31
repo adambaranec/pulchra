@@ -53,6 +53,7 @@ use wasm_bindgen::JsCast;
       "saw"=>Medium::Audio,
       "sqr"=>Medium::Audio,
       "rnd"=>Medium::Audio,
+      "mul"=>Medium::Effect,
       _=>Medium::Unknown
     }
     }
@@ -235,7 +236,7 @@ use wasm_bindgen::JsCast;
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
 
-      let mut create_effect = || {
+      let mut create_effect = |effect: Effect| {
 
       };
 
@@ -321,7 +322,35 @@ use wasm_bindgen::JsCast;
       };
 
       let mut prepare_effect = |w: &str|{
-      create_effect();
+        let stat:Vec<&str> = w.split_whitespace().collect();
+        if stat[0] == "mul"{
+          if stat.len() == 2{
+          let uint = String::from(stat[1]).parse::<u32>();
+          match uint{
+            Ok(val)=>multiplications.push(Multiplication{rows: val, columns: val}),
+            Err(err)=>send_err("Invalid mul parameter."),
+          }
+          }
+          else if stat.len() == 3{
+            let mut result_r:u32 = 0;
+            let mut result_c:u32 = 0;
+            let r = String::from(stat[1]).parse::<u32>();
+            let c = String::from(stat[2]).parse::<u32>();
+            match r{
+              Ok(val)=>{result_r = val},
+              Err(err)=>send_err("Invalid number of rows to repeat.")
+            }
+            match c{
+              Ok(val)=>{result_c = val},
+              Err(err)=>send_err("Invalid number of columns to repeat.")
+            }
+            if result_r != 0 && result_c != 0{
+              multiplications.push(Multiplication{rows: result_r, columns: result_c});
+            }
+          }
+          else {send_err("Too many or little parameters for mul.")}
+        }
+        
       };
 
       let mut prepare_audio = |w: &str| {
@@ -552,18 +581,23 @@ use wasm_bindgen::JsCast;
             for i in 0..muls{
               let rows:u32 = input.muls[i].rows;
               let columns:u32 = input.muls[i].columns;
-              for i in 0..rows{
-                let x = frame_input.viewport.width/rows;
-                for i in 0..columns{
-
+              let w = frame_input.viewport.width/rows;
+              let h = frame_input.viewport.height/columns;
+              for i in 0..(rows-1){
+                let x = (w*i) as i32;
+                for i in 1..columns{
+                let y = (h*i) as i32;
+                let scissor_box = ScissorBox{
+                  height: h,
+                  width: w,
+                  x: x,
+                  y: y
+                };
+                for obj in 0..objs{
+                  screen.render_partially(scissor_box, &camera, &[&*input.shapes[obj]], &[]);
+                }
                 }
               }
-              let scissor_box = ScissorBox{
-                height: frame_input.viewport.height/columns,
-                width: frame_input.viewport.width/rows,
-                x: ((frame_input.viewport.width/rows)*1) as i32,
-                y: ((frame_input.viewport.height/columns)*1) as i32
-              };
             }
           }
         }
@@ -571,13 +605,3 @@ use wasm_bindgen::JsCast;
     });
     };
   }
-  /*
-              let scissor_box = ScissorBox{
-                height: f_input.viewport.height/columns,
-                width: f_input.viewport.width/rows,
-                x: ((f_input.viewport.width/rows)*i) as i32,
-                y: ((f_input.viewport.height/columns)*i) as i32
-              };
-              render_target.render_partially(scissor_box, &camera, &[], &[]).unwrap();
-
-    }*/

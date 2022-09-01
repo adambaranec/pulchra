@@ -3,5 +3,5 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn start(){
-interpreter::start();
+interpreter::start()
 }

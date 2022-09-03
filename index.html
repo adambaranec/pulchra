@@ -14,6 +14,11 @@
       import init, {start} from './pkg/pulchra.js';
       init()
       .then(()=>start())
+      document.getElementById('input').addEventListener('keydown', (e)=>{
+        if (e.altKey && e.key == 'Enter'){
+            console.log("Executing...");
+        }
+      })
 </script>
 <textarea id="input" placeholder="Welcome to Pulchra!
 Just press any key." autofocus="true" rows="8"></textarea>

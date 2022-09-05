@@ -2,9 +2,9 @@ use regex::Regex;
 use three_d::renderer::*;
 use three_d::window::*;
 use three_d::core::prelude::Color;
+use wasm_bindgen::JsValue;
 use web_sys::*;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::closure::Closure;
+use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
 
   #[derive(PartialEq)]
   enum Medium{
@@ -193,11 +193,11 @@ use wasm_bindgen::closure::Closure;
     }
       
     #[derive(PartialEq, Copy, Clone)]
-      struct Multiplication{
+      pub struct Multiplication{
         rows: u32,
         columns: u32
       }
-      struct Input{
+      pub struct Input{
         shapes: Vec<Box<dyn Object>>,
         colors: Vec<Color>,
         oscs: Vec<OscillatorNode>,
@@ -208,7 +208,7 @@ use wasm_bindgen::closure::Closure;
         muls: Vec<Multiplication>
       }
       impl Input{
-        fn new(shapes:Vec<Box<dyn Object>>, colors:Vec<Color>, 
+        pub fn new(shapes:Vec<Box<dyn Object>>, colors:Vec<Color>, 
           oscs:Vec<OscillatorNode>, noises:Vec<AudioBufferSourceNode>, osc_amps:Vec<GainNode>, 
           noise_amps:Vec<GainNode>,screen_color:Color, muls:Vec<Multiplication>)->Self{
           Input{shapes: shapes, colors: colors, oscs: oscs, noises: noises, osc_amps: osc_amps,
@@ -500,29 +500,31 @@ use wasm_bindgen::closure::Closure;
       .dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
       let textarea = document.get_element_by_id("input").unwrap()
       .dyn_into::<web_sys::HtmlTextAreaElement>().unwrap();
-     let window = three_d::Window::new(WindowSettings{
-         title: String::from("Pulchra"),
-         canvas: Some(canvas),
-         borderless: true,
-         ..Default::default()
-      }).unwrap();
-       let gl = window.gl();
-       let mut camera:Camera = Camera::new_perspective(
-        window.viewport(),
-        vec3(-3.0, 1.0, 2.5),
-        vec3(0.0, 0.0, 0.0),
-        vec3(0.0, 1.0, 0.0),
-        degrees(45.0),
-        0.1,
-        1000.0
-    );
-
-    //mutable variables for changing the environment
-    let code = textarea.value();
+      let window = three_d::Window::new(WindowSettings{
+        title: String::from("Pulchra"),
+        canvas: Some(canvas),
+        borderless: true,
+        ..Default::default()
+     }).unwrap();
+      let gl = window.gl();
+      let mut camera:Camera = Camera::new_perspective(
+       window.viewport(),
+       vec3(-3.0, 1.0, 2.5),
+       vec3(0.0, 0.0, 0.0),
+       vec3(0.0, 1.0, 0.0),
+       degrees(45.0),
+       0.1,
+       1000.0
+   );
+   let mut channels:[f32; 4] = [0.0,0.0,0.0,1.0];
+   let audio_context = AudioContext::new().unwrap();
+   let input = interpret(&*textarea.value(), &audio_context, &gl);
+    
+   //mutable variables for changing the environment
     let mut channels:[f32; 4] = [0.0,0.0,0.0,1.0];
     let audio_context = AudioContext::new().unwrap();
     //the Input struct and its variables
-    let input:Input = interpret(&*code, &audio_context, &gl);
+    let input:Input = interpret(&*textarea.value(), &audio_context, &gl);
     let mut oscs = &input.oscs;
     let mut rnds = &input.noises;
     let mut objs = input.shapes;
@@ -531,8 +533,9 @@ use wasm_bindgen::closure::Closure;
     let mut rnds_len = rnds.len();
     let mut objs_len = objs.len();
     let mut muls_len = muls.len();
+   
     //starting audio oscillators
-    for i in 0..oscs_len{
+   for i in 0..oscs_len{
       input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
       let mut gain_origin_val = input.osc_amps[i].gain().value();
       let new_amp = gain_origin_val / oscs_len as f32;
@@ -550,38 +553,45 @@ use wasm_bindgen::closure::Closure;
       input.noises[i].stop();
       input.noises[i].start();
       }
-  //finally the window rendering   
+     
+  //finally the window rendering 
      window.render_loop(move |frame_input| { 
       let screen = frame_input.screen();
       camera.set_viewport(frame_input.viewport);
-      screen.clear(ClearState::color(channels[0], channels[1], channels[2], channels[3]));
-      if muls_len != 0{
-      for m in 0..muls_len{
-        let rows:u32 = muls[m].rows;
-                let columns:u32 = muls[m].columns;
-                let w = frame_input.viewport.width/rows;
-                let h = frame_input.viewport.height/columns;
-                for i in 0..(rows-1){
-                  let x = (w*i) as i32;
-                  for i in 1..columns{
-                  let y = (h*i) as i32;
-                  let scissor_box = ScissorBox{
-                    height: h,
-                    width: w,
-                    x: x,
-                    y: y
-                  };
-        for o in 0..objs_len{
-          screen.render_partially(scissor_box, &camera, &[&*objs[o]], &[]);
+        screen.clear(ClearState::color(channels[0], channels[1], channels[2], channels[3]));
+        if muls_len != 0{
+        for m in 0..muls_len{
+          let rows:u32 = muls[m].rows;
+                  let columns:u32 = muls[m].columns;
+                  let w = frame_input.viewport.width/rows;
+                  let h = frame_input.viewport.height/columns;
+                  for i in 0..(rows-1){
+                    let x = (w*i) as i32;
+                    for i in 1..columns{
+                    let y = (h*i) as i32;
+                    let scissor_box = ScissorBox{
+                      height: h,
+                      width: w,
+                      x: x,
+                      y: y
+                    };
+              if objs_len != 0{
+                for o in 0..objs_len{
+                  screen.render_partially(scissor_box, &camera, &[&*objs[o]], &[]);
+                }
+              }
         }
       }
-    }
-    }
-  } else {
-    for o in 0..objs_len{
-      screen.render(&camera, &[&*objs[o]], &[]);
-    }
-    }
+      }
+    } else {
+      if objs_len != 0{
+        for o in 0..objs_len{
+          screen.render(&camera, &[&*objs[o]], &[]);
+        }
+      }
+      }
+  
+      
       FrameOutput::default()
-    });
+    }); 
     }

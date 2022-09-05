@@ -14,9 +14,10 @@
       import init, {start} from './pkg/pulchra.js';
       init()
       .then(()=>start())
-      document.getElementById('input').addEventListener('keydown', (e)=>{
+      let input = document.getElementById('input');
+      input.addEventListener('keydown', (e)=>{
         if (e.altKey && e.key == 'Enter'){
-            console.log("Executing...");
+            start();
         }
       })
 </script>

@@ -193,10 +193,12 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
     }
       
     #[derive(PartialEq, Copy, Clone)]
+    #[wasm_bindgen]
       pub struct Multiplication{
         rows: u32,
         columns: u32
       }
+      #[wasm_bindgen]
       pub struct Input{
         shapes: Vec<Box<dyn Object>>,
         colors: Vec<Color>,
@@ -207,7 +209,9 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
         screen_color: Color,
         muls: Vec<Multiplication>
       }
+      #[wasm_bindgen]
       impl Input{
+        #[wasm_bindgen(constructor)]
         pub fn new(shapes:Vec<Box<dyn Object>>, colors:Vec<Color>, 
           oscs:Vec<OscillatorNode>, noises:Vec<AudioBufferSourceNode>, osc_amps:Vec<GainNode>, 
           noise_amps:Vec<GainNode>,screen_color:Color, muls:Vec<Multiplication>)->Self{

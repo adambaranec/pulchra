@@ -11,13 +11,16 @@
 </head>
 <body>
 <script type="module">
-      import init, {start, Input} from './pkg/pulchra.js';
+      import init, {start, set} from './pkg/pulchra.js';
+      let canvas = document.getElementById('graphics');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
       init()
       .then(()=>start())
       let input = document.getElementById('input');
       input.addEventListener('keydown', (e)=>{
         if (e.altKey && e.key == 'Enter'){
-            start();
+            set();
         }
       })
 </script>

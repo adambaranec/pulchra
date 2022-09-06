@@ -2,9 +2,9 @@ use regex::Regex;
 use three_d::renderer::*;
 use three_d::window::*;
 use three_d::core::prelude::Color;
-use wasm_bindgen::JsValue;
 use web_sys::*;
-use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
 
   #[derive(PartialEq)]
   enum Medium{
@@ -21,6 +21,7 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
     SinOsc,
     SawOsc,
     SqrOsc,
+    TriOsc,
     NoiseOsc,
     Unknown
   }
@@ -53,6 +54,7 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
       "sin"=>Medium::Audio,
       "saw"=>Medium::Audio,
       "sqr"=>Medium::Audio,
+      "tri"=>Medium::Audio,
       "rnd"=>Medium::Audio,
       "mul"=>Medium::Effect,
       _=>Medium::Unknown
@@ -67,6 +69,7 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
       "sin"=>Variant::SinOsc,
       "saw"=>Variant::SawOsc,
       "sqr"=>Variant::SqrOsc,
+      "tri"=>Variant::TriOsc,
       "rnd"=>Variant::NoiseOsc,
       _=>Variant::Unknown
       }
@@ -125,16 +128,18 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
       error_p.set_inner_html(error);
     }
 
-    fn create_osc(ctx: &AudioContext, wave: Variant, freq: u32, gain: f32) -> Result<(Option<OscillatorNode>,Option<AudioBufferSourceNode>,GainNode),&'static str>{
-    let gain_node = GainNode::new(ctx).unwrap();
+    fn create_osc(wave: Variant, freq: u32, gain: f32) -> Result<(Option<OscillatorNode>,Option<AudioBufferSourceNode>,GainNode),&'static str>{
+    let ctx = AudioContext:: new().unwrap();
+    let gain_node = GainNode::new(&ctx).unwrap();
     gain_node.gain().set_value(gain);
     if wave != Variant::NoiseOsc{
-    let osc = OscillatorNode::new(ctx).unwrap();
+    let osc = OscillatorNode::new(&ctx).unwrap();
     osc.frequency().set_value(freq as f32);
     match wave{
     Variant::SinOsc=>osc.set_type(OscillatorType::Sine),
     Variant::SawOsc=>osc.set_type(OscillatorType::Sawtooth),
     Variant::SqrOsc=>osc.set_type(OscillatorType::Square),
+    Variant::TriOsc=>osc.set_type(OscillatorType::Triangle),
     _=>todo!(),
     }
     Ok((Some(osc),None,gain_node))
@@ -148,7 +153,7 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
       let mut options = AudioBufferSourceOptions::new();
       options.buffer(Some(&noise_buf));
       options.loop_(true);
-      let buf_player = AudioBufferSourceNode::new_with_options(ctx, &options);
+      let buf_player = AudioBufferSourceNode::new_with_options(&ctx, &options);
       match buf_player{
         Ok(val) =>{return Ok((None,Some(val),gain_node))},
         Err(err)=>{return Err("Invalid buffer player.")},
@@ -170,13 +175,13 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
       Variant::Sphere=>{
         let angle = Rad::<f32>::full_turn();
         let longitude = angle / 20.0;
-        let rotation = angle / 30.0;
+        let rotation = angle / 20.0;
         let mut x:f32 = 0.0;
         let mut y:f32 = 0.0;
         let mut z:f32 = 0.0;
         let mut sphere_pos:Vec<Vector3<f32>>=vec![];
         //rotations of longitudes
-        for i in 1..30{
+        for i in 1..20{
         z = Rad::sin((rotation * i as f32) * range);
           //positions of vertices creating the longitude
           for i in 1..20{
@@ -193,34 +198,12 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
     }
       
     #[derive(PartialEq, Copy, Clone)]
-    #[wasm_bindgen]
       pub struct Multiplication{
         rows: u32,
         columns: u32
       }
-      #[wasm_bindgen]
-      pub struct Input{
-        shapes: Vec<Box<dyn Object>>,
-        colors: Vec<Color>,
-        oscs: Vec<OscillatorNode>,
-        noises: Vec<AudioBufferSourceNode>,
-        osc_amps: Vec<GainNode>,
-        noise_amps: Vec<GainNode>,
-        screen_color: Color,
-        muls: Vec<Multiplication>
-      }
-      #[wasm_bindgen]
-      impl Input{
-        #[wasm_bindgen(constructor)]
-        pub fn new(shapes:Vec<Box<dyn Object>>, colors:Vec<Color>, 
-          oscs:Vec<OscillatorNode>, noises:Vec<AudioBufferSourceNode>, osc_amps:Vec<GainNode>, 
-          noise_amps:Vec<GainNode>,screen_color:Color, muls:Vec<Multiplication>)->Self{
-          Input{shapes: shapes, colors: colors, oscs: oscs, noises: noises, osc_amps: osc_amps,
-          noise_amps: noise_amps, screen_color: screen_color, muls: muls}
-        }
-      }
         
-      fn interpret(input: &str, audio_ctx: &AudioContext, gl_ctx: &Context)->Input{
+      fn interpret(input: &str, gl_ctx: &Context){
       let mut Shapes:Vec<Box<dyn Object>> = vec![];
       let mut Colors:Vec<Color> = vec![];
       let mut Oscillators:Vec<OscillatorNode> = vec![];
@@ -230,10 +213,8 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
       let mut screen_color:Color = Color::new_opaque(0,0,0); 
       let mut multiplications:Vec<Multiplication> = vec![];
 
-      //an expression as a string
-      let mut expr:&str = "";
       //individual words of the expression
-      let mut words:Vec<&str> = expr.split_whitespace().collect();
+      let mut words:Vec<&str> = input.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
@@ -242,57 +223,40 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
 
       };
 
-      let mut create_audio = |freq: u32, gain: f32| {
+      let mut create_audio = |freq: u32, gain: f32| -> 
+      Result<(Option<OscillatorNode>, Option<AudioBufferSourceNode>, GainNode), ()> {
         if variant() != Variant::Unknown {
           match variant(){
-            Variant::SinOsc=>{
-              let osc = create_osc(audio_ctx, Variant::SinOsc, freq, gain);
+            Variant::SinOsc | Variant::SawOsc | Variant::SqrOsc | Variant::TriOsc=>{
+              let osc = create_osc(Variant::SinOsc, freq, gain);
               match osc{
                 Ok(val) => {
                   if val.0 != None && val.1 == None{
-                    Oscillators.push(val.0.unwrap()); Oscamps.push(val.2)
+                    Ok(val)
+                  } else {
+                    Err(send_err(""))
                   }
                 },
-                Err(err) => send_err(err),
-              }
-            },
-            Variant::SawOsc=>{
-              let osc = create_osc(audio_ctx, Variant::SawOsc, freq, gain);
-              match osc{
-                Ok(val)=>{     
-                  if val.0 != None && val.1 == None{
-                  Oscillators.push(val.0.unwrap()); Oscamps.push(val.2)
-                }
-               },
-                Err(err)=>send_err(err),
-              }
-            },
-            Variant::SqrOsc=>{
-              let osc = create_osc(audio_ctx, Variant::SqrOsc, freq, gain);
-              match osc{
-                Ok(val)=>{
-                  if val.0 != None && val.1 == None{
-                    Oscillators.push(val.0.unwrap()); Oscamps.push(val.2)
-                  } 
-                },
-                Err(err)=>send_err(err),
+                Err(err) => Err(send_err(err)),
               }
             },
             Variant::NoiseOsc=>{
-              let osc = create_osc(audio_ctx, Variant::NoiseOsc, freq, gain);
+              let osc = create_osc(Variant::NoiseOsc, freq, gain);
               match osc{
                 Ok(val)=>{
                   if val.1 != None && val.0 == None{
-                    Noises.push(val.1.unwrap()); Noiseamps.push(val.2)
+                    Ok(val)
+                  } else {
+                    Err(send_err(""))
                   }
                 },
-                Err(err)=>send_err(err),
+                Err(err)=>Err(send_err(err)),
               }
             },
-            _=>send_err("Not suitable for audio."),
+            _=>Err(send_err("Not suitable for audio.")),
           }
         } else {
-         send_err("Unknown audio type to play.")
+         Err(send_err("Unknown audio type to play."))
         }
       };
 
@@ -461,50 +425,28 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
         if medium() != Medium::Unknown {
           match medium(){
             Medium::Visuals=>prepare_visual(&words[1.. ]),
-            Medium::Audio=>prepare_audio(&expr),
-            Medium::Effect=>prepare_effect(&expr),
+            Medium::Audio=>prepare_audio(&input),
+            Medium::Effect=>prepare_effect(&input),
             _=>send_err("Not suitable."),
           }
         } else {
           send_err("Unknown media.");
         }
       };
-
-      if input.contains(";"){
-        let exprs = input.split(';');
-        for mut expression in exprs{
-          expression = &expr;
-          control_media();
-        }
-        Input::new(Shapes,Colors,Oscillators,Noises,Oscamps,Noiseamps,screen_color,multiplications)
-      } else {
-        let mut expr_ref = &*expr;
-        expr_ref = input;
         control_media();
-        Input::new(Shapes,Colors,Oscillators,Noises,Oscamps,Noiseamps,screen_color,multiplications)
       }
-      }
-
-        //the closure for JS which will change it
-        fn execute(code: String, audio_context: &AudioContext, gl: &Context) {
-          let input:Input = interpret(&*code, &audio_context, &gl);
-          let mut oscs_len = input.oscs.len();
-          let mut rnds_len = input.noises.len();
-          let mut objs_len = input.shapes.len();
-          let mut muls_len = input.muls.len();
-         
-            for i in 0..objs_len{
     
-            }
-        }
+    
+    pub fn set(){
 
+    }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();
       let canvas = document.get_element_by_id("graphics").unwrap()
       .dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
       let textarea = document.get_element_by_id("input").unwrap()
       .dyn_into::<web_sys::HtmlTextAreaElement>().unwrap();
-      let window = three_d::Window::new(WindowSettings{
+      let window:three_d::Window = three_d::Window::new(WindowSettings{
         title: String::from("Pulchra"),
         canvas: Some(canvas),
         borderless: true,
@@ -520,26 +462,22 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
        0.1,
        1000.0
    );
-   let mut channels:[f32; 4] = [0.0,0.0,0.0,1.0];
-   let audio_context = AudioContext::new().unwrap();
-   let input = interpret(&*textarea.value(), &audio_context, &gl);
-    
-   //mutable variables for changing the environment
+   //just an object for testing
+   //let model = Gm::new(Mesh::new(&gl, &CpuMesh::cube()),ColorMaterial::default());
+     //mutable variables for changing the environment
     let mut channels:[f32; 4] = [0.0,0.0,0.0,1.0];
-    let audio_context = AudioContext::new().unwrap();
-    //the Input struct and its variables
-    let input:Input = interpret(&*textarea.value(), &audio_context, &gl);
-    let mut oscs = &input.oscs;
-    let mut rnds = &input.noises;
-    let mut objs = input.shapes;
-    let mut muls = input.muls;
-    let mut oscs_len = oscs.len();
-    let mut rnds_len = rnds.len();
-    let mut objs_len = objs.len();
-    let mut muls_len = muls.len();
+    //let input = interpret(&*textarea.value(), &gl);
+    //let objs = input.0;
+    //let oscs = input.2;
+    //let rnds = input.3;
+    //let muls = input.7;
+    let objs_len = 0;
+    let oscs_len = 0;
+    let rnds_len = 0;
+    let muls_len = 0;
    
     //starting audio oscillators
-   for i in 0..oscs_len{
+   /*for i in 0..oscs_len{
       input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
       let mut gain_origin_val = input.osc_amps[i].gain().value();
       let new_amp = gain_origin_val / oscs_len as f32;
@@ -557,13 +495,13 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
       input.noises[i].stop();
       input.noises[i].start();
       }
-     
+     */
   //finally the window rendering 
      window.render_loop(move |frame_input| { 
       let screen = frame_input.screen();
       camera.set_viewport(frame_input.viewport);
-        screen.clear(ClearState::color(channels[0], channels[1], channels[2], channels[3]));
-        if muls_len != 0{
+      screen.clear(ClearState::color(channels[0], channels[1], channels[2], channels[3]));
+        /*if muls_len != 0{
         for m in 0..muls_len{
           let rows:u32 = muls[m].rows;
                   let columns:u32 = muls[m].columns;
@@ -594,8 +532,8 @@ use wasm_bindgen::{JsCast,prelude::wasm_bindgen,JsObject};
         }
       }
       }
-  
+   */
       
       FrameOutput::default()
-    }); 
+    });
     }

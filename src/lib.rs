@@ -5,3 +5,7 @@ use wasm_bindgen::prelude::*;
 pub fn start(){
 interpreter::start()
 }
+#[wasm_bindgen]
+pub fn set(){
+interpreter::set()
+}

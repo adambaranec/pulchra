@@ -12,15 +12,18 @@
 <body>
 <script type="module">
       import init, {start, set} from './pkg/pulchra.js';
+      window.onload = (e) =>{
       let canvas = document.getElementById('graphics');
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       init()
       .then(()=>start())
+      }
       let input = document.getElementById('input');
       input.addEventListener('keydown', (e)=>{
         if (e.altKey && e.key == 'Enter'){
-            set();
+          //console.log(`Executing code: ${String(input.value)}`);
+          set(String(input.value));
         }
       })
 </script>

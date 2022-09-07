@@ -6,6 +6,6 @@ pub fn start(){
 interpreter::start()
 }
 #[wasm_bindgen]
-pub fn set(){
-interpreter::set()
+pub fn set(code: String){
+interpreter::set(code)
 }

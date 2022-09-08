@@ -1,10 +1,12 @@
+use std::sync::Arc;
 use regex::Regex;
 use three_d::renderer::*;
 use three_d::window::*;
+use three_d::core::Context as core_context;
+use three_d::context::Context as cont_context;
 use three_d::core::prelude::Color;
 use web_sys::*;
 use wasm_bindgen::JsCast;
-use wasm_bindgen::prelude::*;
 
   #[derive(PartialEq)]
   enum Medium{
@@ -128,12 +130,10 @@ use wasm_bindgen::prelude::*;
       error_p.set_inner_html(error);
     }
 
-    fn create_osc(wave: Variant, freq: f32, gain: f32) -> Result<(Option<OscillatorNode>,Option<AudioBufferSourceNode>,GainNode),&'static str>{
-    let ctx = AudioContext:: new().unwrap();
-    let gain_node = GainNode::new(&ctx).unwrap();
+    fn create_osc(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32) -> Result<(OscillatorNode,GainNode),&'static str>{
+    let gain_node = GainNode::new(&audio_context).unwrap();
     gain_node.gain().set_value(gain);
-    if wave != Variant::NoiseOsc{
-    let osc = OscillatorNode::new(&ctx).unwrap();
+    let osc = OscillatorNode::new(&audio_context).unwrap();
     osc.frequency().set_value(freq);
     match wave{
     Variant::SinOsc=>osc.set_type(OscillatorType::Sine),
@@ -142,9 +142,18 @@ use wasm_bindgen::prelude::*;
     Variant::TriOsc=>osc.set_type(OscillatorType::Triangle),
     _=>todo!(),
     }
-    Ok((Some(osc),None,gain_node))
-    } else {
+    osc.connect_with_audio_node(&gain_node);
+    gain_node.connect_with_audio_node(&audio_context.destination());
+    osc.stop();
+    osc.start();
+    Ok((osc,gain_node))
+    }
+
+    fn create_noise(gain: f32) ->Result<(AudioBufferSourceNode, GainNode),&'static str>{
       use rand::prelude::*;
+      let ctx = AudioContext::new().unwrap();
+      let gain_node = GainNode::new(&ctx).unwrap();
+      gain_node.gain().set_value(gain);
       let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * ctx.sample_rate() as u32, ctx.sample_rate())).unwrap();
       let mut output:Vec<f32> = noise_buf.get_channel_data(0).unwrap();
       for mut val in output{
@@ -153,12 +162,16 @@ use wasm_bindgen::prelude::*;
       let mut options = AudioBufferSourceOptions::new();
       options.buffer(Some(&noise_buf));
       options.loop_(true);
-      let buf_player = AudioBufferSourceNode::new_with_options(&ctx, &options);
-      match buf_player{
-        Ok(val) =>{return Ok((None,Some(val),gain_node))},
-        Err(err)=>{return Err("Invalid buffer player.")},
-      }
+      let buf_player = AudioBufferSourceNode::new_with_options(&ctx, &options).unwrap();
+      buf_player.connect_with_audio_node(&gain_node);
+      gain_node.connect_with_audio_node(&ctx.destination());
+      buf_player.stop();
+      buf_player.start();
+      Ok((buf_player,gain_node))
     }
+
+    fn produce_vertices(pos:Vec<Vector3<f32>>)->Positions{
+     Positions::F32(pos)
     }
 
     fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color) -> Result<Box<dyn Object>,&'static str>{
@@ -203,15 +216,7 @@ use wasm_bindgen::prelude::*;
       }
         
       fn interpret(input: &str, gl_ctx: &Context){
-      let mut Shapes:Vec<Box<dyn Object>> = vec![];
-      let mut Colors:Vec<Color> = vec![];
-      let mut Oscillators:Vec<OscillatorNode> = vec![];
-      let mut Noises:Vec<AudioBufferSourceNode> = vec![];
-      let mut Oscamps:Vec<GainNode>=vec![];
-      let mut Noiseamps:Vec<GainNode>=vec![];
       let mut screen_color:Color = Color::new_opaque(0,0,0); 
-      let mut multiplications:Vec<Multiplication> = vec![];
-
       //individual words of the expression
       let mut words:Vec<&str> = input.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
@@ -222,79 +227,25 @@ use wasm_bindgen::prelude::*;
 
       };
 
-      let mut create_audio = |freq: f32, gain: f32| -> 
-      Result<(Option<OscillatorNode>, Option<AudioBufferSourceNode>, GainNode), ()> {
+      let mut create_audio = |freq: f32, gain: f32| {
         if variant() != Variant::Unknown {
+          let audio_context = AudioContext::new().unwrap();
           match variant(){
             Variant::SinOsc=>{
-              let osc = create_osc(Variant::SinOsc, freq, gain);
-              match osc{
-                Ok(val) => {
-                  if val.0 != None && val.1 == None{
-                    Ok(val)
-                  } else {
-                    Err(send_err(""))
-                  }
-                },
-                Err(err) => Err(send_err(err)),
-              }
+              let osc = create_osc(&audio_context, Variant::SinOsc, freq, gain);
             },
             Variant::SawOsc=>{
-              let osc = create_osc(Variant::SawOsc, freq, gain);
-              match osc{
-                Ok(val) => {
-                  if val.0 != None && val.1 == None{
-                    Ok(val)
-                  } else {
-                    Err(send_err(""))
-                  }
-                },
-                Err(err) => Err(send_err(err)),
-              }
+              let osc = create_osc(&audio_context, Variant::SawOsc, freq, gain);
             },
             Variant::SqrOsc=>{
-              let osc = create_osc(Variant::SqrOsc, freq, gain);
-              match osc{
-                Ok(val) => {
-                  if val.0 != None && val.1 == None{
-                    Ok(val)
-                  } else {
-                    Err(send_err(""))
-                  }
-                },
-                Err(err) => Err(send_err(err)),
-              }
+              let osc = create_osc(&audio_context, Variant::SqrOsc, freq, gain);
             },
             Variant::TriOsc=>{
-              let osc = create_osc(Variant::TriOsc, freq, gain);
-              match osc{
-                Ok(val) => {
-                  if val.0 != None && val.1 == None{
-                    Ok(val)
-                  } else {
-                    Err(send_err(""))
-                  }
+              let osc = create_osc(&audio_context, Variant::TriOsc, freq, gain);
                 },
-                Err(err) => Err(send_err(err)),
-              }
-            },
-            Variant::NoiseOsc=>{
-              let osc = create_osc(Variant::NoiseOsc, freq, gain);
-              match osc{
-                Ok(val)=>{
-                  if val.1 != None && val.0 == None{
-                    Ok(val)
-                  } else {
-                    Err(send_err(""))
-                  }
-                },
-                Err(err)=>Err(send_err(err)),
-              }
-            },
-            _=>Err(send_err("Not suitable for audio.")),
+          _=>todo!(),
           }
         } else {
-         Err(send_err("Unknown audio type to play."))
         }
       };
 
@@ -304,18 +255,10 @@ use wasm_bindgen::prelude::*;
           Variant::Cube=>{
             let model = create_model(gl_ctx, Variant::Cube, range, 
               Color::from_rgb_slice(&[color[0],color[1],color[2]]));
-              match model{
-                Ok(val)=>Shapes.push(val),
-                Err(err)=>send_err(err),
-              }
             },
           Variant::Sphere=>{
             let model = create_model(gl_ctx, Variant::Sphere, range, 
               Color::from_rgb_slice(&[color[0],color[1],color[2]]));
-              match model{
-                Ok(val)=>Shapes.push(val),
-                Err(err)=>send_err(err),
-              }
             },
           _=>send_err("Not suitable for creating models."),
         }
@@ -330,7 +273,7 @@ use wasm_bindgen::prelude::*;
           if stat.len() == 2{
           let uint = String::from(stat[1]).parse::<u32>();
           match uint{
-            Ok(val)=>multiplications.push(Multiplication{rows: val, columns: val}),
+            Ok(val)=>{},//multiplications.push(Multiplication{rows: val, columns: val}),
             Err(err)=>send_err("Invalid mul parameter."),
           }
           }
@@ -348,7 +291,7 @@ use wasm_bindgen::prelude::*;
               Err(err)=>send_err("Invalid number of columns to repeat.")
             }
             if result_r != 0 && result_c != 0{
-              multiplications.push(Multiplication{rows: result_r, columns: result_c});
+             // multiplications.push(Multiplication{rows: result_r, columns: result_c});
             }
           }
           else {send_err("Too many or little parameters for mul.")}
@@ -360,7 +303,7 @@ use wasm_bindgen::prelude::*;
         if Regex::new(r"(sin|saw|sqr|tri) ([\d]+|[\d]+\.[\d]+) \* (0.(\d+)|1|0)").unwrap().is_match(w) ||
         Regex::new(r"/(sin|saw|sqr|tri) ([\d]+|[\d]+\.[\d]+)\*(0.(\d+)|1|0)/").unwrap().is_match(w){
         let freq_result = Regex::new(r"[\d]+").unwrap().find(w);
-        let gain_result = Regex::new(r"(0\.[\d]+)|1").unwrap().find(w);
+        let gain_result = Regex::new(r"(0\.[\d]+)|1|0").unwrap().find(w);
         let mut freq:f32=0.0;
         let mut gain:f32=0.0;
         if freq_result != None && gain_result != None{
@@ -396,7 +339,7 @@ use wasm_bindgen::prelude::*;
             Err(err)=>send_err("Invalid gain."),
           }
           if gain > 1.0{send_err("Gain must not be greater than 1.")}else{
-            create_audio(0.0, 1.0);
+            create_noise(gain);
           }
         }
          else {
@@ -482,9 +425,17 @@ use wasm_bindgen::prelude::*;
         control_media();
       }
     
-    
-    pub fn set(code: String){
-    //let input = 
+    pub fn set(code: String, context: WebGl2RenderingContext){
+      send_err("");
+      let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
+      if code.contains(';'){
+        let exprs = code.split(';');
+        for expr in exprs{
+          interpret(expr, &orig_context);
+        }
+      } else {
+        interpret(&*code, &orig_context);
+      }
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();

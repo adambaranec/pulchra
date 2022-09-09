@@ -104,24 +104,15 @@ use wasm_bindgen::JsCast;
 
     fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
       let mut floats:Vec<f32> = vec![];
-      for param in Regex::new(r"((0\.[\d]+)|1)").unwrap().find_iter(word){
-        let mut float:Vec<char> = vec![];
-        for i in param.start()..param.end(){
-        float.push(word.chars().nth(i).unwrap());
-        };
-        let int = float.iter().collect::<String>().parse::<u8>();
-        let value = float.iter().collect::<String>().parse::<f32>();
-        match value{
-          Ok(v)=>floats.push(v),
-          Err(err)=>{
-            match int{
-            Ok(v)=>floats.push(v as f32),
-            Err(err)=>{return Err("Invalid values.")}
-            }
-          },
+      for float in Regex::new(r"((0\.[\d]+)|1|0)").unwrap().find_iter(word){
+        match String::from(float.as_str()).parse::<f32>(){
+          Ok(val)=>floats.push(val),
+          Err(err)=>send_err("Invalid values, could not collect them."),
         }
       };
-      Ok(floats)
+      if floats.len() == 0{
+        Err("There are no floats in this parameter.")
+      } else {Ok(floats) }
     }
 
     fn send_err(error: &str){
@@ -170,18 +161,18 @@ use wasm_bindgen::JsCast;
       Ok((buf_player,gain_node))
     }
 
-    fn produce_vertices(pos:Vec<Vector3<f32>>)->Positions{
-     Positions::F32(pos)
+    fn produce_cube_face_anticlockwise(pos:[Vector3<f32>; 4])->Vec<Vector3<f32>>{
+      vec![pos[0], pos[1], pos[2], pos[0], pos[2], pos[3]]
+    }
+    fn produce_longitude()->Vec<Vector3<f32>>{
+      vec![]
     }
 
     fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color) -> Result<Box<dyn Object>,&'static str>{
      match shape{
       Variant::Cube=>{
         /*let cube_pos:Vec<Vector3<f32>>=vec![
-        vec3(range*(-1.0),range*(-1.0),0.0),vec3(range,range*(-1.0),0.0),
-        vec3(range,range,0.0),vec3(range*(-1.0),range,0.0),
-        vec3(range*(-1.0),range*(-1.0),range),vec3(range,range*(-1.0),range),
-        vec3(range,range,range),vec3(range*(-1.0),range,range)];*/
+        ];*/
         Ok(Box::new(Gm::new(Mesh::new(ctx, &CpuMesh::cube()), ColorMaterial{color: color, ..Default::default()})))
       },
       Variant::Sphere=>{
@@ -254,11 +245,11 @@ use wasm_bindgen::JsCast;
         match variant(){
           Variant::Cube=>{
             let model = create_model(gl_ctx, Variant::Cube, range, 
-              Color::from_rgb_slice(&[color[0],color[1],color[2]]));
+              Color::from_rgb_slice(&[color[0],color[1],color[2]])).unwrap();
             },
           Variant::Sphere=>{
             let model = create_model(gl_ctx, Variant::Sphere, range, 
-              Color::from_rgb_slice(&[color[0],color[1],color[2]]));
+              Color::from_rgb_slice(&[color[0],color[1],color[2]])).unwrap();
             },
           _=>send_err("Not suitable for creating models."),
         }
@@ -347,73 +338,72 @@ use wasm_bindgen::JsCast;
         }
       };
 
-      let mut prepare_visual = |w: &[&str]| {
-        if w.len() == 1{
-          if param(w[0]) == Param::Range{
-            if variant() != Variant::Screen{
-            match String::from(w[0]).parse::<f32>(){
-              Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
-              Err(err)=>send_err("Invalid radius for the object."),
+      let mut prepare_visual = |w: &str| {
+        let expr:Vec<&str> = w.split_whitespace().collect();
+        let matches_float = Regex::new(r"(0.(\d+)|1|0)").unwrap();
+        let matches_rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
+        //let matches_uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
+        match variant(){
+          Variant::Screen=>{
+            if expr.len() == 1{
+              send_err("Missing parameters for the screen.")
             }
-          } else {
-            match String::from(w[0]).parse::<f32>(){
-              Ok(val)=>{screen_color = Color::from_rgb_slice(&[val,val,val])},
-              Err(err)=>send_err("Invalid grayscale for the screen."),
+            else if matches_float.is_match(expr[1]){
+              match String::from(expr[1]).parse::<f32>(){
+                Ok(val)=>{screen_color = Color::from_rgb_slice(&[val,val,val])},
+                Err(err)=>send_err("Invalid grayscale for the screen."),
+              }
+            } else if matches_rgb.is_match(expr[1]){
+              match floats_from(expr[1]){
+                Ok(val)=>{screen_color = Color::from_rgb_slice(&[val[0], val[1], val[2]])},
+                Err(err)=>send_err("Invalid rgb for the screen."),
+              }
+            } else {
+             send_err("Unknown parameters for the screen.")
             }
-          }
-          }
-          else if analyze_func(w[0]) == FnType::Rgb{
-            if variant() != Variant::Screen{
-            match floats_from(w[0]){
-              Ok(val)=>create_visual(1.0, val),
-              Err(err)=>send_err("Invalid rgb values for the object."),
+          },
+          Variant::Cube | Variant::Sphere=>{
+            if expr.len() == 1{
+              create_visual(1.0, vec![1.0,1.0,1.0]);
             }
-          } else {
-            let ch = floats_from(w[0]);
-            match ch{
-              Ok(val)=>{screen_color = Color::from_rgb_slice(&[val[0], val[1], val[2]])},
-              Err(err)=>send_err("Invalid rgb values for the screen."),
-            }
-          }
-          }
-          else {
-            send_err("Unknown parameter for the object.");
-          }
-        }
-        else if w.len() == 2{
-           if variant() != Variant::Screen{
-            if param(w[0]) == Param::Range && analyze_func(w[1]) == FnType::Rgb{
-              let mut range:f32 = 0.0;
+            else if matches_float.is_match(expr[1]){
+              match String::from(expr[1]).parse::<f32>(){
+               Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
+               Err(err)=>send_err("Invalid radius for the object."),
+              }
+            } else if matches_rgb.is_match(expr[1]){
+              match floats_from(expr[1]){
+                Ok(val)=>create_visual(1.0, val),
+                Err(err)=>send_err("Invalid color for the object."),
+              }
+            } else if matches_float.is_match(expr[1]) && matches_rgb.is_match(expr[2]){
+              let mut range:f32=-1.0;
               let mut color:Vec<f32> = vec![];
-              match String::from(w[0]).parse::<f32>(){
-              Ok(val)=>{range = val},
-              Err(err)=>send_err("Invalid value for the object radius."),
+              match String::from(expr[1]).parse::<f32>(){
+                Ok(val)=>{range = val},
+                Err(err)=>send_err("One of parameters is not valid."),
               }
-              match floats_from(w[1]){
-              Ok(val)=>{for v in val{color.push(v)}},
-              Err(err)=>send_err("Invalid values for the rgb."),
-              }
-              if range != 0.0 && color.len() != 0{
-                create_visual(range, color);
-              }
+              match floats_from(expr[2]){
+                Ok(val)=>{color = val},
+                Err(err)=>send_err("One of parameters is not valid."),
             }
-            else{
-              send_err("Invalid parameters for the object.");
+            if range != -1.0 && color.len() != 0{
+              create_visual(range, color);
+            } else {todo!()}
+          } else if expr.len()>2{
+            send_err("Too many parameters for the object.")
+            } else {
+              send_err("Unknown parameters for the object.")
             }
-           } else {send_err("Too many parameters for the screen.")}
-        }
-        else if w.len() < 1 || w.len() > 2{
-          send_err("Too many or little parameters for the media.");
-        } 
-        else {
-        todo!();
-        }
+          },
+          _=>todo!(),
+         }
         };
 
       let mut control_media = || {
         if medium() != Medium::Unknown {
           match medium(){
-            Medium::Visuals=>prepare_visual(&words[1.. ]),
+            Medium::Visuals=>prepare_visual(&input),
             Medium::Audio=>prepare_audio(&input),
             Medium::Effect=>prepare_effect(&input),
             _=>send_err("Not suitable."),
@@ -496,6 +486,7 @@ use wasm_bindgen::JsCast;
       let screen = frame_input.screen();
       camera.set_viewport(frame_input.viewport);
       screen.clear(ClearState::color(channels[0], channels[1], channels[2], channels[3]));
+      screen.render(&camera, &[], &[]);
       /*if muls_len != 0{
         for m in 0..muls_len{
           let rows:u32 = muls[m].rows;
@@ -541,6 +532,8 @@ use wasm_bindgen::JsCast;
      &CpuMesh{
       positions: Positions::F32(vec![
       vec3(0.0,0.0,0.0),
+      vec3(dist,0.0,-dist),
+      vec3(-dist,0.0,-dist),
       vec3(dist,0.0,-dist),
       vec3(-dist,0.0,-dist),
       vec3(0.0,dist/2.0,-dist)

@@ -14,6 +14,7 @@
       import init, {start, set} from './pkg/pulchra.js';
       let canvas = document.getElementById('graphics');
       let input = document.getElementById('input');
+      let a;
       window.onload = (e) =>{
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -21,11 +22,18 @@
       .then(()=>start())
       }
       input.addEventListener('keydown', (e)=>{
-        if (e.altKey && e.key == 'Enter'){
+        let a;
+        if (e.metaKey && e.key == 'Enter'){
+          if (!a){a = new AudioContext();}
+          console.clear();
           //console.log(`Executing code: ${String(input.value)}`);
-          set(String(input.value),canvas.getContext('webgl2'));
+          if (!input.value){
+            set(String(input.value),canvas.getContext('webgl2'),a);
+          }
+        } else if (e.metaKey && e.key == 'e') {
+          input.value = '';
         }
-      })
+      });
 </script>
 <textarea id="input" placeholder="Welcome to Pulchra!
 Just press any key." autofocus="true" rows="8"></textarea>

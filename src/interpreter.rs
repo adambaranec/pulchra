@@ -206,7 +206,7 @@ use wasm_bindgen::JsCast;
         columns: u32
       }
         
-      fn interpret(input: &str, gl_ctx: &Context){
+      fn interpret(input: &str, gl_ctx: &Context, audio: &AudioContext){
       let mut screen_color:Color = Color::new_opaque(0,0,0); 
       //individual words of the expression
       let mut words:Vec<&str> = input.split_whitespace().collect();
@@ -220,19 +220,18 @@ use wasm_bindgen::JsCast;
 
       let mut create_audio = |freq: f32, gain: f32| {
         if variant() != Variant::Unknown {
-          let audio_context = AudioContext::new().unwrap();
           match variant(){
             Variant::SinOsc=>{
-              let osc = create_osc(&audio_context, Variant::SinOsc, freq, gain);
+              let osc = create_osc(&audio, Variant::SinOsc, freq, gain);
             },
             Variant::SawOsc=>{
-              let osc = create_osc(&audio_context, Variant::SawOsc, freq, gain);
+              let osc = create_osc(&audio, Variant::SawOsc, freq, gain);
             },
             Variant::SqrOsc=>{
-              let osc = create_osc(&audio_context, Variant::SqrOsc, freq, gain);
+              let osc = create_osc(&audio, Variant::SqrOsc, freq, gain);
             },
             Variant::TriOsc=>{
-              let osc = create_osc(&audio_context, Variant::TriOsc, freq, gain);
+              let osc = create_osc(&audio, Variant::TriOsc, freq, gain);
                 },
           _=>todo!(),
           }
@@ -340,7 +339,7 @@ use wasm_bindgen::JsCast;
 
       let mut prepare_visual = |w: &str| {
         let expr:Vec<&str> = w.split_whitespace().collect();
-        let matches_float = Regex::new(r"(0.(\d+)|1|0)").unwrap();
+        let matches_float = Regex::new(r"^(0.(\d+)|1|0)").unwrap();
         let matches_rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
         //let matches_uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
         match variant(){
@@ -348,52 +347,70 @@ use wasm_bindgen::JsCast;
             if expr.len() == 1{
               send_err("Missing parameters for the screen.")
             }
-            else if matches_float.is_match(expr[1]){
-              match String::from(expr[1]).parse::<f32>(){
-                Ok(val)=>{screen_color = Color::from_rgb_slice(&[val,val,val])},
-                Err(err)=>send_err("Invalid grayscale for the screen."),
-              }
-            } else if matches_rgb.is_match(expr[1]){
-              match floats_from(expr[1]){
-                Ok(val)=>{screen_color = Color::from_rgb_slice(&[val[0], val[1], val[2]])},
-                Err(err)=>send_err("Invalid rgb for the screen."),
-              }
-            } else {
-             send_err("Unknown parameters for the screen.")
+            else if expr.len() == 2{
+              if matches_float.is_match(expr[1]){
+                match String::from(expr[1]).parse::<f32>(){
+                    Ok(val)=>{screen_color = Color::from_rgb_slice(&[val,val,val])},
+                    Err(err)=>send_err("Invalid grayscale for the screen."),
+                  }
+                } 
+                else if matches_rgb.is_match(expr[1]){
+                  match floats_from(expr[1]){
+                    Ok(val)=>{screen_color = Color::from_rgb_slice(&[val[0], val[1], val[2]])},
+                    Err(err)=>send_err("Invalid rgb for the screen."),
+                  }
+                } else {
+                  send_err("Unknown parameters for the screen.");
+                }
+            }
+            else if expr.len() > 2{
+            send_err("Too many parameters for the screen.");
+            }
+            else {
+             todo!();
             }
           },
           Variant::Cube | Variant::Sphere=>{
             if expr.len() == 1{
               create_visual(1.0, vec![1.0,1.0,1.0]);
             }
-            else if matches_float.is_match(expr[1]){
-              match String::from(expr[1]).parse::<f32>(){
-               Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
-               Err(err)=>send_err("Invalid radius for the object."),
+            else if expr.len() == 2{
+              if matches_float.is_match(expr[1]){
+                match String::from(expr[1]).parse::<f32>(){
+                    Ok(val)=>{screen_color = Color::from_rgb_slice(&[val,val,val])},
+                    Err(err)=>send_err("Invalid grayscale for the object."),
+                  }
+                } 
+                else if matches_rgb.is_match(expr[1]){
+                  match floats_from(expr[1]){
+                    Ok(val)=>{screen_color = Color::from_rgb_slice(&[val[0], val[1], val[2]])},
+                    Err(err)=>send_err("Invalid rgb for the object."),
+                  }
+                } else {
+                  send_err("Unknown parameters for the object.");
+                }
+            } else if expr.len() == 3{
+              if matches_float.is_match(expr[1]) && matches_rgb.is_match(expr[2]){
+                let mut range:f32=-1.0;
+                let mut color:Vec<f32> = vec![];
+                match String::from(expr[1]).parse::<f32>(){
+                  Ok(val)=>{range = val},
+                  Err(err)=>send_err("One of parameters is not valid."),
+                }
+                match floats_from(expr[2]){
+                  Ok(val)=>{color = val},
+                  Err(err)=>send_err("One of parameters is not valid."),
               }
-            } else if matches_rgb.is_match(expr[1]){
-              match floats_from(expr[1]){
-                Ok(val)=>create_visual(1.0, val),
-                Err(err)=>send_err("Invalid color for the object."),
+              if range != -1.0 && color.len() != 0{
+                create_visual(range, color);
+              } else {
+                todo!();
               }
-            } else if matches_float.is_match(expr[1]) && matches_rgb.is_match(expr[2]){
-              let mut range:f32=-1.0;
-              let mut color:Vec<f32> = vec![];
-              match String::from(expr[1]).parse::<f32>(){
-                Ok(val)=>{range = val},
-                Err(err)=>send_err("One of parameters is not valid."),
-              }
-              match floats_from(expr[2]){
-                Ok(val)=>{color = val},
-                Err(err)=>send_err("One of parameters is not valid."),
             }
-            if range != -1.0 && color.len() != 0{
-              create_visual(range, color);
-            } else {todo!()}
-          } else if expr.len()>2{
+          } if expr.len() > 3{
             send_err("Too many parameters for the object.")
             } else {
-              send_err("Unknown parameters for the object.")
+              todo!();
             }
           },
           _=>todo!(),
@@ -416,15 +433,16 @@ use wasm_bindgen::JsCast;
       }
     
     pub fn set(code: String, context: WebGl2RenderingContext){
-      send_err("");
+      if &*code != "" {send_err("")}
       let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
+      let audio = AudioContext::new().unwrap();
       if code.contains(';'){
         let exprs = code.split(';');
         for expr in exprs{
-          interpret(expr, &orig_context);
+          interpret(expr, &orig_context, &audio);
         }
       } else {
-        interpret(&*code, &orig_context);
+        interpret(&*code, &orig_context, &audio);
       }
     }
     pub fn start(){

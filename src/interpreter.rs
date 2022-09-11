@@ -341,7 +341,7 @@ use wasm_bindgen::JsCast;
         let expr:Vec<&str> = w.split_whitespace().collect();
         let matches_float = Regex::new(r"^(0.(\d+)|1|0)").unwrap();
         let matches_rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
-        //let matches_uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
+        //let matches_uv = Regex::new(r"^\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
         match variant(){
           Variant::Screen=>{
             if expr.len() == 1{
@@ -377,13 +377,13 @@ use wasm_bindgen::JsCast;
             else if expr.len() == 2{
               if matches_float.is_match(expr[1]){
                 match String::from(expr[1]).parse::<f32>(){
-                    Ok(val)=>{screen_color = Color::from_rgb_slice(&[val,val,val])},
+                    Ok(val)=>create_visual(val, vec![1.0,1.0,1.0]),
                     Err(err)=>send_err("Invalid grayscale for the object."),
                   }
                 } 
                 else if matches_rgb.is_match(expr[1]){
                   match floats_from(expr[1]){
-                    Ok(val)=>{screen_color = Color::from_rgb_slice(&[val[0], val[1], val[2]])},
+                    Ok(val)=>create_visual(1.0, val),
                     Err(err)=>send_err("Invalid rgb for the object."),
                   }
                 } else {
@@ -432,10 +432,10 @@ use wasm_bindgen::JsCast;
         control_media();
       }
     
-    pub fn set(code: String, context: WebGl2RenderingContext){
-      if &*code != "" {send_err("")}
-      let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
-      let audio = AudioContext::new().unwrap();
+    pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext){
+      if &*code != "" {
+        send_err("");
+        let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
       if code.contains(';'){
         let exprs = code.split(';');
         for expr in exprs{
@@ -444,6 +444,24 @@ use wasm_bindgen::JsCast;
       } else {
         interpret(&*code, &orig_context, &audio);
       }
+      }
+      let window = web_sys::window().unwrap();
+      let viewport = Viewport{
+        width: window.inner_width().unwrap().as_f64().unwrap() as u32,
+        height: window.inner_height().unwrap().as_f64().unwrap() as u32,
+        x: 0,
+        y: 0
+        };
+      let mut camera:Camera = Camera::new_perspective(
+        viewport,
+        vec3(1.0, 1.0, 3.0),
+        vec3(0.0, 0.0, 0.0),
+        vec3(0.0, 3.0, 0.0),
+        degrees(45.0),
+        0.1,
+        1000.0
+    );
+    camera.set_viewport(viewport);
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();
@@ -469,42 +487,11 @@ use wasm_bindgen::JsCast;
    );
      //mutable variables for changing the environment
     let mut channels:[f32; 4] = [0.0,0.0,0.0,1.0];
-    /*let input = interpret(&*textarea.value(), &gl);
-    //let objs = input.0;
-    //let oscs = input.2;
-    //let rnds = input.3;
-    //let muls = input.7;
-    let objs_len = 0;
-    let oscs_len = 0;
-    let rnds_len = 0;
-    let muls_len = 0;
-   
-    //starting audio oscillators
-   for i in 0..oscs_len{
-      input.oscs[i].connect_with_audio_node(&input.osc_amps[i]);
-      let mut gain_origin_val = input.osc_amps[i].gain().value();
-      let new_amp = gain_origin_val / oscs_len as f32;
-      gain_origin_val = new_amp;
-      input.osc_amps[i].connect_with_audio_node(&audio_context.destination());
-      input.oscs[i].stop();
-      input.oscs[i].start();
-      }
-      for i in 0..rnds_len{
-      input.noises[i].connect_with_audio_node(&input.noise_amps[i]);
-      let mut gain_origin_val = input.noise_amps[i].gain().value();
-      let new_amp = gain_origin_val / oscs_len as f32;
-      gain_origin_val = new_amp;
-      input.noise_amps[i].connect_with_audio_node(&audio_context.destination());
-      input.noises[i].stop();
-      input.noises[i].start();
-      }
-     */
   //finally the window rendering
      window.render_loop(move |frame_input| { 
       let screen = frame_input.screen();
       camera.set_viewport(frame_input.viewport);
       screen.clear(ClearState::color(channels[0], channels[1], channels[2], channels[3]));
-      screen.render(&camera, &[], &[]);
       /*if muls_len != 0{
         for m in 0..muls_len{
           let rows:u32 = muls[m].rows;

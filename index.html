@@ -14,21 +14,23 @@
       import init, {start, set} from './pkg/pulchra.js';
       let canvas = document.getElementById('graphics');
       let input = document.getElementById('input');
-      let a;
+      let audio;
       window.onload = (e) =>{
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
       init()
       .then(()=>start())
       }
+      window.onresize = (e) =>{
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      }
       input.addEventListener('keydown', (e)=>{
-        let a;
         if (e.metaKey && e.key == 'Enter'){
-          if (!a){a = new AudioContext();}
           console.clear();
-          //console.log(`Executing code: ${String(input.value)}`);
-          if (!input.value){
-            set(String(input.value),canvas.getContext('webgl2'),a);
+          if (typeof audio === 'undefined'){audio = new AudioContext();}
+          if (!input.value || input.value == ''){
+            set(String(input.value),canvas.getContext('webgl2'),audio);
           }
         } else if (e.metaKey && e.key == 'e') {
           input.value = '';

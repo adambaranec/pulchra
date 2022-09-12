@@ -4,9 +4,10 @@ use three_d::renderer::*;
 use three_d::window::*;
 use three_d::core::Context as core_context;
 use three_d::context::Context as cont_context;
-use three_d::core::prelude::Color;
+use three_d::core::{Program,buffer::*,prelude::Color};
 use web_sys::*;
 use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::wasm_bindgen;
 
   #[derive(PartialEq)]
   enum Medium{
@@ -133,10 +134,6 @@ use wasm_bindgen::JsCast;
     Variant::TriOsc=>osc.set_type(OscillatorType::Triangle),
     _=>todo!(),
     }
-    osc.connect_with_audio_node(&gain_node);
-    gain_node.connect_with_audio_node(&audio_context.destination());
-    osc.stop();
-    osc.start();
     Ok((osc,gain_node))
     }
 
@@ -154,10 +151,6 @@ use wasm_bindgen::JsCast;
       options.buffer(Some(&noise_buf));
       options.loop_(true);
       let buf_player = AudioBufferSourceNode::new_with_options(&ctx, &options).unwrap();
-      buf_player.connect_with_audio_node(&gain_node);
-      gain_node.connect_with_audio_node(&ctx.destination());
-      buf_player.stop();
-      buf_player.start();
       Ok((buf_player,gain_node))
     }
 
@@ -205,14 +198,21 @@ use wasm_bindgen::JsCast;
         rows: u32,
         columns: u32
       }
-        
-      fn interpret(input: &str, gl_ctx: &Context, audio: &AudioContext){
+      #[wasm_bindgen]
+      #[derive(PartialEq, Clone)]
+      pub struct Audio{
+       osc: Vec<OscillatorNode>,
+       gain: Vec<GainNode>
+      }
+      fn interpret(input: &str, gl_ctx: &Context, audio: &AudioContext)->Audio{
       let mut screen_color:Color = Color::new_opaque(0,0,0); 
       //individual words of the expression
       let mut words:Vec<&str> = input.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
+      let mut osc_arr:Vec<OscillatorNode> = vec![];
+      let mut gain_arr:Vec<GainNode> = vec![];
 
       let mut create_effect = |effect: Effect| {
 
@@ -223,19 +223,36 @@ use wasm_bindgen::JsCast;
           match variant(){
             Variant::SinOsc=>{
               let osc = create_osc(&audio, Variant::SinOsc, freq, gain);
+              match osc{
+                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
+                Err(err)=>send_err("Could not create the oscillator."),
+              }
             },
             Variant::SawOsc=>{
               let osc = create_osc(&audio, Variant::SawOsc, freq, gain);
+              match osc{
+                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
+                Err(err)=>send_err("Could not create the oscillator."),
+              }
             },
             Variant::SqrOsc=>{
               let osc = create_osc(&audio, Variant::SqrOsc, freq, gain);
+              match osc{
+                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
+                Err(err)=>send_err("Could not create the oscillator."),
+              }
             },
             Variant::TriOsc=>{
               let osc = create_osc(&audio, Variant::TriOsc, freq, gain);
+              match osc{
+                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
+                Err(err)=>send_err("Could not create the oscillator."),
+              }
                 },
           _=>todo!(),
           }
         } else {
+          send_err("Unknown oscillator.")
         }
       };
 
@@ -430,21 +447,35 @@ use wasm_bindgen::JsCast;
         }
       };
         control_media();
+        Audio{osc: osc_arr, gain: gain_arr}
       }
-    
-    pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext){
-      if &*code != "" {
+    pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext)->Audio{
+      let mut osc_arr:Vec<OscillatorNode> = vec![];
+      let mut gain_arr:Vec<GainNode> = vec![];
+      let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
+      
+      /* I'm  really sure I'll ever use this code
+      let vertex_biffer = VertexBuffer
+      Program::draw_elements(render_states: RenderStates,
+        viewport: Viewport,
+        element_buffer: &ElementBuffer);
+      */
+      /*if &*code != "" {
         send_err("");
         let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
       if code.contains(';'){
         let exprs = code.split(';');
         for expr in exprs{
-          interpret(expr, &orig_context, &audio);
+          let a = interpret(expr, &orig_context, &audio);
+          if a.osc.len() != 0 && a.gain.len() != 0{
+            osc_arr.push(a.osc[0].clone());
+            gain_arr.push(a.gain[0].clone());
+          }
         }
       } else {
-        interpret(&*code, &orig_context, &audio);
+        let a = interpret(&*code, &orig_context, &audio);
       }
-      }
+      }*/
       let window = web_sys::window().unwrap();
       let viewport = Viewport{
         width: window.inner_width().unwrap().as_f64().unwrap() as u32,
@@ -462,6 +493,7 @@ use wasm_bindgen::JsCast;
         1000.0
     );
     camera.set_viewport(viewport);
+    Audio{osc: osc_arr, gain: gain_arr}
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();

@@ -11,10 +11,12 @@
 </head>
 <body>
 <script type="module">
-      import init, {start, set} from './pkg/pulchra.js';
+      import init, {start, set, Audio} from './pkg/pulchra.js';
       let canvas = document.getElementById('graphics');
       let input = document.getElementById('input');
       let audio;
+      let oscArr = [];
+      let gainArr = [];
       window.onload = (e) =>{
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -28,11 +30,30 @@
       input.addEventListener('keydown', (e)=>{
         if (e.metaKey && e.key == 'Enter'){
           console.clear();
-          if (typeof audio === 'undefined'){audio = new AudioContext();}
+          if (typeof audio === 'undefined'){
+            audio = new AudioContext();
+           }
           if (!input.value || input.value == ''){
-            set(String(input.value),canvas.getContext('webgl2'),audio);
+            if (oscArr.length() != 0 && gainArr.length() != 0){
+              for (let i=0; i < oscArr.length(); i++){
+              oscArr[i].stop();
+              oscArr[i].disconnect();
+              gainArr[i].stop();
+              gainArr[i].disconnect();
+            }
+            }
+            let A = set(String(input.value),canvas.getContext('webgl2'),audio);
+            oscArr = A.osc;
+            gainArr = A.gain;
+            if (oscArr.length() != 0 && gainArr.length() != 0){
+              for (let i=0; i < oscArr.length(); i++){
+              oscArr[i].connect(gainArr[i]);
+              gainArr[i].connect(audio.destination);
+              oscArr[i].start()
+            }
+            }
           }
-        } else if (e.metaKey && e.key == 'e') {
+          } else if (e.metaKey && e.key == 'e') {
           input.value = '';
         }
       });

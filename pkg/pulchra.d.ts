@@ -7,15 +7,22 @@ export function start(): void;
 * @param {string} code
 * @param {WebGL2RenderingContext} context
 * @param {AudioContext} audio
+* @returns {Audio}
 */
-export function set(code: string, context: WebGL2RenderingContext, audio: AudioContext): void;
+export function set(code: string, context: WebGL2RenderingContext, audio: AudioContext): Audio;
+/**
+*/
+export class Audio {
+  free(): void;
+}
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
   readonly start: () => void;
-  readonly set: (a: number, b: number, c: number, d: number) => void;
+  readonly set: (a: number, b: number, c: number, d: number) => number;
+  readonly __wbg_audio_free: (a: number) => void;
   readonly __wbindgen_malloc: (a: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number) => number;
   readonly __wbindgen_export_2: WebAssembly.Table;

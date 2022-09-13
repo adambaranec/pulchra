@@ -122,7 +122,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
       error_p.set_inner_html(error);
     }
 
-    fn create_osc(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32) -> Result<(OscillatorNode,GainNode),&'static str>{
+    fn create_osc(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32){
     let gain_node = GainNode::new(&audio_context).unwrap();
     gain_node.gain().set_value(gain);
     let osc = OscillatorNode::new(&audio_context).unwrap();
@@ -134,7 +134,9 @@ use wasm_bindgen::prelude::wasm_bindgen;
     Variant::TriOsc=>osc.set_type(OscillatorType::Triangle),
     _=>todo!(),
     }
-    Ok((osc,gain_node))
+    osc.connect_with_audio_node(&gain_node);
+    gain_node.connect_with_audio_node(&audio_context.destination());
+    osc.start();
     }
 
     fn create_noise(gain: f32) ->Result<(AudioBufferSourceNode, GainNode),&'static str>{
@@ -204,113 +206,50 @@ use wasm_bindgen::prelude::wasm_bindgen;
        osc: Vec<OscillatorNode>,
        gain: Vec<GainNode>
       }
-      fn interpret(input: &str, gl_ctx: &Context, audio: &AudioContext)->Audio{
-      let mut screen_color:Color = Color::new_opaque(0,0,0); 
-      //individual words of the expression
-      let mut words:Vec<&str> = input.split_whitespace().collect();
-      let medium = || -> Medium {get_medium(words[0])};
-      let variant = || -> Variant {get_variant(words[0])};
-      let param = |w: &str| -> Param {get_param(w)};
-      let mut osc_arr:Vec<OscillatorNode> = vec![];
-      let mut gain_arr:Vec<GainNode> = vec![];
-
-      let mut create_effect = |effect: Effect| {
-
-      };
-
-      let mut create_audio = |freq: f32, gain: f32| {
-        if variant() != Variant::Unknown {
+      #[wasm_bindgen]
+      impl Audio{
+        #[wasm_bindgen(constructor)]
+        pub fn new(oscs: Vec<OscillatorNode>, gains: Vec<GainNode>) -> Audio{
+          Audio{osc: oscs, gain: gains}
+        }
+      }
+      fn create_audio(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32){
+        if wave != Variant::Unknown {
           match variant(){
-            Variant::SinOsc=>{
-              let osc = create_osc(&audio, Variant::SinOsc, freq, gain);
-              match osc{
-                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
-                Err(err)=>send_err("Could not create the oscillator."),
-              }
-            },
-            Variant::SawOsc=>{
-              let osc = create_osc(&audio, Variant::SawOsc, freq, gain);
-              match osc{
-                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
-                Err(err)=>send_err("Could not create the oscillator."),
-              }
-            },
-            Variant::SqrOsc=>{
-              let osc = create_osc(&audio, Variant::SqrOsc, freq, gain);
-              match osc{
-                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
-                Err(err)=>send_err("Could not create the oscillator."),
-              }
-            },
-            Variant::TriOsc=>{
-              let osc = create_osc(&audio, Variant::TriOsc, freq, gain);
-              match osc{
-                Ok(val)=>{osc_arr.push(val.0);gain_arr.push(val.1);},
-                Err(err)=>send_err("Could not create the oscillator."),
-              }
-                },
+            Variant::SinOsc=>create_osc(audio_context, Variant::SinOsc, freq, gain),
+            Variant::SawOsc=>create_osc(audio_context, Variant::SawOsc, freq, gain),
+            Variant::SqrOsc=>create_osc(audio_context, Variant::SqrOsc, freq, gain),
+            Variant::TriOsc=>create_osc(audio_context, Variant::TriOsc, freq, gain),
           _=>todo!(),
           }
         } else {
           send_err("Unknown oscillator.")
         }
-      };
-
-      let mut create_visual = |range: f32, color: Vec<f32>| {
-        if variant() != Variant::Unknown {
-        match variant(){
-          Variant::Cube=>{
-            let model = create_model(gl_ctx, Variant::Cube, range, 
-              Color::from_rgb_slice(&[color[0],color[1],color[2]])).unwrap();
-            },
-          Variant::Sphere=>{
-            let model = create_model(gl_ctx, Variant::Sphere, range, 
-              Color::from_rgb_slice(&[color[0],color[1],color[2]])).unwrap();
-            },
-          _=>send_err("Not suitable for creating models."),
-        }
-      } else {
-       send_err("Unknown shape type.")
       }
-      };
-
-      let mut prepare_effect = |w: &str|{
-        let stat:Vec<&str> = w.split_whitespace().collect();
-        if stat[0] == "mul"{
-          if stat.len() == 2{
-          let uint = String::from(stat[1]).parse::<u32>();
-          match uint{
-            Ok(val)=>{},//multiplications.push(Multiplication{rows: val, columns: val}),
-            Err(err)=>send_err("Invalid mul parameter."),
+      fn create_visual(gl_ctx: &Context, kind: Variant, range: f32, color: Vec<f32>){
+        if kind != Variant::Unknown {
+          match variant(){
+            Variant::Cube=>{
+              let model = create_model(gl_ctx, Variant::Cube, range, 
+                Color::from_rgb_slice(&[color[0],color[1],color[2]])).unwrap();
+              },
+            Variant::Sphere=>{
+              let model = create_model(gl_ctx, Variant::Sphere, range, 
+                Color::from_rgb_slice(&[color[0],color[1],color[2]])).unwrap();
+              },
+            _=>send_err("Not suitable for creating models."),
           }
-          }
-          else if stat.len() == 3{
-            let mut result_r:u32 = 0;
-            let mut result_c:u32 = 0;
-            let r = String::from(stat[1]).parse::<u32>();
-            let c = String::from(stat[2]).parse::<u32>();
-            match r{
-              Ok(val)=>{result_r = val},
-              Err(err)=>send_err("Invalid number of rows to repeat.")
-            }
-            match c{
-              Ok(val)=>{result_c = val},
-              Err(err)=>send_err("Invalid number of columns to repeat.")
-            }
-            if result_r != 0 && result_c != 0{
-             // multiplications.push(Multiplication{rows: result_r, columns: result_c});
-            }
-          }
-          else {send_err("Too many or little parameters for mul.")}
+        } else {
+         send_err("Unknown shape type.")
         }
-        
-      };
-
-      let mut prepare_audio = |w: &str| {
+      }
+      fn prepare_effect(w: &str){}
+      fn prepare_audio(w: &str, audio: &AudioContext){
         if Regex::new(r"(sin|saw|sqr|tri) ([\d]+|[\d]+\.[\d]+) \* (0.(\d+)|1|0)").unwrap().is_match(w) ||
-        Regex::new(r"/(sin|saw|sqr|tri) ([\d]+|[\d]+\.[\d]+)\*(0.(\d+)|1|0)/").unwrap().is_match(w){
+        Regex::new(r"(sin|saw|sqr|tri) ([\d]+|[\d]+\.[\d]+)\*(0.(\d+)|1|0)").unwrap().is_match(w){
         let freq_result = Regex::new(r"[\d]+").unwrap().find(w);
         let gain_result = Regex::new(r"(0\.[\d]+)|1|0").unwrap().find(w);
+        let wave = Regex::new(r"(sin|saw|sqr|tri)").unwrap().find(w);
         let mut freq:f32=0.0;
         let mut gain:f32=0.0;
         if freq_result != None && gain_result != None{
@@ -352,9 +291,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
          else {
           send_err("Unknown type of audio.")
         }
-      };
-
-      let mut prepare_visual = |w: &str| {
+      }
+      fn prepare_visuals(w: &str, gl: &Context){
         let expr:Vec<&str> = w.split_whitespace().collect();
         let matches_float = Regex::new(r"^(0.(\d+)|1|0)").unwrap();
         let matches_rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -432,9 +370,14 @@ use wasm_bindgen::prelude::wasm_bindgen;
           },
           _=>todo!(),
          }
-        };
+      }
+      fn interpret(input: &str, gl_ctx: &Context, audio: &AudioContext){
+      //individual words of the expression
+      let mut words:Vec<&str> = input.split_whitespace().collect();
+      let medium = || -> Medium {get_medium(words[0])};
+      let variant = || -> Variant {get_variant(words[0])};
+      let param = |w: &str| -> Param {get_param(w)};
 
-      let mut control_media = || {
         if medium() != Medium::Unknown {
           match medium(){
             Medium::Visuals=>prepare_visual(&input),
@@ -445,37 +388,17 @@ use wasm_bindgen::prelude::wasm_bindgen;
         } else {
           send_err("Unknown media.");
         }
-      };
-        control_media();
-        Audio{osc: osc_arr, gain: gain_arr}
-      }
-    pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext)->Audio{
-      let mut osc_arr:Vec<OscillatorNode> = vec![];
-      let mut gain_arr:Vec<GainNode> = vec![];
-      let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
-      
-      /* I'm  really sure I'll ever use this code
-      let vertex_biffer = VertexBuffer
-      Program::draw_elements(render_states: RenderStates,
-        viewport: Viewport,
-        element_buffer: &ElementBuffer);
-      */
-      /*if &*code != "" {
-        send_err("");
-        let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();
+     }
+    pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext){
+      let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();     
       if code.contains(';'){
         let exprs = code.split(';');
         for expr in exprs{
-          let a = interpret(expr, &orig_context, &audio);
-          if a.osc.len() != 0 && a.gain.len() != 0{
-            osc_arr.push(a.osc[0].clone());
-            gain_arr.push(a.gain[0].clone());
-          }
+          interpret(expr, &orig_context, &audio);
         }
       } else {
-        let a = interpret(&*code, &orig_context, &audio);
+        interpret(&*code, &orig_context, &audio);
       }
-      }*/
       let window = web_sys::window().unwrap();
       let viewport = Viewport{
         width: window.inner_width().unwrap().as_f64().unwrap() as u32,
@@ -493,7 +416,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
         1000.0
     );
     camera.set_viewport(viewport);
-    Audio{osc: osc_arr, gain: gain_arr}
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();
@@ -517,7 +439,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
        0.1,
        1000.0
    );
-     //mutable variables for changing the environment
+    //mutable variables for changing the environment
     let mut channels:[f32; 4] = [0.0,0.0,0.0,1.0];
   //finally the window rendering
      window.render_loop(move |frame_input| { 

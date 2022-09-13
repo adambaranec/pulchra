@@ -34,24 +34,7 @@
             audio = new AudioContext();
            }
           if (!input.value || input.value == ''){
-            if (oscArr.length() != 0 && gainArr.length() != 0){
-              for (let i=0; i < oscArr.length(); i++){
-              oscArr[i].stop();
-              oscArr[i].disconnect();
-              gainArr[i].stop();
-              gainArr[i].disconnect();
-            }
-            }
             let A = set(String(input.value),canvas.getContext('webgl2'),audio);
-            oscArr = A.osc;
-            gainArr = A.gain;
-            if (oscArr.length() != 0 && gainArr.length() != 0){
-              for (let i=0; i < oscArr.length(); i++){
-              oscArr[i].connect(gainArr[i]);
-              gainArr[i].connect(audio.destination);
-              oscArr[i].start()
-            }
-            }
           }
           } else if (e.metaKey && e.key == 'e') {
           input.value = '';

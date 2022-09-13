@@ -7,22 +7,27 @@ export function start(): void;
 * @param {string} code
 * @param {WebGL2RenderingContext} context
 * @param {AudioContext} audio
-* @returns {Audio}
 */
-export function set(code: string, context: WebGL2RenderingContext, audio: AudioContext): Audio;
+export function set(code: string, context: WebGL2RenderingContext, audio: AudioContext): void;
 /**
 */
 export class Audio {
   free(): void;
+/**
+* @param {(OscillatorNode)[]} oscs
+* @param {(GainNode)[]} gains
+*/
+  constructor(oscs: (OscillatorNode)[], gains: (GainNode)[]);
 }
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
-  readonly start: () => void;
-  readonly set: (a: number, b: number, c: number, d: number) => number;
   readonly __wbg_audio_free: (a: number) => void;
+  readonly audio_new: (a: number, b: number, c: number, d: number) => number;
+  readonly start: () => void;
+  readonly set: (a: number, b: number, c: number, d: number) => void;
   readonly __wbindgen_malloc: (a: number) => number;
   readonly __wbindgen_realloc: (a: number, b: number, c: number) => number;
   readonly __wbindgen_export_2: WebAssembly.Table;

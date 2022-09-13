@@ -7,6 +7,6 @@ pub fn start(){
 interpreter::start()
 }
 #[wasm_bindgen]
-pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext)->Audio{
+pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext){
 interpreter::set(code, context, audio)
 }

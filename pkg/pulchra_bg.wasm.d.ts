@@ -1,9 +1,10 @@
 /* tslint:disable */
 /* eslint-disable */
 export const memory: WebAssembly.Memory;
-export function start(): void;
-export function set(a: number, b: number, c: number, d: number): number;
 export function __wbg_audio_free(a: number): void;
+export function audio_new(a: number, b: number, c: number, d: number): number;
+export function start(): void;
+export function set(a: number, b: number, c: number, d: number): void;
 export function __wbindgen_malloc(a: number): number;
 export function __wbindgen_realloc(a: number, b: number, c: number): number;
 export const __wbindgen_export_2: WebAssembly.Table;

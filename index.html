@@ -32,8 +32,11 @@
           console.clear();
           if (typeof audio === 'undefined'){
             audio = new AudioContext();
+           } else {
+            audio.close();
+            audio = new AudioContext();
            }
-          if (!input.value || input.value == ''){
+          if (input.value || input.value != ''){
             let A = set(String(input.value),canvas.getContext('webgl2'),audio);
           }
           } else if (e.metaKey && e.key == 'e') {

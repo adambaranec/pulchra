@@ -161,17 +161,17 @@ use wasm_bindgen::prelude::wasm_bindgen;
       vec![pos[0], pos[1], pos[2], pos[0], pos[3], pos[2]]
     }
 
-    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color){
+    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color)->VertexBuffer{
       let mut vertices = VertexBuffer::new(ctx);
      match shape{
       Variant::Cube=>{
-        vertices.fill::<f32>(&[]);
-        /*let cube_pos:Vec<Vector3<f32>>=vec![
-        ];*/     
-       },
+        let cube_pos:Vec<Vector3<f32>>=vec![];
+        vertices.fill(&cube_pos[ .. ]);
+      },
       Variant::Sphere=>{
-        vertices.fill::<f32>(&[]);
-       /*let angle = Rad::<f32>::full_turn();
+        let sphere_pos:Vec<Vector3<f32>>=vec![];
+        vertices.fill(&sphere_pos[ .. ]);
+        /*let angle = Rad::<f32>::full_turn();
         let longitude = angle / 40.0;
         let rotation = angle / 30.0;
         let mut x:f32 = 0.0;
@@ -189,9 +189,10 @@ use wasm_bindgen::prelude::wasm_bindgen;
           }
         }*/
       },
-      _=>{}   
-    }
-    }
+      _=>{},
+    }   
+      vertices
+  }
       
     #[derive(PartialEq, Copy, Clone)]
       pub struct Multiplication{
@@ -225,20 +226,60 @@ use wasm_bindgen::prelude::wasm_bindgen;
           send_err("Unknown oscillator.")
         }
       }
-      fn create_visual(gl_ctx: &Context, first_word: &str, range: f32, color: Vec<f32>){
-        let variant = get_variant(first_word);
-        if variant != Variant::Unknown {
-           match variant{
-            Variant::Cube=>create_model(gl_ctx, Variant::Cube, range, 
-                Color::from_rgb_slice(&[color[0],color[1],color[2]])),
-            Variant::Sphere=>create_model(gl_ctx, Variant::Sphere, range, 
-                  Color::from_rgb_slice(&[color[0],color[1],color[2]])),
+      fn create_visual(gl: &Context, shape: Variant, range: f32, color: Vec<f32>){
+           match shape{
+            Variant::Cube=>{
+            let cube_pos:Vec<Vector3<f32>> = vec![
+            Vec3::new(range, range, -range),
+            Vec3::new(-range, range, -range),
+            Vec3::new(range, range, range),
+            Vec3::new(-range, range, range),
+            Vec3::new(range, range, range),
+            Vec3::new(-range, range, -range),
+            Vec3::new(-range, -range, -range),
+            Vec3::new(range, -range, -range),
+            Vec3::new(range, -range, range),
+            Vec3::new(range, -range, range),
+            Vec3::new(-range, -range, range),
+            Vec3::new(-range, -range, -range),
+            Vec3::new(range, -range, -range),
+            Vec3::new(-range, -range, -range),
+            Vec3::new(range, range, -range),
+            Vec3::new(-range, range, -range),
+            Vec3::new(range, range, -range),
+            Vec3::new(-range, -range, -range),
+            Vec3::new(-range, -range, range),
+            Vec3::new(range, -range, range),
+            Vec3::new(range, range, range),
+            Vec3::new(range, range, range),
+            Vec3::new(-range, range, range),
+            Vec3::new(-range, -range, range),
+            Vec3::new(range, -range, -range),
+            Vec3::new(range, range, -range),
+            Vec3::new(range, range, range),
+            Vec3::new(range, range, range),
+            Vec3::new(range, -range, range),
+            Vec3::new(range, -range, -range),
+            Vec3::new(-range, range, -range),
+            Vec3::new(-range, -range, -range),
+            Vec3::new(-range, range, range),
+            Vec3::new(-range, -range, range),
+            Vec3::new(-range, range, range),
+            Vec3::new(-range, -range, -range),
+            ];
+            let cube_buffer = VertexBuffer::new_with_data(gl, &cube_pos[ .. ]);
+            },
+            Variant::Sphere=>{
+            let rotation = Rad::<f32>::full_turn();
+            let longitudes = 40; 
+            let latitudes = 30;
+            let distance_between_longitudes = rotation / longitudes as f32;
+            let distance_between_latitudes = rotation / latitudes as f32;
+            let mut sphere_pos:Vec<Vector3<f32>>=vec![];
+            let sphere_buffer = VertexBuffer::new_with_data(gl, &sphere_pos[ .. ]);
+            },
             _=>send_err("Not suitable for creating models."),
-              }          
-            }
-        else {
-         send_err("Unknown shape type.");
-        }
+           }          
       }
       fn prepare_effect(w: &str){}
       fn prepare_audio(w: &str, audio: &AudioContext){
@@ -320,95 +361,123 @@ use wasm_bindgen::prelude::wasm_bindgen;
       }
       fn prepare_visual(w: &str, gl: &Context){
         let expr:Vec<&str> = w.split_whitespace().collect();
-        let matches_float = Regex::new(r"(0.(\d+)|^1|0)").unwrap();
-        let matches_rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
-        //let matches_uv = Regex::new(r"^\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
-        match get_variant(expr[0]){
-          Variant::Screen=>{
-            if expr.len() == 1{
-              send_err("Missing parameters for the screen.")
-            }
-            else if expr.len() == 2{
-              if matches_float.is_match(expr[1]){
-                match String::from(expr[1]).parse::<f32>(){
+        let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
+        let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
+        let uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
+        
+        if expr.len() == 1{
+          match get_variant(expr[0]){
+            Variant::Screen=>send_err("Missing grayscale or rgb for screen."),
+            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
+            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
+            _=>todo!(),
+          }
+        } else if expr.len() == 2{
+          match get_variant(expr[0]){
+            Variant::Screen=>{
+              if Regex::new(r"screen (0.(\d+)|1|0)").unwrap().is_match(w){
+                let float = range.find(w);
+                if float != None {
+                  match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                    /*screen_color = Color::from_rgb_slice(&[val,val,val])*/
+                        /**/
                       } else {
-                        send_err("Unknown parameters for the screen.");                 
-                       }
-                      },
+                        send_err("Grayscale must not be greater than 1.")
+                      }
+                    },
                     Err(err)=>send_err("Invalid grayscale for the screen."),
                   }
-                } 
-                else if matches_rgb.is_match(expr[1]){
-                  match floats_from(expr[1]){
-                    Ok(val)=>{/*screen_color = Color::from_rgb_slice(&[val[0], val[1], val[2]])*/},
-                    Err(err)=>send_err("Invalid rgb for the screen."),
-                  }
                 } else {
-                  send_err("Unknown parameters for the screen.");
+                  send_err("Grayscale must not be greater than 1.");
                 }
-            }
-            else if expr.len() > 2{
-            send_err("Too many parameters for the screen.");
-            }
-            else {
-             todo!();
-            }
-          },
-          Variant::Cube | Variant::Sphere=>{
-            if expr.len() == 1{
-              create_visual(gl, expr[0], 1.0, vec![1.0,1.0,1.0]);
-            }
-            else if expr.len() == 2{
-              if matches_float.is_match(expr[1]){
+              } else if Regex::new(r"screen rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
+                let color = rgb.find(w);
+                if color != None {
+                 let channels = floats_from(expr[1]);
+                } else {
+                send_err("Invalid rgb for the screen.");
+                }
+              } else {
+                send_err("Unknown parameters for the screen.")
+              }
+            },
+            Variant::Cube=>{
+            if Regex::new(r"cube (0.(\d+)|1|0)").unwrap().is_match(w){
+              let float = range.find(w);
+              if float != None {
                 match String::from(expr[1]).parse::<f32>(){
+                  Ok(val)=>{
+                    if val <= 1.0{
+                      create_visual(gl, Variant::Cube, val, vec![1.0,1.0,1.0]);
+                    } else {
+                      send_err("Radius must not be greater than 1.")
+                    }
+                  },
+                  Err(err)=>send_err("Invalid radius for the object."),
+                }
+              } else {
+                send_err("Radius must not be greater than 1.");
+              }
+            } else if Regex::new(r"cube rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
+              let color = rgb.find(w);
+              if color != None {
+               let channels = floats_from(expr[1]);
+               create_visual(gl, Variant::Cube, 1.0, channels.unwrap());
+              } else {
+              send_err("Invalid rgb for the object.");
+              }
+            } else {
+              send_err("Unknown parameters for the screen.")
+            }
+            },
+            Variant::Sphere=>{
+              if Regex::new(r"sphere (0.(\d+)|1|0)").unwrap().is_match(w){
+                let float = range.find(w);
+                if float != None {
+                  match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                        create_visual(gl, expr[0], val, vec![1.0,1.0,1.0]);
+                        create_visual(gl, Variant::Sphere, val, vec![1.0,1.0,1.0]);
                       } else {
-                        send_err("Unknown parameters for the object.");                 
-                       }
+                        send_err("Radius must not be greater than 1.")
+                      }
                     },
                     Err(err)=>send_err("Invalid radius for the object."),
                   }
-                } 
-                else if matches_rgb.is_match(expr[1]){
-                  match floats_from(expr[1]){
-                    Ok(val)=>create_visual(gl, expr[0], 1.0, val),
-                    Err(err)=>send_err("Invalid rgb for the object."),
-                  }
                 } else {
-                  send_err("Unknown parameters for the object.");
+                  send_err("Radius must not be greater than 1.");
                 }
-            } else if expr.len() == 3{
-              if matches_float.is_match(expr[1]) && matches_rgb.is_match(expr[2]){
-                let mut range:f32=-1.0;
-                let mut color:Vec<f32> = vec![];
-                match String::from(expr[1]).parse::<f32>(){
-                  Ok(val)=>{range = val},
-                  Err(err)=>send_err("One of parameters is not valid."),
+              } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
+                let color = rgb.find(w);
+                if color != None {
+                  let channels = floats_from(expr[1]);
+                  create_visual(gl, Variant::Sphere, 1.0, channels.unwrap());
+                } else {
+                send_err("Invalid rgb for the object.");
                 }
-                match floats_from(expr[2]){
-                  Ok(val)=>{color = val},
-                  Err(err)=>send_err("One of parameters is not valid."),
-              }
-              if range != -1.0 && color.len() != 0{
-                create_visual(gl, expr[0], range, color);
               } else {
-                todo!();
+                send_err("Unknown parameters for the screen.")
               }
-            }
-          } if expr.len() > 3{
-            send_err("Too many parameters for the object.")
-            } else {
-              todo!();
-            }
-          },
-          _=>todo!(),
-         }
+            },
+            _=>todo!(),
+          }
+         } else if expr.len() == 3{
+          match get_variant(expr[0]){
+           Variant::Cube=>{},
+           Variant::Sphere=>{},
+           _=>todo!(),
+          }
+        } else if expr.len() > 2 || get_variant(expr[0]) == Variant::Screen{
+         send_err("Too many parameters for the screen.");
+        } else if expr.len() > 3 || get_variant(expr[0]) == Variant::Cube ||
+        get_variant(expr[0]) == Variant::Sphere{
+          send_err("Too many parameters for the object.");
+        } else {
+          todo!();
+        }
       }
+
       fn interpret(input: &str, gl_ctx: &Context, audio: &AudioContext){
       //at first, the error log must be cleaned
       send_err("");
@@ -423,7 +492,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
             Medium::Visuals=>prepare_visual(&input, &gl_ctx),
             Medium::Audio=>prepare_audio(&input, &audio),
             Medium::Effect=>prepare_effect(&input),
-            _=>send_err("Not suitable."),
+            _=>todo!(),
           }
         } else {
           send_err("Unknown media.");
@@ -434,7 +503,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
       if code.contains(';'){
         let exprs = code.split(';');
         for expr in exprs{
-          interpret(expr, &orig_context, &audio);
+         interpret(expr, &orig_context, &audio);
         }
       } else {
         interpret(&*code, &orig_context, &audio);

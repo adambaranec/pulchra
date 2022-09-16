@@ -1,7 +1,6 @@
 pub mod interpreter;
 use wasm_bindgen::prelude::*;
 use web_sys::{WebGl2RenderingContext, AudioContext};
-use interpreter::Audio;
 #[wasm_bindgen]
 pub fn start(){
 interpreter::start()

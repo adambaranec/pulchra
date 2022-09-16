@@ -19,16 +19,15 @@ cube 0.5 rgb(0.1,0.4,0.5)
 sphere rgb(1,0.2,0.2)
 ```
 ## Audio oscillators
-Types available: sine, saw, square, noise.
-Default parameters are frequency and gain except noise,
-where only gain is needed.
+Types available: sine, saw, square, triangle.
+Default parameters are frequency and gain.
 
 Examples:
 ```
 sin 330
 sqr 120*0.5
 saw 10*0.9
-rnd 0.6
+tri 1000
 ```
 
 ## Effects

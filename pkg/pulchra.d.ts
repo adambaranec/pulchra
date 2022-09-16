@@ -9,23 +9,11 @@ export function start(): void;
 * @param {AudioContext} audio
 */
 export function set(code: string, context: WebGL2RenderingContext, audio: AudioContext): void;
-/**
-*/
-export class Audio {
-  free(): void;
-/**
-* @param {(OscillatorNode)[]} oscs
-* @param {(GainNode)[]} gains
-*/
-  constructor(oscs: (OscillatorNode)[], gains: (GainNode)[]);
-}
 
 export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
 
 export interface InitOutput {
   readonly memory: WebAssembly.Memory;
-  readonly __wbg_audio_free: (a: number) => void;
-  readonly audio_new: (a: number, b: number, c: number, d: number) => number;
   readonly start: () => void;
   readonly set: (a: number, b: number, c: number, d: number) => void;
   readonly __wbindgen_malloc: (a: number) => number;

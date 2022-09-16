@@ -160,57 +160,11 @@ use wasm_bindgen::prelude::wasm_bindgen;
     fn square_face_anticlockwise(pos:[Vector3<f32>; 4])->Vec<Vector3<f32>>{
       vec![pos[0], pos[1], pos[2], pos[0], pos[3], pos[2]]
     }
-
-    fn create_model(ctx: &Context, shape: Variant, range: f32, color: Color)->VertexBuffer{
-      let mut vertices = VertexBuffer::new(ctx);
-     match shape{
-      Variant::Cube=>{
-        let cube_pos:Vec<Vector3<f32>>=vec![];
-        vertices.fill(&cube_pos[ .. ]);
-      },
-      Variant::Sphere=>{
-        let sphere_pos:Vec<Vector3<f32>>=vec![];
-        vertices.fill(&sphere_pos[ .. ]);
-        /*let angle = Rad::<f32>::full_turn();
-        let longitude = angle / 40.0;
-        let rotation = angle / 30.0;
-        let mut x:f32 = 0.0;
-        let mut y:f32 = 0.0;
-        let mut z:f32 = 0.0;
-        let mut sphere_pos:Vec<Vector3<f32>>=vec![];
-        //rotations of longitudes
-        for i in 1..30{
-        z = Rad::sin((rotation * i as f32) * range);
-          //positions of vertices creating the longitude
-          for i in 1..40{
-          y = Rad::sin((longitude * i as f32) * range);
-          x = Rad::cos((longitude * i as f32) * range);
-          sphere_pos.push(vec3(x,y,z));
-          }
-        }*/
-      },
-      _=>{},
-    }   
-      vertices
-  }
       
     #[derive(PartialEq, Copy, Clone)]
       pub struct Multiplication{
         rows: u32,
         columns: u32
-      }
-      #[wasm_bindgen]
-      #[derive(PartialEq, Clone)]
-      pub struct Audio{
-       osc: Vec<OscillatorNode>,
-       gain: Vec<GainNode>
-      }
-      #[wasm_bindgen]
-      impl Audio{
-        #[wasm_bindgen(constructor)]
-        pub fn new(oscs: Vec<OscillatorNode>, gains: Vec<GainNode>) -> Audio{
-          Audio{osc: oscs, gain: gains}
-        }
       }
       fn create_audio(audio_context: &AudioContext, first_word: &str, freq: f32, gain: f32){
         let variant = get_variant(first_word);
@@ -226,7 +180,28 @@ use wasm_bindgen::prelude::wasm_bindgen;
           send_err("Unknown oscillator.")
         }
       }
-      fn create_visual(gl: &Context, shape: Variant, range: f32, color: Vec<f32>){
+      fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
+        let vertex_src = 
+        "
+        attribute aVertexPosition;
+        uniform mat4 uProjectionMatrix;
+        uniform mat4 uModelViewMatrix;
+        varying lowp vColor;
+
+        void main(void){
+         gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+        }
+        "
+        ;
+        let fragment_src = 
+        "
+        varying lowp vColor;
+
+        void main(){
+          gl_FragColor = vColor;
+        }
+        "
+        ;
            match shape{
             Variant::Cube=>{
             let cube_pos:Vec<Vector3<f32>> = vec![
@@ -267,16 +242,55 @@ use wasm_bindgen::prelude::wasm_bindgen;
             Vec3::new(-range, range, range),
             Vec3::new(-range, -range, -range),
             ];
-            let cube_buffer = VertexBuffer::new_with_data(gl, &cube_pos[ .. ]);
+            let cube_buffer = gl.create_buffer();
             },
             Variant::Sphere=>{
             let rotation = Rad::<f32>::full_turn();
             let longitudes = 40; 
             let latitudes = 30;
-            let distance_between_longitudes = rotation / longitudes as f32;
-            let distance_between_latitudes = rotation / latitudes as f32;
             let mut sphere_pos:Vec<Vector3<f32>>=vec![];
-            let sphere_buffer = VertexBuffer::new_with_data(gl, &sphere_pos[ .. ]);
+            //triangles to the top
+            for i in 1..longitudes{
+              sphere_pos.push(vec3(0.0,range,0.0));
+              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * ((i as f32)-1.0)) * range,
+              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * range,
+              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * range));
+              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * i as f32) * range,
+              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * range,
+              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * range));
+            }
+            //latitudes and longitudes
+            for i in 1..latitudes-1{
+              let y_first = Rad::<f32>::cos((rotation / latitudes as f32) * i as f32) * range;
+              let z_first = Rad::<f32>::sin((rotation / latitudes as f32) * i as f32) * range;
+              let y_second = Rad::<f32>::cos((rotation / latitudes as f32) * (i+1) as f32) * range;
+              let z_second = Rad::<f32>::sin((rotation / latitudes as f32) * (i+1) as f32) * range;
+             
+              for j in 0..longitudes{
+                let x_first = Rad::<f32>::sin((rotation / longitudes as f32) * j as f32) * range;
+                let x_second =Rad::<f32>::sin((rotation / longitudes as f32) * (j+1) as f32) * range;
+                let array = [vec3(x_first,y_second,z_second),
+                vec3(x_second,y_second,z_second),vec3(x_second,y_first,z_first),
+                vec3(x_first,y_first,z_first)];
+                sphere_pos.push(square_face_anticlockwise(array)[0]);
+                sphere_pos.push(square_face_anticlockwise(array)[1]);
+                sphere_pos.push(square_face_anticlockwise(array)[2]);
+                sphere_pos.push(square_face_anticlockwise(array)[3]);
+                sphere_pos.push(square_face_anticlockwise(array)[4]);
+                sphere_pos.push(square_face_anticlockwise(array)[5]);
+              }
+              let sphere_buffer = gl.create_buffer();
+            }
+            //triangles to the bottom
+            for i in 1..longitudes{
+              sphere_pos.push(vec3(0.0,-range,0.0));
+              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * ((i as f32)-1.0)) * range,
+              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * -range,
+              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * -range));
+              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * i as f32) * range,
+              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * -range,
+              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * -range));
+            }
             },
             _=>send_err("Not suitable for creating models."),
            }          
@@ -359,7 +373,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
             send_err("Too many parameters for audio.")
           }
       }
-      fn prepare_visual(w: &str, gl: &Context){
+      fn prepare_visual(w: &str, gl: &WebGl2RenderingContext){
         let expr:Vec<&str> = w.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -428,7 +442,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
               send_err("Invalid rgb for the object.");
               }
             } else {
-              send_err("Unknown parameters for the screen.")
+              send_err("Unknown parameters for the object.");
             }
             },
             Variant::Sphere=>{
@@ -457,7 +471,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
                 send_err("Invalid rgb for the object.");
                 }
               } else {
-                send_err("Unknown parameters for the screen.")
+                send_err("Unknown parameters for the object.");
               }
             },
             _=>todo!(),
@@ -478,7 +492,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
         }
       }
 
-      fn interpret(input: &str, gl_ctx: &Context, audio: &AudioContext){
+      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){
       //at first, the error log must be cleaned
       send_err("");
       //individual words of the expression
@@ -499,19 +513,10 @@ use wasm_bindgen::prelude::wasm_bindgen;
         }
      }
     pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext){
-      let orig_context = core_context::from_gl_context(Arc::new(cont_context::from_webgl2_context(context))).unwrap();     
-      if code.contains(';'){
-        let exprs = code.split(';');
-        for expr in exprs{
-         interpret(expr, &orig_context, &audio);
-        }
-      } else {
-        interpret(&*code, &orig_context, &audio);
-      }
-      let window = web_sys::window().unwrap();
+      let web_window = web_sys::window().unwrap();
       let viewport = Viewport{
-        width: window.inner_width().unwrap().as_f64().unwrap() as u32,
-        height: window.inner_height().unwrap().as_f64().unwrap() as u32,
+        width: web_window.inner_width().unwrap().as_f64().unwrap() as u32,
+        height: web_window.inner_height().unwrap().as_f64().unwrap() as u32,
         x: 0,
         y: 0
         };
@@ -524,7 +529,15 @@ use wasm_bindgen::prelude::wasm_bindgen;
         0.1,
         1000.0
     );
-    camera.set_viewport(viewport);
+    camera.set_viewport(viewport); 
+      if code.contains(';'){
+          let exprs = code.split(';');
+          for expr in exprs{
+           interpret(expr, &context, &audio);
+          }
+        } else {
+          interpret(&*code, &context, &audio);
+        }
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();
@@ -548,13 +561,11 @@ use wasm_bindgen::prelude::wasm_bindgen;
        0.1,
        1000.0
    );
-    //mutable variables for changing the environment
-    let mut channels:[f32; 4] = [0.0,0.0,0.0,1.0];
   //finally the window rendering
      window.render_loop(move |frame_input| { 
       let screen = frame_input.screen();
       camera.set_viewport(frame_input.viewport);
-      screen.clear(ClearState::color(channels[0], channels[1], channels[2], channels[3]));
+      screen.clear(ClearState::color(0.0,0.0,0.0,1.0));
       FrameOutput::default()
     });
     }

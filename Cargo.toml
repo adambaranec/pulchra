@@ -37,8 +37,10 @@ features = [
   'HtmlCanvasElement',
   'HtmlTextAreaElement',
   'Node',
+  'WebGlProgram',
   'WebGl2RenderingContext',
-  'Window',
+  'WebGlShader',
+  'Window'
 ]
 
 [lib]

@@ -156,16 +156,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
       buf_player.start();
     }
 
-    //functions which will produce shapes and parts of them
-    fn square_face_anticlockwise(pos:[Vector3<f32>; 4])->Vec<Vector3<f32>>{
-      vec![pos[0], pos[1], pos[2], pos[0], pos[3], pos[2]]
-    }
-      
-    #[derive(PartialEq, Copy, Clone)]
-      pub struct Multiplication{
-        rows: u32,
-        columns: u32
-      }
       fn create_audio(audio_context: &AudioContext, first_word: &str, freq: f32, gain: f32){
         let variant = get_variant(first_word);
         if variant != Variant::Unknown {
@@ -180,28 +170,16 @@ use wasm_bindgen::prelude::wasm_bindgen;
           send_err("Unknown oscillator.")
         }
       }
-      fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
-        let vertex_src = 
-        "
-        attribute aVertexPosition;
-        uniform mat4 uProjectionMatrix;
-        uniform mat4 uModelViewMatrix;
-        varying lowp vColor;
 
-        void main(void){
-         gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-        }
-        "
-        ;
-        let fragment_src = 
-        "
-        varying lowp vColor;
-
-        void main(){
-          gl_FragColor = vColor;
-        }
-        "
-        ;
+    //functions which will produce shapes and parts of them
+    fn square_face_anticlockwise(pos:[Vector3<f32>; 4])->Vec<Vector3<f32>>{
+      vec![pos[0], pos[1], pos[2], pos[0], pos[3], pos[2]]
+    }
+    fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
+      context.clear_color(0.0, 1.0, 0.0, 1.0);
+      context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+    }
+    fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
            match shape{
             Variant::Cube=>{
             let cube_pos:Vec<Vector3<f32>> = vec![
@@ -242,7 +220,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
             Vec3::new(-range, range, range),
             Vec3::new(-range, -range, -range),
             ];
-            let cube_buffer = gl.create_buffer();
             },
             Variant::Sphere=>{
             let rotation = Rad::<f32>::full_turn();
@@ -294,6 +271,11 @@ use wasm_bindgen::prelude::wasm_bindgen;
             },
             _=>send_err("Not suitable for creating models."),
            }          
+      }
+      #[derive(PartialEq, Copy, Clone)]
+      pub struct Multiplication{
+        rows: u32,
+        columns: u32
       }
       fn prepare_effect(w: &str){}
       fn prepare_audio(w: &str, audio: &AudioContext){
@@ -374,6 +356,52 @@ use wasm_bindgen::prelude::wasm_bindgen;
           }
       }
       fn prepare_visual(w: &str, gl: &WebGl2RenderingContext){
+        let vertex_src = 
+       r##"
+        attribute vec4 aVertexPosition;
+        uniform mat4 uProjectionMatrix;
+        uniform mat4 uModelViewMatrix;
+
+        void main(void){
+         gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
+        }
+        "##
+        ;
+        let fragment_src = 
+        r##"
+        #ifdef GL_ES
+        precision mediump float;
+        #endif
+        
+        void main() {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+        }
+        "##
+        ;
+        let vertex_shader = gl.create_shader(WebGl2RenderingContext::VERTEX_SHADER).unwrap();
+        let fragment_shader = gl.create_shader(WebGl2RenderingContext::FRAGMENT_SHADER).unwrap();
+        gl.shader_source(&vertex_shader, vertex_src);
+        gl.shader_source(&fragment_shader, fragment_src);
+        gl.compile_shader(&vertex_shader);
+        gl.compile_shader(&fragment_shader);
+        let compile_status_v = gl.get_shader_parameter(&vertex_shader, WebGl2RenderingContext::COMPILE_STATUS).as_string();
+        let compile_status_f = gl.get_shader_parameter(&fragment_shader, WebGl2RenderingContext::COMPILE_STATUS).as_string();
+        let program = gl.create_program().unwrap();
+        gl.attach_shader(&program, &vertex_shader);
+        gl.attach_shader(&program, &fragment_shader);
+        gl.link_program(&program);
+        let link_status = gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS).as_string();
+    
+          let program = gl.create_program().unwrap();
+          gl.attach_shader(&program, &vertex_shader);
+          gl.attach_shader(&program, &fragment_shader);
+          gl.link_program(&program);
+          let link_status = gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS).as_string();
+        
+        gl.clear_depth(1.0);        
+        gl.enable(WebGl2RenderingContext::DEPTH_TEST);         
+        gl.depth_func(WebGl2RenderingContext::LEQUAL); 
+        
         let expr:Vec<&str> = w.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -395,7 +423,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
                   match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                        /**/
+                        set_screen_color(gl, [val,val,val]);
                       } else {
                         send_err("Grayscale must not be greater than 1.")
                       }
@@ -408,7 +436,8 @@ use wasm_bindgen::prelude::wasm_bindgen;
               } else if Regex::new(r"screen rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
                 let color = rgb.find(w);
                 if color != None {
-                 let channels = floats_from(expr[1]);
+                 let channels = floats_from(expr[1]).unwrap();
+                 set_screen_color(gl, [channels[0], channels[1], channels[2]]);
                 } else {
                 send_err("Invalid rgb for the screen.");
                 }

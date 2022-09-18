@@ -15,7 +15,6 @@
       let canvas = document.getElementById('graphics');
       let input = document.getElementById('input');
       let audio;
-      let webgl2;
       window.onload = (e) =>{
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
@@ -35,20 +34,15 @@
             audio.close();
             audio = new AudioContext();
            }
-           if (typeof webgl2 ==='undefined'){
-            webgl2 = canvas.getContext('webgl2');
-           }
           if (input.value || input.value != ''){
-            set(String(input.value),webgl2,audio);
+            set(String(input.value),canvas.getContext('webgl2'),audio);
           } else {
             document.getElementById('error').innerHTML = '';
           }
-          } else if (e.metaKey && e.key == 'e') {
-          input.value = '';
-          }
+          } 
           else if (e.ctrlKey && e.key == 'r'){
           let canvas_stream = canvas.captureStream(60);
-          let recorder = new MediaRecorder(canvas_stream, {mimeType: "video/webm"});
+          let recorder = new MediaRecorder(canvas_stream);
           //document.getElementById('dialog').show();
           }
           else if (e.ctrlKey && e.key == 's'){

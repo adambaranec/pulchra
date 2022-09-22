@@ -176,7 +176,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
       vec![pos[0], pos[1], pos[2], pos[0], pos[3], pos[2]]
     }
     fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
-      context.clear_color(0.0, 1.0, 0.0, 1.0);
+      context.clear_color(channels[0], channels[1], channels[2], 1.0);
       context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     }
     fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
@@ -220,6 +220,9 @@ use wasm_bindgen::prelude::wasm_bindgen;
             Vec3::new(-range, range, range),
             Vec3::new(-range, -range, -range),
             ];
+            let cube_buffer = gl.create_buffer().unwrap();
+            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_buffer));
+            gl.buffer_data_with_f64(WebGl2RenderingContext::ARRAY_BUFFER, cube_pos.len() as f64, WebGl2RenderingContext::DYNAMIC_DRAW);
             },
             Variant::Sphere=>{
             let rotation = Rad::<f32>::full_turn();
@@ -256,7 +259,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
                 sphere_pos.push(square_face_anticlockwise(array)[4]);
                 sphere_pos.push(square_face_anticlockwise(array)[5]);
               }
-              let sphere_buffer = gl.create_buffer();
             }
             //triangles to the bottom
             for i in 1..longitudes{
@@ -268,9 +270,12 @@ use wasm_bindgen::prelude::wasm_bindgen;
               Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * -range,
               Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * -range));
             }
+            let sphere_buffer = gl.create_buffer().unwrap();
+            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&sphere_buffer));
+            gl.buffer_data_with_f64(WebGl2RenderingContext::ARRAY_BUFFER, sphere_pos.len() as f64, WebGl2RenderingContext::DYNAMIC_DRAW);   
             },
             _=>send_err("Not suitable for creating models."),
-           }          
+           }       
       }
       #[derive(PartialEq, Copy, Clone)]
       pub struct Multiplication{
@@ -356,7 +361,121 @@ use wasm_bindgen::prelude::wasm_bindgen;
           }
       }
       fn prepare_visual(w: &str, gl: &WebGl2RenderingContext){
-        let vertex_src = 
+        let expr:Vec<&str> = w.split_whitespace().collect();
+        let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
+        let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
+        let uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
+         
+        if expr.len() == 1{
+          match get_variant(expr[0]){
+            Variant::Screen=>send_err("Missing grayscale or rgb for the screen."),
+            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
+            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
+            _=>todo!(),
+          }
+        }
+        else if expr.len() == 2{
+            match get_variant(expr[0]){
+              Variant::Screen=>{
+                if Regex::new(r"screen (0.(\d+)|1|0)").unwrap().is_match(w){
+                    if range.is_match(expr[1]){
+                      match String::from(expr[1]).parse::<f32>(){
+                        Ok(val)=>{
+                          if val <= 1.0{
+                            set_screen_color(gl, [val,val,val]);
+                          } else {
+                            send_err("Grayscale must not be greater than 1.");
+                          }
+                        },
+                        Err(err)=>send_err("Invalid grayscale for the screen."),
+                      }
+                    }
+                } else if Regex::new(r"screen rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
+                  if rgb.is_match(expr[1]){
+                    let channels = floats_from(expr[1]);
+                    match channels{
+                      Ok(val)=>set_screen_color(gl, [val[0], val[1], val[2]]),
+                      Err(err)=>send_err(err),
+                    }
+                  } else {
+                    send_err("Invalid color function for the screen.");
+                  }
+                } else {
+                  send_err("Unknown parameters for the screen.");
+                }
+              },
+              Variant::Cube=>{
+                if Regex::new(r"cube (0.(\d+)|1|0)").unwrap().is_match(w){
+                  if range.is_match(expr[1]) {
+                    match String::from(expr[1]).parse::<f32>(){
+                      Ok(val)=>{
+                        if val <= 1.0{
+                          create_visual(gl, Variant::Cube, val, vec![1.0,1.0,1.0]);
+                        } else {
+                          send_err("Radius must not be greater than 1.")
+                        }
+                      },
+                      Err(err)=>send_err("Invalid radius for the object."),
+                    }
+                  } else {
+                    send_err("Radius must not be greater than 1.");
+                  }
+                } else if Regex::new(r"cube rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
+                  let color = rgb.find(w);
+                  if color != None {
+                   let channels = floats_from(expr[1]);
+                   create_visual(gl, Variant::Cube, 1.0, channels.unwrap());
+                  } else {
+                  send_err("Invalid rgb for the object.");
+                  }
+                } else {
+                  send_err("Unknown parameters for the object.");
+                }
+              },
+              Variant::Sphere=>{ 
+                if Regex::new(r"sphere (0.(\d+)|1|0)").unwrap().is_match(w){
+                  if range.is_match(expr[1]) {
+                    match String::from(expr[1]).parse::<f32>(){
+                    Ok(val)=>{
+                      if val <= 1.0{
+                        create_visual(gl, Variant::Sphere, val, vec![1.0,1.0,1.0]);
+                      } else {
+                        send_err("Radius must not be greater than 1.")
+                      }
+                    },
+                    Err(err)=>send_err("Invalid radius for the object."),
+                  }
+                } else {
+                  send_err("Radius must not be greater than 1.");
+                }
+              } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
+                if rgb.is_match(expr[1]) {
+                  let channels = floats_from(expr[1]);
+                  create_visual(gl, Variant::Sphere, 1.0, channels.unwrap());
+                } else {
+                send_err("Invalid rgb for the object.");
+                }
+              } else {
+                send_err("Unknown parameters for the object.");
+              }},
+              _=>todo!(),
+            }
+        }
+        else if expr.len() == 3{
+          match get_variant(expr[0]){
+           Variant::Cube=>{},
+           Variant::Sphere=>{},
+           _=>todo!(),
+          }
+        } else if expr.len() > 2 || get_variant(expr[0]) == Variant::Screen{
+         send_err("Too many parameters for the screen.");
+        } else if expr.len() > 3 || get_variant(expr[0]) == Variant::Cube ||
+        get_variant(expr[0]) == Variant::Sphere{
+          send_err("Too many parameters for the object.");
+        } else {
+          todo!();
+        }
+       /* let vertex_src = 
        r##"
         attribute vec4 aVertexPosition;
         uniform mat4 uProjectionMatrix;
@@ -401,124 +520,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
         gl.clear_depth(1.0);        
         gl.enable(WebGl2RenderingContext::DEPTH_TEST);         
         gl.depth_func(WebGl2RenderingContext::LEQUAL); 
-        
-        let expr:Vec<&str> = w.split_whitespace().collect();
-        let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
-        let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
-        let uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
-        
-        if expr.len() == 1{
-          match get_variant(expr[0]){
-            Variant::Screen=>send_err("Missing grayscale or rgb for screen."),
-            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
-            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
-            _=>todo!(),
-          }
-        } else if expr.len() == 2{
-          match get_variant(expr[0]){
-            Variant::Screen=>{
-              if Regex::new(r"screen (0.(\d+)|1|0)").unwrap().is_match(w){
-                let float = range.find(w);
-                if float != None {
-                  match String::from(expr[1]).parse::<f32>(){
-                    Ok(val)=>{
-                      if val <= 1.0{
-                        set_screen_color(gl, [val,val,val]);
-                      } else {
-                        send_err("Grayscale must not be greater than 1.")
-                      }
-                    },
-                    Err(err)=>send_err("Invalid grayscale for the screen."),
-                  }
-                } else {
-                  send_err("Grayscale must not be greater than 1.");
-                }
-              } else if Regex::new(r"screen rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
-                let color = rgb.find(w);
-                if color != None {
-                 let channels = floats_from(expr[1]).unwrap();
-                 set_screen_color(gl, [channels[0], channels[1], channels[2]]);
-                } else {
-                send_err("Invalid rgb for the screen.");
-                }
-              } else {
-                send_err("Unknown parameters for the screen.")
-              }
-            },
-            Variant::Cube=>{
-            if Regex::new(r"cube (0.(\d+)|1|0)").unwrap().is_match(w){
-              let float = range.find(w);
-              if float != None {
-                match String::from(expr[1]).parse::<f32>(){
-                  Ok(val)=>{
-                    if val <= 1.0{
-                      create_visual(gl, Variant::Cube, val, vec![1.0,1.0,1.0]);
-                    } else {
-                      send_err("Radius must not be greater than 1.")
-                    }
-                  },
-                  Err(err)=>send_err("Invalid radius for the object."),
-                }
-              } else {
-                send_err("Radius must not be greater than 1.");
-              }
-            } else if Regex::new(r"cube rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
-              let color = rgb.find(w);
-              if color != None {
-               let channels = floats_from(expr[1]);
-               create_visual(gl, Variant::Cube, 1.0, channels.unwrap());
-              } else {
-              send_err("Invalid rgb for the object.");
-              }
-            } else {
-              send_err("Unknown parameters for the object.");
-            }
-            },
-            Variant::Sphere=>{
-              if Regex::new(r"sphere (0.(\d+)|1|0)").unwrap().is_match(w){
-                let float = range.find(w);
-                if float != None {
-                  match String::from(expr[1]).parse::<f32>(){
-                    Ok(val)=>{
-                      if val <= 1.0{
-                        create_visual(gl, Variant::Sphere, val, vec![1.0,1.0,1.0]);
-                      } else {
-                        send_err("Radius must not be greater than 1.")
-                      }
-                    },
-                    Err(err)=>send_err("Invalid radius for the object."),
-                  }
-                } else {
-                  send_err("Radius must not be greater than 1.");
-                }
-              } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
-                let color = rgb.find(w);
-                if color != None {
-                  let channels = floats_from(expr[1]);
-                  create_visual(gl, Variant::Sphere, 1.0, channels.unwrap());
-                } else {
-                send_err("Invalid rgb for the object.");
-                }
-              } else {
-                send_err("Unknown parameters for the object.");
-              }
-            },
-            _=>todo!(),
-          }
-         } else if expr.len() == 3{
-          match get_variant(expr[0]){
-           Variant::Cube=>{},
-           Variant::Sphere=>{},
-           _=>todo!(),
-          }
-        } else if expr.len() > 2 || get_variant(expr[0]) == Variant::Screen{
-         send_err("Too many parameters for the screen.");
-        } else if expr.len() > 3 || get_variant(expr[0]) == Variant::Cube ||
-        get_variant(expr[0]) == Variant::Sphere{
-          send_err("Too many parameters for the object.");
-        } else {
-          todo!();
-        }
+        */
       }
 
       fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){

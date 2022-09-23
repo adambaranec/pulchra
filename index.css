@@ -3,17 +3,14 @@
     font-family:'Courier New', Courier, monospace; 
 }
 #input{
-    border-style:none; 
+    border-style:none;
     color: wheat;
     width: 100%;
+    background: none;
 }
 #error{
     color: red;
     text-align: center;
-}
-#graphics{
-    width: 100%;
-    height: 100%;
 }
 footer{
 position: fixed;

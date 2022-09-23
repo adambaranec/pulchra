@@ -12,7 +12,7 @@
 <body>
 <script type="module">
       import init, {start, set} from './pkg/pulchra.js';
-      let canvas = document.getElementById('graphics');
+      let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let audio;
       window.onload = (e) =>{
@@ -24,6 +24,10 @@
       window.onresize = (e) =>{
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      }
+      function record(){
+        let canvas_stream = canvas.captureStream(60);
+        let recorder = new MediaRecorder(canvas_stream);
       }
       input.addEventListener('keydown', (e)=>{
         if (e.metaKey && e.key == 'Enter'){
@@ -41,28 +45,39 @@
           }
           } 
           else if (e.ctrlKey && e.key == 'r'){
-          let canvas_stream = canvas.captureStream(60);
-          let recorder = new MediaRecorder(canvas_stream);
-          //document.getElementById('dialog').show();
+          //shows a dialog and starts recording
           }
           else if (e.ctrlKey && e.key == 's'){
-          
+          //stops and saves all recordings
           }
       });
 </script>
-<textarea id="input" placeholder="Welcome to Pulchra!
+<div id="pulchra">
+  <div class="input-area">
+    <textarea id="input" placeholder="Welcome to Pulchra!
 Just press any key." autofocus="true" rows="8"></textarea>
-<canvas id="graphics"></canvas>
-<audio id="player"></audio>
+  </div>
+  <div class="background">
+    <canvas id="canvas"></canvas>
+  </div>
+</div>
+<div id="dialog">
+  <div class="dialog-content">
+    <div class="quit">
+      <button>X</button>
+    </div>
+     <div class="dialog-question">
+       <p><strong>What would you like to record?</strong></p>
+     </div>
+     <div class="dialog-options">
+       <input type="checkbox" name="video" id="video">Video</input>
+       <input type="checkbox" name="audio" id="audio">Audio</input>
+     </div>
+     <div class="dialog-submit">
+      <input type="submit" value="Ok" onsubmit="record()"></input>
+     </div>
+  </div>
+</div>
 <footer><p id="error"></p></footer>
-<dialog id="dialog">
-  <h3>What would you like to record?</h3>
-  <form>
-    <input type="checkbox" name="video" id="video">Video</input>
-    <input type="checkbox" name="audio" id="audio">Audio</input>
-    <input type="submit" value="Start"></input>
-  </form>
-  <p>To stop recording, press ctrl+s</p>
-</dialog>
 </body>
 </html>

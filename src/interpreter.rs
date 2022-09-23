@@ -1,10 +1,6 @@
-use std::sync::Arc;
 use regex::Regex;
 use three_d::renderer::*;
-use three_d::window::*;
-use three_d::core::Context as core_context;
-use three_d::context::Context as cont_context;
-use three_d::core::{Program,buffer::*,prelude::Color};
+use three_d::core::Camera;
 use web_sys::*;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -277,11 +273,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
             _=>send_err("Not suitable for creating models."),
            }       
       }
-      #[derive(PartialEq, Copy, Clone)]
-      pub struct Multiplication{
-        rows: u32,
-        columns: u32
-      }
       fn prepare_effect(w: &str){}
       fn prepare_audio(w: &str, audio: &AudioContext){
         let words:Vec<&str> = w.split_whitespace().collect();
@@ -475,52 +466,6 @@ use wasm_bindgen::prelude::wasm_bindgen;
         } else {
           todo!();
         }
-       /* let vertex_src = 
-       r##"
-        attribute vec4 aVertexPosition;
-        uniform mat4 uProjectionMatrix;
-        uniform mat4 uModelViewMatrix;
-
-        void main(void){
-         gl_Position = uProjectionMatrix * uModelViewMatrix * aVertexPosition;
-        }
-        "##
-        ;
-        let fragment_src = 
-        r##"
-        #ifdef GL_ES
-        precision mediump float;
-        #endif
-        
-        void main() {
-            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-        }
-        "##
-        ;
-        let vertex_shader = gl.create_shader(WebGl2RenderingContext::VERTEX_SHADER).unwrap();
-        let fragment_shader = gl.create_shader(WebGl2RenderingContext::FRAGMENT_SHADER).unwrap();
-        gl.shader_source(&vertex_shader, vertex_src);
-        gl.shader_source(&fragment_shader, fragment_src);
-        gl.compile_shader(&vertex_shader);
-        gl.compile_shader(&fragment_shader);
-        let compile_status_v = gl.get_shader_parameter(&vertex_shader, WebGl2RenderingContext::COMPILE_STATUS).as_string();
-        let compile_status_f = gl.get_shader_parameter(&fragment_shader, WebGl2RenderingContext::COMPILE_STATUS).as_string();
-        let program = gl.create_program().unwrap();
-        gl.attach_shader(&program, &vertex_shader);
-        gl.attach_shader(&program, &fragment_shader);
-        gl.link_program(&program);
-        let link_status = gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS).as_string();
-    
-          let program = gl.create_program().unwrap();
-          gl.attach_shader(&program, &vertex_shader);
-          gl.attach_shader(&program, &fragment_shader);
-          gl.link_program(&program);
-          let link_status = gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS).as_string();
-        
-        gl.clear_depth(1.0);        
-        gl.enable(WebGl2RenderingContext::DEPTH_TEST);         
-        gl.depth_func(WebGl2RenderingContext::LEQUAL); 
-        */
       }
 
       fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){
@@ -572,31 +517,12 @@ use wasm_bindgen::prelude::wasm_bindgen;
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();
-      let canvas = document.get_element_by_id("graphics").unwrap()
+      let canvas = document.get_element_by_id("canvas").unwrap()
       .dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
       let textarea = document.get_element_by_id("input").unwrap()
       .dyn_into::<web_sys::HtmlTextAreaElement>().unwrap();
-      let window:three_d::Window = three_d::Window::new(WindowSettings{
-        title: String::from("Pulchra"),
-        canvas: Some(canvas),
-        borderless: true,
-        ..Default::default()
-     }).unwrap();
-      let gl = window.gl();
-      let mut camera:Camera = Camera::new_perspective(
-       window.viewport(),
-       vec3(1.0, 1.0, 3.0),
-       vec3(0.0, 0.0, 0.0),
-       vec3(0.0, 3.0, 0.0),
-       degrees(45.0),
-       0.1,
-       1000.0
-   );
-  //finally the window rendering
-     window.render_loop(move |frame_input| { 
-      let screen = frame_input.screen();
-      camera.set_viewport(frame_input.viewport);
-      screen.clear(ClearState::color(0.0,0.0,0.0,1.0));
-      FrameOutput::default()
-    });
+      let webgl_context = canvas.get_context("webgl2").unwrap()
+      .unwrap().dyn_into::<web_sys::WebGl2RenderingContext>().unwrap();
+      webgl_context.clear_color(0.0,0.0,0.0,1.0);
+      webgl_context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT); 
     }

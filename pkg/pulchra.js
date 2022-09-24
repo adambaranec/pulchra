@@ -324,9 +324,6 @@ function getImports() {
         const ret = getObject(arg0) instanceof WebGL2RenderingContext;
         return ret;
     };
-    imports.wbg.__wbg_bufferData_57088152d29a259b = function(arg0, arg1, arg2, arg3) {
-        getObject(arg0).bufferData(arg1 >>> 0, arg2, arg3 >>> 0);
-    };
     imports.wbg.__wbg_bindBuffer_6b1023547fd79019 = function(arg0, arg1, arg2) {
         getObject(arg0).bindBuffer(arg1 >>> 0, getObject(arg2));
     };
@@ -339,6 +336,13 @@ function getImports() {
     imports.wbg.__wbg_createBuffer_4bc066fc2872c766 = function(arg0) {
         const ret = getObject(arg0).createBuffer();
         return isLikeNone(ret) ? 0 : addHeapObject(ret);
+    };
+    imports.wbg.__wbg_drawArrays_f6035c21c1024f46 = function(arg0, arg1, arg2, arg3) {
+        getObject(arg0).drawArrays(arg1 >>> 0, arg2, arg3);
+    };
+    imports.wbg.__wbg_getBufferParameter_d5e586916f18d70a = function(arg0, arg1, arg2) {
+        const ret = getObject(arg0).getBufferParameter(arg1 >>> 0, arg2 >>> 0);
+        return addHeapObject(ret);
     };
     imports.wbg.__wbg_instanceof_Window_42f092928baaee84 = function(arg0) {
         const ret = getObject(arg0) instanceof Window;

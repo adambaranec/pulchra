@@ -7,9 +7,10 @@ edition = "2021"
 
 [dependencies]
 getrandom = { version = "0.2.7", features = ["js"] }
-three-d = "0.13.0"
+js-sys = "0.3.59"
 rand = "0.8.5"
 regex = "1.6.0"
+three-d = "0.13.0"
 wasm-bindgen = "0.2.82"
 wasm-bindgen-test = "0.3.32"
 

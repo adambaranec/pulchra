@@ -1,9 +1,9 @@
 use regex::Regex;
 use three_d::renderer::*;
-use three_d::core::Camera;
+use three_d::core::{Camera,Viewport};
 use web_sys::*;
-use wasm_bindgen::JsCast;
-use wasm_bindgen::prelude::wasm_bindgen;
+use js_sys::{Float32Array,Object};
+use wasm_bindgen::{JsCast,JsValue};
 
   #[derive(PartialEq)]
   enum Medium{
@@ -39,6 +39,16 @@ use wasm_bindgen::prelude::wasm_bindgen;
       Fft,
       Unknown,
       NotFunction
+    }
+    #[derive(PartialEq)]
+    enum RealTime{
+      Low,
+      Mid,
+      High,
+      Sin,
+      Saw,
+      Tri,
+      Rand
     }
     #[derive(PartialEq)]
     enum Effect{
@@ -218,7 +228,9 @@ use wasm_bindgen::prelude::wasm_bindgen;
             ];
             let cube_buffer = gl.create_buffer().unwrap();
             gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_buffer));
-            gl.buffer_data_with_f64(WebGl2RenderingContext::ARRAY_BUFFER, cube_pos.len() as f64, WebGl2RenderingContext::DYNAMIC_DRAW);
+            let size = gl.get_buffer_parameter(WebGl2RenderingContext::ARRAY_BUFFER, WebGl2RenderingContext::BUFFER_SIZE);
+            //gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, size.as_f64().unwrap(), WebGl2RenderingContext::DYNAMIC_DRAW);
+            gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, cube_pos.len() as i32);
             },
             Variant::Sphere=>{
             let rotation = Rad::<f32>::full_turn();
@@ -268,7 +280,9 @@ use wasm_bindgen::prelude::wasm_bindgen;
             }
             let sphere_buffer = gl.create_buffer().unwrap();
             gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&sphere_buffer));
-            gl.buffer_data_with_f64(WebGl2RenderingContext::ARRAY_BUFFER, sphere_pos.len() as f64, WebGl2RenderingContext::DYNAMIC_DRAW);   
+            let size = gl.get_buffer_parameter(WebGl2RenderingContext::ARRAY_BUFFER, WebGl2RenderingContext::BUFFER_SIZE);
+            //gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, size.as_f64().unwrap(), WebGl2RenderingContext::DYNAMIC_DRAW);
+            gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, sphere_pos.len() as i32); 
             },
             _=>send_err("Not suitable for creating models."),
            }       
@@ -472,7 +486,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
       //at first, the error log must be cleaned
       send_err("");
       //individual words of the expression
-      let mut words:Vec<&str> = input.split_whitespace().collect();
+      let words:Vec<&str> = input.split_whitespace().collect();
       let medium = || -> Medium {get_medium(words[0])};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
@@ -506,6 +520,7 @@ use wasm_bindgen::prelude::wasm_bindgen;
         1000.0
     );
     camera.set_viewport(viewport); 
+    let mut vertex_array:Vec<f32> = vec![];
       if code.contains(';'){
           let exprs = code.split(';');
           for expr in exprs{

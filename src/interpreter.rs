@@ -2,7 +2,7 @@ use regex::Regex;
 use three_d::renderer::*;
 use three_d::core::{Camera,Viewport};
 use web_sys::*;
-use js_sys::{Float32Array,Object};
+use js_sys::{Float32Array,Array,Object};
 use wasm_bindgen::{JsCast,JsValue};
 
   #[derive(PartialEq)]
@@ -188,57 +188,33 @@ use wasm_bindgen::{JsCast,JsValue};
     fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
            match shape{
             Variant::Cube=>{
-            let cube_pos:Vec<Vector3<f32>> = vec![
-            Vec3::new(range, range, -range),
-            Vec3::new(-range, range, -range),
-            Vec3::new(range, range, range),
-            Vec3::new(-range, range, range),
-            Vec3::new(range, range, range),
-            Vec3::new(-range, range, -range),
-            Vec3::new(-range, -range, -range),
-            Vec3::new(range, -range, -range),
-            Vec3::new(range, -range, range),
-            Vec3::new(range, -range, range),
-            Vec3::new(-range, -range, range),
-            Vec3::new(-range, -range, -range),
-            Vec3::new(range, -range, -range),
-            Vec3::new(-range, -range, -range),
-            Vec3::new(range, range, -range),
-            Vec3::new(-range, range, -range),
-            Vec3::new(range, range, -range),
-            Vec3::new(-range, -range, -range),
-            Vec3::new(-range, -range, range),
-            Vec3::new(range, -range, range),
-            Vec3::new(range, range, range),
-            Vec3::new(range, range, range),
-            Vec3::new(-range, range, range),
-            Vec3::new(-range, -range, range),
-            Vec3::new(range, -range, -range),
-            Vec3::new(range, range, -range),
-            Vec3::new(range, range, range),
-            Vec3::new(range, range, range),
-            Vec3::new(range, -range, range),
-            Vec3::new(range, -range, -range),
-            Vec3::new(-range, range, -range),
-            Vec3::new(-range, -range, -range),
-            Vec3::new(-range, range, range),
-            Vec3::new(-range, -range, range),
-            Vec3::new(-range, range, range),
-            Vec3::new(-range, -range, -range),
-            ];
+            let cube_pos:Float32Array = Float32Array::new_with_length(0);
+            cube_pos.copy_from(&[
+              -range, -range, range,
+              range, -range, range,
+              range, range, range,
+              -range, range, range, 
+              -range, -range, -range,
+              range, -range, -range,
+              range, range, -range,
+              -range, range, -range   
+            ]);
             let cube_buffer = gl.create_buffer().unwrap();
             gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_buffer));
             let size = gl.get_buffer_parameter(WebGl2RenderingContext::ARRAY_BUFFER, WebGl2RenderingContext::BUFFER_SIZE);
-            //gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, size.as_f64().unwrap(), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, cube_pos.len() as i32);
+            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &cube_pos, WebGl2RenderingContext::DYNAMIC_DRAW);
+            gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, cube_pos.length() as i32);
             },
             Variant::Sphere=>{
             let rotation = Rad::<f32>::full_turn();
-            let longitudes = 40; 
+            let longitudes = 30; 
             let latitudes = 30;
-            let mut sphere_pos:Vec<Vector3<f32>>=vec![];
+            let sphere_pos:Float32Array = Float32Array::new_with_length(0);
+            sphere_pos.set_index(0, 0.0);
+            sphere_pos.set_index(1, range);
+            sphere_pos.set_index(2, 0.0);
             //triangles to the top
-            for i in 1..longitudes{
+           /* for i in 1..longitudes{
               sphere_pos.push(vec3(0.0,range,0.0));
               sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * ((i as f32)-1.0)) * range,
               Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * range,
@@ -277,12 +253,12 @@ use wasm_bindgen::{JsCast,JsValue};
               sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * i as f32) * range,
               Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * -range,
               Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * -range));
-            }
+            }*/
             let sphere_buffer = gl.create_buffer().unwrap();
             gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&sphere_buffer));
             let size = gl.get_buffer_parameter(WebGl2RenderingContext::ARRAY_BUFFER, WebGl2RenderingContext::BUFFER_SIZE);
-            //gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, size.as_f64().unwrap(), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, sphere_pos.len() as i32); 
+            //gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::new(&JsValue::from(sphere_pos)), WebGl2RenderingContext::DYNAMIC_DRAW);
+            gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, sphere_pos.length() as i32); 
             },
             _=>send_err("Not suitable for creating models."),
            }       

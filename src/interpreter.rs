@@ -1,6 +1,6 @@
 use regex::Regex;
 use three_d::renderer::*;
-use three_d::core::{Camera,Viewport};
+use three_d::core::{Camera,Viewport,Deg};
 use web_sys::*;
 use js_sys::{Float32Array,Array,Object};
 use wasm_bindgen::{JsCast,JsValue};
@@ -206,58 +206,42 @@ use wasm_bindgen::{JsCast,JsValue};
             gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, cube_pos.length() as i32);
             },
             Variant::Sphere=>{
-            let rotation = Rad::<f32>::full_turn();
+            let half_circle = Deg::<f32>::turn_div_2();
+            let full_circle = Deg::<f32>::full_turn();
             let longitudes = 30; 
             let latitudes = 30;
+            let longitude_distance = half_circle / longitudes as f32;
+            let latitude_distance = half_circle / latitudes as f32;
             let sphere_pos:Float32Array = Float32Array::new_with_length(0);
             sphere_pos.set_index(0, 0.0);
             sphere_pos.set_index(1, range);
             sphere_pos.set_index(2, 0.0);
-            //triangles to the top
-           /* for i in 1..longitudes{
-              sphere_pos.push(vec3(0.0,range,0.0));
-              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * ((i as f32)-1.0)) * range,
-              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * range,
-              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * range));
-              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * i as f32) * range,
-              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * range,
-              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * range));
-            }
-            //latitudes and longitudes
-            for i in 1..latitudes-1{
-              let y_first = Rad::<f32>::cos((rotation / latitudes as f32) * i as f32) * range;
-              let z_first = Rad::<f32>::sin((rotation / latitudes as f32) * i as f32) * range;
-              let y_second = Rad::<f32>::cos((rotation / latitudes as f32) * (i+1) as f32) * range;
-              let z_second = Rad::<f32>::sin((rotation / latitudes as f32) * (i+1) as f32) * range;
-             
-              for j in 0..longitudes{
-                let x_first = Rad::<f32>::sin((rotation / longitudes as f32) * j as f32) * range;
-                let x_second =Rad::<f32>::sin((rotation / longitudes as f32) * (j+1) as f32) * range;
-                let array = [vec3(x_first,y_second,z_second),
-                vec3(x_second,y_second,z_second),vec3(x_second,y_first,z_first),
-                vec3(x_first,y_first,z_first)];
-                sphere_pos.push(square_face_anticlockwise(array)[0]);
-                sphere_pos.push(square_face_anticlockwise(array)[1]);
-                sphere_pos.push(square_face_anticlockwise(array)[2]);
-                sphere_pos.push(square_face_anticlockwise(array)[3]);
-                sphere_pos.push(square_face_anticlockwise(array)[4]);
-                sphere_pos.push(square_face_anticlockwise(array)[5]);
+            let mut array_index:u32 = 2;
+
+          for latitude in 1..latitudes{
+            let y = Deg::cos(latitude_distance * latitude as f32) * range;
+              for longitude in 0..longitudes{
+                let x = Deg::sin(longitude_distance * longitude as f32) * range;
+                let z = Deg::sin(latitude_distance * latitude as f32) * range;
+                array_index += 1;
+                sphere_pos.set_index(array_index,x);
+                array_index += 1;
+                sphere_pos.set_index(array_index,y);
+                array_index += 1;
+                sphere_pos.set_index(array_index,z);
               }
             }
-            //triangles to the bottom
-            for i in 1..longitudes{
-              sphere_pos.push(vec3(0.0,-range,0.0));
-              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * ((i as f32)-1.0)) * range,
-              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * -range,
-              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * -range));
-              sphere_pos.push(vec3(Rad::<f32>::sin((rotation / longitudes as f32) * i as f32) * range,
-              Rad::<f32>::cos((rotation / latitudes as f32) * 1.0) * -range,
-              Rad::<f32>::sin((rotation / latitudes as f32) * 1.0) * -range));
-            }*/
+            array_index += 1;
+            sphere_pos.set_index(array_index, 0.0);
+            array_index += 1;
+            sphere_pos.set_index(array_index, -range);
+            array_index += 1;
+            sphere_pos.set_index(array_index, 0.0);
+
             let sphere_buffer = gl.create_buffer().unwrap();
             gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&sphere_buffer));
             let size = gl.get_buffer_parameter(WebGl2RenderingContext::ARRAY_BUFFER, WebGl2RenderingContext::BUFFER_SIZE);
-            //gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::new(&JsValue::from(sphere_pos)), WebGl2RenderingContext::DYNAMIC_DRAW);
+            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &sphere_pos, WebGl2RenderingContext::DYNAMIC_DRAW);
             gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, sphere_pos.length() as i32); 
             },
             _=>send_err("Not suitable for creating models."),

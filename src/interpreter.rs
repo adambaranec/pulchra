@@ -2,7 +2,7 @@ use regex::Regex;
 use three_d::renderer::*;
 use three_d::core::{Camera,Viewport,Deg};
 use web_sys::*;
-use js_sys::{Float32Array,Array,Object};
+use js_sys::Float32Array;
 use wasm_bindgen::{JsCast,JsValue};
 
   #[derive(PartialEq)]
@@ -185,25 +185,27 @@ use wasm_bindgen::{JsCast,JsValue};
       context.clear_color(channels[0], channels[1], channels[2], 1.0);
       context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     }
-    fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
+    fn create_visual(gl: &WebGl2RenderingContext, array: &Float32Array, shape: Variant, range: f32, color: Vec<f32>){
            match shape{
             Variant::Cube=>{
-            let cube_pos:Float32Array = Float32Array::new_with_length(0);
-            cube_pos.copy_from(&[
-              -range, -range, range,
-              range, -range, range,
-              range, range, range,
-              -range, range, range, 
-              -range, -range, -range,
-              range, -range, -range,
-              range, range, -range,
-              -range, range, -range   
-            ]);
-            let cube_buffer = gl.create_buffer().unwrap();
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&cube_buffer));
-            let size = gl.get_buffer_parameter(WebGl2RenderingContext::ARRAY_BUFFER, WebGl2RenderingContext::BUFFER_SIZE);
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &cube_pos, WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, cube_pos.length() as i32);
+              let cube_pos = vec![
+                -range, -range, range,
+                range, -range, range,
+                range, range, range,
+                -range, range, range, 
+                -range, -range, -range,
+                range, -range, -range,
+                range, range, -range,
+                -range, range, -range   
+                  ];
+              if array.length() == 0{
+                array.copy_from(&cube_pos[ .. ]);
+              } else {
+                let last_index = array.length();
+                for i in 0..cube_pos.len(){
+                  array.set_index(last_index+i as u32, cube_pos[i]);
+                } 
+              }
             },
             Variant::Sphere=>{
             let half_circle = Deg::<f32>::turn_div_2();
@@ -212,11 +214,10 @@ use wasm_bindgen::{JsCast,JsValue};
             let latitudes = 30;
             let longitude_distance = half_circle / longitudes as f32;
             let latitude_distance = half_circle / latitudes as f32;
-            let sphere_pos:Float32Array = Float32Array::new_with_length(0);
-            sphere_pos.set_index(0, 0.0);
-            sphere_pos.set_index(1, range);
-            sphere_pos.set_index(2, 0.0);
-            let mut array_index:u32 = 2;
+            let mut array_index = array.length();
+            array.set_index(array_index+0, 0.0);
+            array.set_index(array_index+1, range);
+            array.set_index(array_index+2, 0.0);
 
           for latitude in 1..latitudes{
             let y = Deg::cos(latitude_distance * latitude as f32) * range;
@@ -224,25 +225,19 @@ use wasm_bindgen::{JsCast,JsValue};
                 let x = Deg::sin(longitude_distance * longitude as f32) * range;
                 let z = Deg::sin(latitude_distance * latitude as f32) * range;
                 array_index += 1;
-                sphere_pos.set_index(array_index,x);
+                array.set_index(array_index,x);
                 array_index += 1;
-                sphere_pos.set_index(array_index,y);
+                array.set_index(array_index,y);
                 array_index += 1;
-                sphere_pos.set_index(array_index,z);
+                array.set_index(array_index,z);
               }
             }
             array_index += 1;
-            sphere_pos.set_index(array_index, 0.0);
+            array.set_index(array_index, 0.0);
             array_index += 1;
-            sphere_pos.set_index(array_index, -range);
+            array.set_index(array_index, -range);
             array_index += 1;
-            sphere_pos.set_index(array_index, 0.0);
-
-            let sphere_buffer = gl.create_buffer().unwrap();
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&sphere_buffer));
-            let size = gl.get_buffer_parameter(WebGl2RenderingContext::ARRAY_BUFFER, WebGl2RenderingContext::BUFFER_SIZE);
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &sphere_pos, WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, sphere_pos.length() as i32); 
+            array.set_index(array_index, 0.0);
             },
             _=>send_err("Not suitable for creating models."),
            }       
@@ -325,7 +320,7 @@ use wasm_bindgen::{JsCast,JsValue};
             send_err("Too many parameters for audio.")
           }
       }
-      fn prepare_visual(w: &str, gl: &WebGl2RenderingContext){
+      fn prepare_visual(w: &str, gl: &WebGl2RenderingContext, array: &Float32Array){
         let expr:Vec<&str> = w.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -334,8 +329,8 @@ use wasm_bindgen::{JsCast,JsValue};
         if expr.len() == 1{
           match get_variant(expr[0]){
             Variant::Screen=>send_err("Missing grayscale or rgb for the screen."),
-            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
-            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
+            Variant::Cube=>create_visual(gl, array, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
+            Variant::Sphere=>create_visual(gl, array, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
             _=>todo!(),
           }
         }
@@ -375,7 +370,7 @@ use wasm_bindgen::{JsCast,JsValue};
                     match String::from(expr[1]).parse::<f32>(){
                       Ok(val)=>{
                         if val <= 1.0{
-                          create_visual(gl, Variant::Cube, val, vec![1.0,1.0,1.0]);
+                          create_visual(gl, array, Variant::Cube, val, vec![1.0,1.0,1.0]);
                         } else {
                           send_err("Radius must not be greater than 1.")
                         }
@@ -389,7 +384,7 @@ use wasm_bindgen::{JsCast,JsValue};
                   let color = rgb.find(w);
                   if color != None {
                    let channels = floats_from(expr[1]);
-                   create_visual(gl, Variant::Cube, 1.0, channels.unwrap());
+                   create_visual(gl, array, Variant::Cube, 1.0, channels.unwrap());
                   } else {
                   send_err("Invalid rgb for the object.");
                   }
@@ -403,7 +398,7 @@ use wasm_bindgen::{JsCast,JsValue};
                     match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                        create_visual(gl, Variant::Sphere, val, vec![1.0,1.0,1.0]);
+                        create_visual(gl, array, Variant::Sphere, val, vec![1.0,1.0,1.0]);
                       } else {
                         send_err("Radius must not be greater than 1.")
                       }
@@ -416,7 +411,7 @@ use wasm_bindgen::{JsCast,JsValue};
               } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
                 if rgb.is_match(expr[1]) {
                   let channels = floats_from(expr[1]);
-                  create_visual(gl, Variant::Sphere, 1.0, channels.unwrap());
+                  create_visual(gl, array, Variant::Sphere, 1.0, channels.unwrap());
                 } else {
                 send_err("Invalid rgb for the object.");
                 }
@@ -442,7 +437,7 @@ use wasm_bindgen::{JsCast,JsValue};
         }
       }
 
-      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){
+      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext, buf_array: &mut Float32Array){
       //at first, the error log must be cleaned
       send_err("");
       //individual words of the expression
@@ -453,7 +448,7 @@ use wasm_bindgen::{JsCast,JsValue};
 
         if medium() != Medium::Unknown {
           match medium(){
-            Medium::Visuals=>prepare_visual(&input, &gl_ctx),
+            Medium::Visuals=>prepare_visual(&input, &gl_ctx, &buf_array),
             Medium::Audio=>prepare_audio(&input, &audio),
             Medium::Effect=>prepare_effect(&input),
             _=>todo!(),
@@ -462,7 +457,7 @@ use wasm_bindgen::{JsCast,JsValue};
           send_err("Unknown media.");
         }
      }
-    pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext){
+    pub fn set(code: String, gl: WebGl2RenderingContext, audio: AudioContext){
       let web_window = web_sys::window().unwrap();
       let viewport = Viewport{
         width: web_window.inner_width().unwrap().as_f64().unwrap() as u32,
@@ -480,14 +475,17 @@ use wasm_bindgen::{JsCast,JsValue};
         1000.0
     );
     camera.set_viewport(viewport); 
-    let mut vertex_array:Vec<f32> = vec![];
+    let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
       if code.contains(';'){
           let exprs = code.split(';');
           for expr in exprs{
-           interpret(expr, &context, &audio);
+           interpret(expr, &gl, &audio, &mut vertex_array);
           }
+          let buffer = gl.create_buffer();
+          gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, buffer.as_ref());
         } else {
-          interpret(&*code, &context, &audio);
+          interpret(&*code, &gl, &audio, &mut vertex_array);
+          let buffer = gl.create_buffer();
         }
     }
     pub fn start(){

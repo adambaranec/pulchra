@@ -517,7 +517,7 @@ use wasm_bindgen::{JsCast,JsValue};
            interpret(expr, &gl, &audio, &mut vertex_array);
            if vertex_array.length() < 3{
             gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition"), 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
+            gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition") as u32, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
             gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
            }
           }
@@ -528,7 +528,7 @@ use wasm_bindgen::{JsCast,JsValue};
           interpret(&*code, &gl, &audio, &mut vertex_array);
           if vertex_array.length() < 3{
             gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::STATIC_DRAW);
-            gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition"), 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
+            gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition") as u32, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
             gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
           }
         }

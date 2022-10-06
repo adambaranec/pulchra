@@ -362,6 +362,10 @@ function getImports() {
     imports.wbg.__wbg_drawArrays_f6035c21c1024f46 = function(arg0, arg1, arg2, arg3) {
         getObject(arg0).drawArrays(arg1 >>> 0, arg2, arg3);
     };
+    imports.wbg.__wbg_getAttribLocation_cf52cf0c00892876 = function(arg0, arg1, arg2, arg3) {
+        const ret = getObject(arg0).getAttribLocation(getObject(arg1), getStringFromWasm0(arg2, arg3));
+        return ret;
+    };
     imports.wbg.__wbg_getProgramParameter_2fbb4ed8178889ac = function(arg0, arg1, arg2) {
         const ret = getObject(arg0).getProgramParameter(getObject(arg1), arg2 >>> 0);
         return addHeapObject(ret);
@@ -371,6 +375,9 @@ function getImports() {
     };
     imports.wbg.__wbg_shaderSource_3aaf925adea06239 = function(arg0, arg1, arg2, arg3) {
         getObject(arg0).shaderSource(getObject(arg1), getStringFromWasm0(arg2, arg3));
+    };
+    imports.wbg.__wbg_vertexAttribPointer_6ce3f7995e4e98bc = function(arg0, arg1, arg2, arg3, arg4, arg5, arg6) {
+        getObject(arg0).vertexAttribPointer(arg1 >>> 0, arg2, arg3 >>> 0, arg4 !== 0, arg5, arg6);
     };
     imports.wbg.__wbg_instanceof_Window_42f092928baaee84 = function(arg0) {
         const ret = getObject(arg0) instanceof Window;

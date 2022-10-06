@@ -475,24 +475,62 @@ use wasm_bindgen::{JsCast,JsValue};
         1000.0
     );
     camera.set_viewport(viewport); 
-    let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
+
+    let vertex_shader_src = "
+    attribute vec3 vertexPosition;
+    uniform mat4 modelProjection;
+    uniform mat4 viewProjection;
+    void main(){
+      gl_Position = modelProjection * viewProjection * vertexPosition;
+    }
+    ";
+    let fragment_shader_src = "
+    void main(){
+      gl_FragColor = vec4(0.4,0.4,0.4,1.0);
+    }
+    ";
+    let vertex_shader = gl.create_shader(WebGl2RenderingContext::VERTEX_SHADER).unwrap();
+    let fragment_shader = gl.create_shader(WebGl2RenderingContext::FRAGMENT_SHADER).unwrap();
+    let program = gl.create_program().unwrap();
+    gl.shader_source(&vertex_shader, vertex_shader_src);
+    gl.shader_source(&fragment_shader, fragment_shader_src);
+    gl.compile_shader(&vertex_shader);
+    gl.compile_shader(&fragment_shader);
+    /*if gl.get_shader_parameter(&vertex_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap() == false{
+      send_err("Failed compilation of vertex shader.");
+    } else {    gl.attach_shader(program, &vertex_shader);    }
+    if gl.get_shader_parameter(&fragment_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap() == false{
+      send_err("Failed compilation of fragment shader.");
+    } else {         }*/
+    gl.attach_shader(&program, &vertex_shader); 
+    gl.attach_shader(&program, &fragment_shader);
+    gl.link_program(&program);
+    if gl.get_program_parameter(&program, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap() == false{
+      send_err("Shader program not working.");
+    }
       if code.contains(';'){
           let exprs = code.split(';');
           let buffer = gl.create_buffer();
           gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, buffer.as_ref());
           for expr in exprs{
+          let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
            interpret(expr, &gl, &audio, &mut vertex_array);
-           gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
-           //gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(), 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-           gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 3);
+           if vertex_array.length() < 3{
+            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
+            gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition"), 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
+            gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
+           }
           }
         } else {
-          interpret(&*code, &gl, &audio, &mut vertex_array);
+          let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
           let buffer = gl.create_buffer();
-          gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
           gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, buffer.as_ref());
-          //gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(), 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-          gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, 3);
+          interpret(&*code, &gl, &audio, &mut vertex_array);
+          if vertex_array.length() < 3{
+            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::STATIC_DRAW);
+            gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition"), 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
+            gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
+          }
         }
     }
     pub fn start(){
@@ -505,4 +543,5 @@ use wasm_bindgen::{JsCast,JsValue};
       .unwrap().dyn_into::<web_sys::WebGl2RenderingContext>().unwrap();
       webgl_context.clear_color(0.0,0.0,0.0,1.0);
       webgl_context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT); 
+      webgl_context.clear(WebGl2RenderingContext::DEPTH_CLEAR_VALUE);
     }

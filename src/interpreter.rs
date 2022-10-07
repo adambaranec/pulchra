@@ -240,16 +240,16 @@ use wasm_bindgen::{JsCast,JsValue};
             array.set_index(array_index, 0.0);
             },
             _=>send_err("Not suitable for creating models."),
-           }       
+           }   
       }
       fn prepare_effect(w: &str){}
       fn prepare_audio(w: &str, audio: &AudioContext){
         let words:Vec<&str> = w.split_whitespace().collect();
         if words.len() == 1{
           if get_variant(words[0]) != Variant::NoiseOsc{
-            send_err("Missing frequency for oscillator.")
+            send_err("Missing frequency for oscillator.");
           } else {
-            send_err("Missing gain for noise.")
+            send_err("Missing gain for noise.");
           }
         }
         else if words.len() == 2{
@@ -437,7 +437,7 @@ use wasm_bindgen::{JsCast,JsValue};
         }
       }
 
-      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext, buf_array: &mut Float32Array){
+      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext, buf_array: &Float32Array){
       //at first, the error log must be cleaned
       send_err("");
       //individual words of the expression
@@ -477,16 +477,18 @@ use wasm_bindgen::{JsCast,JsValue};
     camera.set_viewport(viewport); 
 
     let vertex_shader_src = "
-    attribute vec3 vertexPosition;
+    attribute vec4 vertexPosition;
     uniform mat4 modelProjection;
     uniform mat4 viewProjection;
+    attribute vec3 color;
     void main(){
       gl_Position = modelProjection * viewProjection * vertexPosition;
     }
     ";
     let fragment_shader_src = "
+    attribute vec3 color;
     void main(){
-      gl_FragColor = vec4(0.4,0.4,0.4,1.0);
+      gl_FragColor = vec4(color,1.0);
     }
     ";
     let vertex_shader = gl.create_shader(WebGl2RenderingContext::VERTEX_SHADER).unwrap();
@@ -496,18 +498,22 @@ use wasm_bindgen::{JsCast,JsValue};
     gl.shader_source(&fragment_shader, fragment_shader_src);
     gl.compile_shader(&vertex_shader);
     gl.compile_shader(&fragment_shader);
-    /*if gl.get_shader_parameter(&vertex_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap() == false{
-      send_err("Failed compilation of vertex shader.");
-    } else {    gl.attach_shader(program, &vertex_shader);    }
-    if gl.get_shader_parameter(&fragment_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap() == false{
-      send_err("Failed compilation of fragment shader.");
-    } else {         }*/
-    gl.attach_shader(&program, &vertex_shader); 
-    gl.attach_shader(&program, &fragment_shader);
-    gl.link_program(&program);
-    if gl.get_program_parameter(&program, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap() == false{
-      send_err("Shader program not working.");
+    let vertex_status = gl.get_shader_parameter(&vertex_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
+    let fragment_status = gl.get_shader_parameter(&fragment_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
+    let program_status = gl.get_program_parameter(&program, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
+    if vertex_status != false && fragment_status != false{
+      gl.attach_shader(&program, &vertex_shader); 
+      gl.attach_shader(&program, &fragment_shader);
+      gl.link_program(&program);
+      if program_status == false{
+        send_err("Shader program not working.");
+      } else {
+        gl.use_program(Some(&program));
+      }
+    } else {
+      send_err("Failed compilation of shaders.");
     }
+
       if code.contains(';'){
           let exprs = code.split(';');
           let buffer = gl.create_buffer();
@@ -515,7 +521,7 @@ use wasm_bindgen::{JsCast,JsValue};
           for expr in exprs{
           let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
            interpret(expr, &gl, &audio, &mut vertex_array);
-           if vertex_array.length() < 3{
+           if vertex_array.length() < 3 && program_status == true{
             gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
             gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition") as u32, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
             gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
@@ -526,7 +532,7 @@ use wasm_bindgen::{JsCast,JsValue};
           let buffer = gl.create_buffer();
           gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, buffer.as_ref());
           interpret(&*code, &gl, &audio, &mut vertex_array);
-          if vertex_array.length() < 3{
+          if vertex_array.length() < 3 && program_status == true{
             gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::STATIC_DRAW);
             gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "vertexPosition") as u32, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
             gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
@@ -543,5 +549,6 @@ use wasm_bindgen::{JsCast,JsValue};
       .unwrap().dyn_into::<web_sys::WebGl2RenderingContext>().unwrap();
       webgl_context.clear_color(0.0,0.0,0.0,1.0);
       webgl_context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT); 
-      webgl_context.clear(WebGl2RenderingContext::DEPTH_CLEAR_VALUE);
+      webgl_context.clear_depth(0.5);
+      webgl_context.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT); 
     }

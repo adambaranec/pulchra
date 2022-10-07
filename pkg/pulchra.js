@@ -344,6 +344,9 @@ function getImports() {
     imports.wbg.__wbg_clearColor_296c069d39204e58 = function(arg0, arg1, arg2, arg3, arg4) {
         getObject(arg0).clearColor(arg1, arg2, arg3, arg4);
     };
+    imports.wbg.__wbg_clearDepth_89b517f0fedd749a = function(arg0, arg1) {
+        getObject(arg0).clearDepth(arg1);
+    };
     imports.wbg.__wbg_compileShader_9ef519d440deb293 = function(arg0, arg1) {
         getObject(arg0).compileShader(getObject(arg1));
     };
@@ -370,11 +373,18 @@ function getImports() {
         const ret = getObject(arg0).getProgramParameter(getObject(arg1), arg2 >>> 0);
         return addHeapObject(ret);
     };
+    imports.wbg.__wbg_getShaderParameter_5559d063d1453318 = function(arg0, arg1, arg2) {
+        const ret = getObject(arg0).getShaderParameter(getObject(arg1), arg2 >>> 0);
+        return addHeapObject(ret);
+    };
     imports.wbg.__wbg_linkProgram_71ffdb00aea0d6f0 = function(arg0, arg1) {
         getObject(arg0).linkProgram(getObject(arg1));
     };
     imports.wbg.__wbg_shaderSource_3aaf925adea06239 = function(arg0, arg1, arg2, arg3) {
         getObject(arg0).shaderSource(getObject(arg1), getStringFromWasm0(arg2, arg3));
+    };
+    imports.wbg.__wbg_useProgram_8ccbf4d31e1e419b = function(arg0, arg1) {
+        getObject(arg0).useProgram(getObject(arg1));
     };
     imports.wbg.__wbg_vertexAttribPointer_6ce3f7995e4e98bc = function(arg0, arg1, arg2, arg3, arg4, arg5, arg6) {
         getObject(arg0).vertexAttribPointer(arg1 >>> 0, arg2, arg3 >>> 0, arg4 !== 0, arg5, arg6);

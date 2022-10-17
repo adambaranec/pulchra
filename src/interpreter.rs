@@ -525,42 +525,44 @@ use wasm_bindgen::{JsCast,JsValue};
             view_matrix_array.push(camera.view().row(rows)[columns]);
           }
         }
+        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_modelProjection").as_ref(), false, &model_matrix_array[ .. ]);
+        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_viewProjection").as_ref(), false, &view_matrix_array[ .. ]);
       } else {
         send_err("Failed compilation of program. Visuals will not work.");
       }
     } else {
       send_err("Failed compilation of shaders");
     }
+    /*let vertex_buffer = gl.create_buffer();
+    let vertex_location = gl.get_attrib_location(&program, "a_vertexPosition") as u32;
     if code.contains(';'){
       let exprs = code.split(';');
-      let buffer = gl.create_buffer();
-      gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, buffer.as_ref());
+      gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
       for expr in exprs{
       let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
        interpret(expr, &gl, &audio, &mut vertex_array);
+       send_err(&format!("{}", vertex_array.length()));
        if vertex_array.length() < 3 && program_status == true{
         gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
-        gl.enable_vertex_attrib_array(gl.get_attrib_location(&program, "a_vertexPosition") as u32);
-        gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "a_vertexPosition") as u32, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_modelProjection").as_ref(), false, &model_matrix_array[ .. ]);
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_viewProjection").as_ref(), false, &view_matrix_array[ .. ]);
-        gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
+        gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
+        gl.enable_vertex_attrib_array(vertex_location);
+        gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, (vertex_array.length()/3) as i32);
        }
       }
     } else {
       let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
-      let buffer = gl.create_buffer();
-      gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, buffer.as_ref());
+      gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
       interpret(&*code, &gl, &audio, &mut vertex_array);
+      send_err(&format!("{}", vertex_array.length()));
       if vertex_array.length() < 3 && program_status == true{
         gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::STATIC_DRAW);
-        gl.enable_vertex_attrib_array(gl.get_attrib_location(&program, "a_vertexPosition") as u32);
-        gl.vertex_attrib_pointer_with_f64(gl.get_attrib_location(&program, "a_vertexPosition") as u32, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_modelProjection").as_ref(), false, &model_matrix_array[ .. ]);
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_viewProjection").as_ref(), false, &view_matrix_array[ .. ]);
-        gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, vertex_array.length() as i32);
+        gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
+        gl.enable_vertex_attrib_array(vertex_location);
+        gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, (vertex_array.length()/3) as i32);
       }
+      send_err(&format!("{}", vertex_array.length()));
     }
+    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);*/
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();

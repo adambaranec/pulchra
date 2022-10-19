@@ -198,14 +198,7 @@ use wasm_bindgen::{JsCast,JsValue};
                 range, range, -range,
                 -range, range, -range   
                   ];
-              if array.length() == 0{
-                array.copy_from(&cube_pos[ .. ]);
-              } else {
-                let last_index = array.length();
-                for i in 0..cube_pos.len(){
-                  array.set_index(last_index+i as u32, cube_pos[i]);
-                } 
-              }
+                let v_array = Float32Array::from(&cube_pos[ .. ]);
             },
             Variant::Sphere=>{
             let half_circle = Deg::<f32>::turn_div_2();
@@ -214,30 +207,25 @@ use wasm_bindgen::{JsCast,JsValue};
             let latitudes = 30;
             let longitude_distance = half_circle / longitudes as f32;
             let latitude_distance = half_circle / latitudes as f32;
-            let mut array_index = array.length();
-            array.set_index(array_index+0, 0.0);
-            array.set_index(array_index+1, range);
-            array.set_index(array_index+2, 0.0);
+            let mut sphere_pos:Vec<f32> = vec![];
+            sphere_pos.push(0.0);
+            sphere_pos.push(range);
+            sphere_pos.push(0.0);
 
           for latitude in 1..latitudes{
             let y = Deg::cos(latitude_distance * latitude as f32) * range;
               for longitude in 0..longitudes{
                 let x = Deg::sin(longitude_distance * longitude as f32) * range;
                 let z = Deg::sin(latitude_distance * latitude as f32) * range;
-                array_index += 1;
-                array.set_index(array_index,x);
-                array_index += 1;
-                array.set_index(array_index,y);
-                array_index += 1;
-                array.set_index(array_index,z);
+                sphere_pos.push(x);
+                sphere_pos.push(y);
+                sphere_pos.push(z);
               }
             }
-            array_index += 1;
-            array.set_index(array_index, 0.0);
-            array_index += 1;
-            array.set_index(array_index, -range);
-            array_index += 1;
-            array.set_index(array_index, 0.0);
+            sphere_pos.push(0.0);
+            sphere_pos.push(-range);
+            sphere_pos.push(0.0);
+            let v_array = Float32Array::from(&sphere_pos[ .. ]);
             },
             _=>send_err("Not suitable for creating models."),
            }   
@@ -512,36 +500,34 @@ use wasm_bindgen::{JsCast,JsValue};
     if vertex_status != false && fragment_status != false{
       gl.attach_shader(&program, &vertex_shader); 
       gl.attach_shader(&program, &fragment_shader);
-      if program_status == true{
-        gl.link_program(&program);
-        gl.use_program(Some(&program));
-        for columns in 0..3{
-          for rows in 0..3{
-            model_matrix_array.push(camera.projection().row(rows)[columns]);
+      gl.link_program(&program);
+      gl.use_program(Some(&program));
+      if model_matrix_array.len() == 0 && view_matrix_array.len() == 0{
+          for columns in 0..3{
+            for rows in 0..3{
+              model_matrix_array.push(camera.projection().row(rows)[columns]);
+            }
           }
-        }
-        for columns in 0..3{
-          for rows in 0..3{
-            view_matrix_array.push(camera.view().row(rows)[columns]);
+          for columns in 0..3{
+            for rows in 0..3{
+              view_matrix_array.push(camera.view().row(rows)[columns]);
+            }
           }
+          gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_modelProjection").as_ref(), false, &model_matrix_array[ .. ]);
+          gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_viewProjection").as_ref(), false, &view_matrix_array[ .. ]);
         }
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_modelProjection").as_ref(), false, &model_matrix_array[ .. ]);
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_viewProjection").as_ref(), false, &view_matrix_array[ .. ]);
-      } else {
-        send_err("Failed compilation of program. Visuals will not work.");
-      }
     } else {
       send_err("Failed compilation of shaders");
     }
-    /*let vertex_buffer = gl.create_buffer();
+    let vertex_buffer = gl.create_buffer();
     let vertex_location = gl.get_attrib_location(&program, "a_vertexPosition") as u32;
+    let normal_location = gl.get_attrib_location(&program, "a_normal") as u32;
     if code.contains(';'){
       let exprs = code.split(';');
       gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
       for expr in exprs{
       let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
        interpret(expr, &gl, &audio, &mut vertex_array);
-       send_err(&format!("{}", vertex_array.length()));
        if vertex_array.length() < 3 && program_status == true{
         gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
         gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
@@ -553,16 +539,14 @@ use wasm_bindgen::{JsCast,JsValue};
       let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
       gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
       interpret(&*code, &gl, &audio, &mut vertex_array);
-      send_err(&format!("{}", vertex_array.length()));
       if vertex_array.length() < 3 && program_status == true{
         gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::STATIC_DRAW);
         gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
         gl.enable_vertex_attrib_array(vertex_location);
         gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, (vertex_array.length()/3) as i32);
       }
-      send_err(&format!("{}", vertex_array.length()));
     }
-    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);*/
+    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();

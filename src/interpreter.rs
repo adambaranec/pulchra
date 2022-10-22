@@ -185,7 +185,91 @@ use wasm_bindgen::{JsCast,JsValue};
       context.clear_color(channels[0], channels[1], channels[2], 1.0);
       context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
     }
-    fn create_visual(gl: &WebGl2RenderingContext, array: &Float32Array, shape: Variant, range: f32, color: Vec<f32>){
+    fn array_to_vec3(array: Vec<f32>) -> Vec<Vector3<f32>>{
+      let mut vector:Vec<f32> = vec![];
+      let mut index = 0;
+      let mut vec_to_return:Vec<Vector3<f32>> = vec![];
+      for element in array{
+        if index != 2{
+          vector.push(element);
+        } else {
+          vector.push(element);
+          vec_to_return.push(Vector3::<f32>::from((vector[0],vector[1],vector[2])));
+          vector.clear();
+          index = 0;
+        }      
+      }
+      vec_to_return
+    }
+    fn vec3_to_array(vec: &Vec<Vector3<f32>>) -> Vec<f32>{
+    let mut vec_to_return:Vec<f32> = vec![];
+    for vector in vec{
+    vec_to_return.push(vector.x);
+    vec_to_return.push(vector.y);
+    vec_to_return.push(vector.z);
+    }
+    vec_to_return
+    }
+    fn sphere_vertices(latitudes: u32, longitudes: u32, range: f32)->Vec<f32>{
+      let half_circle = Deg::<f32>::turn_div_2();
+      let full_circle = Deg::<f32>::full_turn();
+      let longitudes = 30; 
+      let latitudes = 30;
+      let longitude_distance = half_circle / longitudes as f32;
+      let latitude_distance = half_circle / latitudes as f32;
+      let mut sphere_pos:Vec<f32> = vec![];
+      sphere_pos.push(0.0);
+      sphere_pos.push(range);
+      sphere_pos.push(0.0);
+
+    for latitude in 1..latitudes{
+      let y = Deg::cos(latitude_distance * latitude as f32) * range;
+        for longitude in 0..longitudes{
+          let x = Deg::sin(longitude_distance * longitude as f32) * range;
+          let z = Deg::sin(latitude_distance * latitude as f32) * range;
+          sphere_pos.push(x);
+          sphere_pos.push(y);
+          sphere_pos.push(z);
+        }
+      }
+      sphere_pos.push(0.0);
+      sphere_pos.push(-range);
+      sphere_pos.push(0.0);
+
+      sphere_pos
+    }
+    fn sphere_indices(latitudes: u32, longitudes: u32) -> Vec<u32>{
+    let mut indices:Vec<u32> = vec![];
+    for l in 0..longitudes-2{
+    indices.push(0);
+    indices.push(l+1);
+    indices.push(l+2);
+    }
+    indices.push(0);
+    indices.push(longitudes);
+    indices.push(1);
+    for la in 0..latitudes{
+     for lo in 1..longitudes{
+      indices.push(longitudes+lo*(la+1));
+      indices.push(longitudes+lo*la);
+      indices.push((longitudes+(lo+1)*la));
+      indices.push(longitudes+lo*(la+1));
+      indices.push((longitudes+(lo+1)*la));
+      indices.push(longitudes+(lo+1)*(la+1));
+    }
+    }
+    for l in 0..longitudes-2{
+      indices.push((latitudes*longitudes)+1);
+      indices.push((latitudes*longitudes - (l+1)));
+      indices.push((latitudes*longitudes - (l+2)));
+    }
+    indices.push((latitudes*longitudes)+1);
+    indices.push((latitudes*longitudes));
+    indices.push(((latitudes*longitudes) - longitudes));
+
+    indices
+    }
+    fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
            match shape{
             Variant::Cube=>{
               let cube_pos = vec![
@@ -198,34 +282,36 @@ use wasm_bindgen::{JsCast,JsValue};
                 range, range, -range,
                 -range, range, -range   
                   ];
-                let v_array = Float32Array::from(&cube_pos[ .. ]);
+                let cube_indices = vec![
+                //front face
+                0,1,2,0,3,2, 
+                //back face  
+                4,5,6,4,7,6, 
+                //upper face
+                2,3,4,2,4,5,
+                //bottom face
+                0,1,4,0,5,4, 
+                //right face
+                1,2,5,2,6,5,
+                //left face 
+                0,3,4,0,4,7
+                ];
+                let mut cube_normals:Vec<f32> = vec![];
+                let mut cube = CpuMesh{positions: Positions::F32(array_to_vec3(cube_pos)), indices: Some(Indices::U8(cube_indices)), normals: None, ..Default::default()};
+                cube.compute_normals();
+                cube_normals = vec3_to_array(&cube.normals.unwrap());
+                let vertex_buffer = gl.create_buffer();
+                let element_buffer = gl.create_buffer();
+                let normal_buffer = gl.create_buffer();
             },
             Variant::Sphere=>{
-            let half_circle = Deg::<f32>::turn_div_2();
-            let full_circle = Deg::<f32>::full_turn();
-            let longitudes = 30; 
-            let latitudes = 30;
-            let longitude_distance = half_circle / longitudes as f32;
-            let latitude_distance = half_circle / latitudes as f32;
-            let mut sphere_pos:Vec<f32> = vec![];
-            sphere_pos.push(0.0);
-            sphere_pos.push(range);
-            sphere_pos.push(0.0);
-
-          for latitude in 1..latitudes{
-            let y = Deg::cos(latitude_distance * latitude as f32) * range;
-              for longitude in 0..longitudes{
-                let x = Deg::sin(longitude_distance * longitude as f32) * range;
-                let z = Deg::sin(latitude_distance * latitude as f32) * range;
-                sphere_pos.push(x);
-                sphere_pos.push(y);
-                sphere_pos.push(z);
-              }
-            }
-            sphere_pos.push(0.0);
-            sphere_pos.push(-range);
-            sphere_pos.push(0.0);
-            let v_array = Float32Array::from(&sphere_pos[ .. ]);
+            let mut sphere_normals:Vec<f32> = vec![];
+            let mut sphere = CpuMesh{positions: Positions::F32(array_to_vec3(sphere_vertices(30,30,range))), indices: Some(Indices::U32(sphere_indices(30,30))), normals: None, ..Default::default()};
+            sphere.compute_normals();
+            sphere_normals = vec3_to_array(&sphere.normals.unwrap());
+            let vertex_buffer = gl.create_buffer();
+            let element_buffer = gl.create_buffer();
+            let normal_buffer = gl.create_buffer();
             },
             _=>send_err("Not suitable for creating models."),
            }   
@@ -308,7 +394,7 @@ use wasm_bindgen::{JsCast,JsValue};
             send_err("Too many parameters for audio.")
           }
       }
-      fn prepare_visual(w: &str, gl: &WebGl2RenderingContext, array: &Float32Array){
+      fn prepare_visual(w: &str, gl: &WebGl2RenderingContext){
         let expr:Vec<&str> = w.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -317,8 +403,8 @@ use wasm_bindgen::{JsCast,JsValue};
         if expr.len() == 1{
           match get_variant(expr[0]){
             Variant::Screen=>send_err("Missing grayscale or rgb for the screen."),
-            Variant::Cube=>create_visual(gl, array, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
-            Variant::Sphere=>create_visual(gl, array, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
+            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
+            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
             _=>todo!(),
           }
         }
@@ -358,7 +444,7 @@ use wasm_bindgen::{JsCast,JsValue};
                     match String::from(expr[1]).parse::<f32>(){
                       Ok(val)=>{
                         if val <= 1.0{
-                          create_visual(gl, array, Variant::Cube, val, vec![1.0,1.0,1.0]);
+                          create_visual(gl, Variant::Cube, val, vec![1.0,1.0,1.0]);
                         } else {
                           send_err("Radius must not be greater than 1.")
                         }
@@ -372,7 +458,7 @@ use wasm_bindgen::{JsCast,JsValue};
                   let color = rgb.find(w);
                   if color != None {
                    let channels = floats_from(expr[1]);
-                   create_visual(gl, array, Variant::Cube, 1.0, channels.unwrap());
+                   create_visual(gl, Variant::Cube, 1.0, channels.unwrap());
                   } else {
                   send_err("Invalid rgb for the object.");
                   }
@@ -386,7 +472,7 @@ use wasm_bindgen::{JsCast,JsValue};
                     match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                        create_visual(gl, array, Variant::Sphere, val, vec![1.0,1.0,1.0]);
+                        create_visual(gl, Variant::Sphere, val, vec![1.0,1.0,1.0]);
                       } else {
                         send_err("Radius must not be greater than 1.")
                       }
@@ -399,7 +485,7 @@ use wasm_bindgen::{JsCast,JsValue};
               } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
                 if rgb.is_match(expr[1]) {
                   let channels = floats_from(expr[1]);
-                  create_visual(gl, array, Variant::Sphere, 1.0, channels.unwrap());
+                  create_visual(gl, Variant::Sphere, 1.0, channels.unwrap());
                 } else {
                 send_err("Invalid rgb for the object.");
                 }
@@ -425,7 +511,7 @@ use wasm_bindgen::{JsCast,JsValue};
         }
       }
 
-      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext, buf_array: &Float32Array){
+      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){
       //at first, the error log must be cleaned
       send_err("");
       //individual words of the expression
@@ -436,7 +522,7 @@ use wasm_bindgen::{JsCast,JsValue};
 
         if medium() != Medium::Unknown {
           match medium(){
-            Medium::Visuals=>prepare_visual(&input, &gl_ctx, &buf_array),
+            Medium::Visuals=>prepare_visual(&input, &gl_ctx),
             Medium::Audio=>prepare_audio(&input, &audio),
             Medium::Effect=>prepare_effect(&input),
             _=>todo!(),
@@ -466,11 +552,11 @@ use wasm_bindgen::{JsCast,JsValue};
     let vertex_shader_src = "
     attribute vec3 a_vertexPosition;
     attribute vec3 a_normal;
-    uniform mat4 modelProjection;
-    uniform mat4 viewProjection;
+    uniform mat4 u_worldProjection;
+    uniform mat4 u_viewProjection;
     varying vec3 v_normal;
     void main(){
-      gl_Position = modelProjection * viewProjection * vec4(a_vertexPosition, 1.0);
+      gl_Position = u_worldProjection * u_viewProjection * vec4(a_vertexPosition, 1.0);
       v_normal = a_normal;
     }
     ";
@@ -513,40 +599,23 @@ use wasm_bindgen::{JsCast,JsValue};
               view_matrix_array.push(camera.view().row(rows)[columns]);
             }
           }
-          gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_modelProjection").as_ref(), false, &model_matrix_array[ .. ]);
+          gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_worldProjection").as_ref(), false, &model_matrix_array[ .. ]);
           gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_viewProjection").as_ref(), false, &view_matrix_array[ .. ]);
         }
-    } else {
+    } else {  
       send_err("Failed compilation of shaders");
     }
-    let vertex_buffer = gl.create_buffer();
     let vertex_location = gl.get_attrib_location(&program, "a_vertexPosition") as u32;
     let normal_location = gl.get_attrib_location(&program, "a_normal") as u32;
+    let color_location = gl.get_uniform_location(&program, "u_color");
     if code.contains(';'){
       let exprs = code.split(';');
-      gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
       for expr in exprs{
-      let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
-       interpret(expr, &gl, &audio, &mut vertex_array);
-       if vertex_array.length() < 3 && program_status == true{
-        gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::DYNAMIC_DRAW);
-        gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-        gl.enable_vertex_attrib_array(vertex_location);
-        gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, (vertex_array.length()/3) as i32);
-       }
+       interpret(expr, &gl, &audio);
       }
     } else {
-      let mut vertex_array:Float32Array = Float32Array::new_with_length(0);
-      gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-      interpret(&*code, &gl, &audio, &mut vertex_array);
-      if vertex_array.length() < 3 && program_status == true{
-        gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &vertex_array, WebGl2RenderingContext::STATIC_DRAW);
-        gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-        gl.enable_vertex_attrib_array(vertex_location);
-        gl.draw_arrays(WebGl2RenderingContext::TRIANGLE_STRIP, 0, (vertex_array.length()/3) as i32);
-      }
+      interpret(&*code, &gl, &audio);
     }
-    gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
     }
     pub fn start(){
       let document = web_sys::window().unwrap().document().unwrap();

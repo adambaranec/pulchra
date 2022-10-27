@@ -109,6 +109,7 @@ use wasm_bindgen::{JsCast,JsValue};
     else {return FnType::NotFunction;}
     }
 
+
     fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
       let mut floats:Vec<f32> = vec![];
       for float in Regex::new(r"((0\.[\d]+)|1|0)").unwrap().find_iter(word){
@@ -269,7 +270,7 @@ use wasm_bindgen::{JsCast,JsValue};
 
     indices
     }
-    fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
+    fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: [f32; 3]){
     let vertex_shader_src = "
     attribute vec3 a_vertexPosition;
     attribute vec3 a_normal;
@@ -339,7 +340,6 @@ use wasm_bindgen::{JsCast,JsValue};
                 0,3,4,0,4,7
                 ];
                 let mut cube_normals:Vec<f32> = vec![];
-                //ERROR: INSUFFICIENT BUFFER SIZE.
                 let mut cube = CpuMesh{positions: Positions::F32(array_to_vec3(&cube_pos)), indices: Some(Indices::U8(cube_indices.to_vec())), normals: None, ..Default::default()};
                 cube.compute_normals();
                 cube_normals = vec3_to_array(&cube.normals.unwrap());
@@ -363,7 +363,6 @@ use wasm_bindgen::{JsCast,JsValue};
             gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, cube_indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
               },
             Variant::Sphere=>{
-            //ERROR: VERTEX BUFFER NOT BIG ENOUGH TO CALL.
             let mut sphere_normals:Vec<f32> = vec![];
             let sphere_pos = sphere_vertices(30,30,range);
             let indices = &sphere_indices(30,30)[ .. ];
@@ -479,12 +478,11 @@ use wasm_bindgen::{JsCast,JsValue};
         let uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
          
         if expr.len() == 1{
-          match get_variant(expr[0]){
+            match get_variant(expr[0]){
             Variant::Screen=>send_err("Missing grayscale or rgb for the screen."),
-            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
-            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
-            _=>todo!(),
-          }
+            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, [1.0,1.0,1.0]),
+            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, [1.0,1.0,1.0]),
+            _=>todo!(),}
         }
         else if expr.len() == 2{
             match get_variant(expr[0]){
@@ -522,7 +520,7 @@ use wasm_bindgen::{JsCast,JsValue};
                     match String::from(expr[1]).parse::<f32>(){
                       Ok(val)=>{
                         if val <= 1.0{
-                          create_visual(gl, Variant::Cube, val, vec![1.0,1.0,1.0]);
+                          create_visual(gl, Variant::Cube, val, [1.0,1.0,1.0]);
                         } else {
                           send_err("Radius must not be greater than 1.")
                         }
@@ -536,7 +534,7 @@ use wasm_bindgen::{JsCast,JsValue};
                   let color = rgb.find(w);
                   if color != None {
                    let channels = floats_from(expr[1]);
-                   create_visual(gl, Variant::Cube, 1.0, channels.unwrap());
+                   create_visual(gl, Variant::Cube, 1.0,  [channels.as_ref().unwrap()[0],channels.as_ref().unwrap()[1],channels.as_ref().unwrap()[2]]);
                   } else {
                   send_err("Invalid rgb for the object.");
                   }
@@ -550,7 +548,7 @@ use wasm_bindgen::{JsCast,JsValue};
                     match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                        create_visual(gl, Variant::Sphere, val, vec![1.0,1.0,1.0]);
+                        create_visual(gl, Variant::Sphere, val, [1.0,1.0,1.0]);
                       } else {
                         send_err("Radius must not be greater than 1.")
                       }
@@ -563,7 +561,7 @@ use wasm_bindgen::{JsCast,JsValue};
               } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
                 if rgb.is_match(expr[1]) {
                   let channels = floats_from(expr[1]);
-                  create_visual(gl, Variant::Sphere, 1.0, channels.unwrap());
+                  create_visual(gl, Variant::Sphere, 1.0, [channels.as_ref().unwrap()[0],channels.as_ref().unwrap()[1],channels.as_ref().unwrap()[2]]);
                 } else {
                 send_err("Invalid rgb for the object.");
                 }
@@ -707,9 +705,6 @@ use wasm_bindgen::{JsCast,JsValue};
     } else {  
       send_err("Failed compilation of shaders");
     }
-    let vertex_location = gl.get_attrib_location(&program, "a_vertexPosition") as u32;
-    let normal_location = gl.get_attrib_location(&program, "a_normal") as u32;
-    let color_location = gl.get_uniform_location(&program, "u_color");
     if code.contains(';'){
       let exprs = code.split(';');
       for expr in exprs{

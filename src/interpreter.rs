@@ -5,7 +5,7 @@ use web_sys::*;
 use js_sys::{Float32Array,Uint8Array,Uint32Array};
 use wasm_bindgen::{JsCast,JsValue};
 
-  #[derive(PartialEq)]
+#[derive(PartialEq)]
   enum Medium{
     Visuals,
     Audio,
@@ -270,129 +270,16 @@ use wasm_bindgen::{JsCast,JsValue};
 
     indices
     }
+    fn create_model(gl: &WebGl2RenderingContext, positions: &Vec<f32>, indices: &[f32]){
+    
+    }
     fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: [f32; 3]){
-    let vertex_shader_src = "
-    attribute vec3 a_vertexPosition;
-    attribute vec3 a_normal;
-    uniform mat4 u_projection;
-    uniform mat4 u_view;
-    varying vec3 v_normal;
-    void main(){
-      gl_Position = u_projection * u_view * vec4(a_vertexPosition, 1.0);
-      v_normal = a_normal;
+    match shape{
+      Variant::Cube=>{},
+      Variant::Sphere=>{},
+      _=>todo!(),
     }
-    ";
-    let fragment_shader_src = "
-    precision mediump float;
-    varying vec3 v_normal;
-    uniform vec3 u_reverseLightDirection;
-    uniform vec4 u_color;
-    void main(){
-      vec3 normal = normalize(v_normal);
-      float light = dot(normal, u_reverseLightDirection);
-      gl_FragColor = u_color;
-      gl_FragColor.rgb *= light;
     }
-    ";
-    let vertex_shader = gl.create_shader(WebGl2RenderingContext::VERTEX_SHADER).unwrap();
-    let fragment_shader = gl.create_shader(WebGl2RenderingContext::FRAGMENT_SHADER).unwrap();
-    let program = gl.create_program().unwrap();
-    gl.shader_source(&vertex_shader, vertex_shader_src);
-    gl.shader_source(&fragment_shader, fragment_shader_src);
-    gl.compile_shader(&vertex_shader);
-    gl.compile_shader(&fragment_shader);
-    gl.attach_shader(&program, &vertex_shader); 
-    gl.attach_shader(&program, &fragment_shader);
-    gl.link_program(&program);
-    gl.use_program(Some(&program));
-    let vertex_buffer = gl.create_buffer();
-    let element_buffer = gl.create_buffer();
-    let normal_buffer = gl.create_buffer();
-    let vertex_location = gl.get_attrib_location(&program, "a_vertexPosition") as u32;
-    let normal_location = gl.get_attrib_location(&program, "a_normal") as u32;
-    let color_location = gl.get_uniform_location(&program, "u_color");
-    let direction_location = gl.get_uniform_location(&program, "u_reverseLightDirection");
-    gl.uniform4f(color_location.as_ref(), color[0], color[1], color[2], 1.0);
-           match shape{
-            Variant::Cube=>{
-              let cube_pos = vec![
-                -range, -range, range,
-                range, -range, range,
-                range, range, range,
-                -range, range, range, 
-                -range, -range, -range,
-                range, -range, -range,
-                range, range, -range,
-                -range, range, -range   
-                  ];
-                let cube_indices = &[
-                //front face
-                0,1,2,0,3,2, 
-                //back face  
-                4,5,6,4,7,6, 
-                //upper face
-                2,3,4,2,4,5,
-                //bottom face
-                0,1,4,0,5,4, 
-                //right face
-                1,2,5,2,6,5,
-                //left face 
-                0,3,4,0,4,7
-                ];
-                let mut cube_normals:Vec<f32> = vec![];
-                let mut cube = CpuMesh{positions: Positions::F32(array_to_vec3(&cube_pos)), indices: Some(Indices::U8(cube_indices.to_vec())), normals: None, ..Default::default()};
-                cube.compute_normals();
-                cube_normals = vec3_to_array(&cube.normals.unwrap());
-                gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&cube_pos[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.buffer_data_with_u8_array(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, cube_indices, WebGl2RenderingContext::STATIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&cube_normals[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(vertex_location);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(normal_location);
-            gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, cube_indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
-              },
-            Variant::Sphere=>{
-            let mut sphere_normals:Vec<f32> = vec![];
-            let sphere_pos = sphere_vertices(30,30,range);
-            let indices = &sphere_indices(30,30)[ .. ];
-            let mut sphere = CpuMesh{positions: Positions::F32(array_to_vec3(&sphere_pos)), indices: Some(Indices::U32(indices.to_vec())), normals: None, ..Default::default()};
-            sphere.compute_normals();
-            sphere_normals = vec3_to_array(&sphere.normals.unwrap());
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&sphere_pos[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, &Uint32Array::from(indices), WebGl2RenderingContext::STATIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&sphere_normals[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(vertex_location);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(normal_location);
-            gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
-            },
-            _=>todo!(),
-           }  
-           gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-           gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
-      }
       fn prepare_effect(w: &str){}
       fn prepare_audio(w: &str, audio: &AudioContext){
         let words:Vec<&str> = w.split_whitespace().collect();
@@ -714,16 +601,12 @@ use wasm_bindgen::{JsCast,JsValue};
       interpret(&*code, &gl, &audio);
     }
     }
-    pub fn start(){
-      let document = web_sys::window().unwrap().document().unwrap();
-      let canvas = document.get_element_by_id("canvas").unwrap()
-      .dyn_into::<web_sys::HtmlCanvasElement>().unwrap();
-      let textarea = document.get_element_by_id("input").unwrap()
-      .dyn_into::<web_sys::HtmlTextAreaElement>().unwrap();
-      let gl = canvas.get_context("webgl2").unwrap()
-      .unwrap().dyn_into::<web_sys::WebGl2RenderingContext>().unwrap();
+    pub fn start(gl: &WebGl2RenderingContext){
       gl.clear_color(0.0,0.0,0.0,1.0);
-      gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT); 
       gl.clear_depth(0.5);
-      gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
+    }
+
+    pub fn draw(gl: &WebGl2RenderingContext){
+    gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+    gl.clear(WebGl2RenderingContext::DEPTH_BUFFER_BIT);
     }

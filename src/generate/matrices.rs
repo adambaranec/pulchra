@@ -1,5 +1,5 @@
 use three_d::core::*;
-fn camera_matrices(camera: &Camera, program: &WebGlProgram, proj_location: &str, view_location: &str){
+fn fill_program_matrices(camera: &Camera, program: &WebGlProgram, proj_location: &str, view_location: &str){
     let mut model_matrix_array:Vec<f32> = vec![];
     let mut view_matrix_array:Vec<f32> = vec![];
     model_matrix_array.push(camera.projection().x.x);

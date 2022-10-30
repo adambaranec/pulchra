@@ -32,6 +32,7 @@ fn create_program(vs: &str, fs: &str)->WebGlProgram{
     gl.compile_shader(&fragment_shader);
     gl.attach_shader(&program, &vertex_shader); 
     gl.attach_shader(&program, &fragment_shader);
+    gl.link_program(&program);
 
     program
 }

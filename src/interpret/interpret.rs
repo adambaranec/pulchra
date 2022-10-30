@@ -1,4 +1,5 @@
 use webgl::*;
+use regex::Regex;
 fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
     let program = create_program( "
     attribute vec3 a_vertexPosition;
@@ -59,56 +60,10 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 //left face 
                 0,3,4,0,4,7
                 ];
-                let mut cube_normals:Vec<f32> = vec![];
-                //ERROR: INSUFFICIENT BUFFER SIZE.
-                let mut cube = CpuMesh{positions: Positions::F32(array_to_vec3(&cube_pos)), indices: Some(Indices::U8(cube_indices.to_vec())), normals: None, ..Default::default()};
-                cube.compute_normals();
-                cube_normals = vec3_to_array(&cube.normals.unwrap());
-                gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&cube_pos[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.buffer_data_with_u8_array(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, cube_indices, WebGl2RenderingContext::STATIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&cube_normals[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(vertex_location);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(normal_location);
-            gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, cube_indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
               },
             Variant::Sphere=>{
-            //ERROR: VERTEX BUFFER NOT BIG ENOUGH TO CALL.
-            let mut sphere_normals:Vec<f32> = vec![];
-            let sphere_pos = sphere_vertices(30,30,range);
-            let indices = &sphere_indices(30,30)[ .. ];
-            let mut sphere = CpuMesh{positions: Positions::F32(array_to_vec3(&sphere_pos)), indices: Some(Indices::U32(indices.to_vec())), normals: None, ..Default::default()};
-            sphere.compute_normals();
-            sphere_normals = vec3_to_array(&sphere.normals.unwrap());
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&sphere_pos[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, &Uint32Array::from(indices), WebGl2RenderingContext::STATIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&sphere_normals[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
-            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(vertex_location);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
-            gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-            gl.enable_vertex_attrib_array(normal_location);
-            gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
+            let sphere_pos = sphere_vertices(30,30);
+            let sphere_ind = &sphere_indices(30,30)[ .. ];
             },
             _=>todo!(),
            }  
@@ -116,6 +71,54 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
       }
       fn prepare_effect(w: &str){}
+      fn create_osc(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32){
+        let gain_node = GainNode::new(&audio_context).unwrap();
+        gain_node.gain().set_value(gain);
+        let osc = OscillatorNode::new(&audio_context).unwrap();
+        osc.frequency().set_value(freq);
+        match wave{
+        Variant::SinOsc=>osc.set_type(OscillatorType::Sine),
+        Variant::SawOsc=>osc.set_type(OscillatorType::Sawtooth),
+        Variant::SqrOsc=>osc.set_type(OscillatorType::Square),
+        Variant::TriOsc=>osc.set_type(OscillatorType::Triangle),
+        _=>todo!(),
+        }
+        osc.connect_with_audio_node(&gain_node);
+        gain_node.connect_with_audio_node(&audio_context.destination());
+        osc.start();
+        }
+    
+        fn create_noise(gain: f32){
+          use rand::prelude::*;
+          let ctx = AudioContext::new().unwrap();
+          let gain_node = GainNode::new(&ctx).unwrap();
+          gain_node.gain().set_value(gain);
+          let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * ctx.sample_rate() as u32, ctx.sample_rate())).unwrap();
+          let mut output:Vec<f32> = noise_buf.get_channel_data(0).unwrap();
+          for mut val in output{
+           val = rand::thread_rng().gen::<f32>() - gain * 2.0;
+          }
+          let mut options = AudioBufferSourceOptions::new();
+          options.buffer(Some(&noise_buf));
+          options.loop_(true);
+          let buf_player = AudioBufferSourceNode::new_with_options(&ctx, &options).unwrap();
+          buf_player.start();
+        }
+    
+      fn create_audio(audio_context: &AudioContext, first_word: &str, freq: f32, gain: f32){
+        let variant = get_variant(first_word);
+        if variant != Variant::Unknown {
+          match variant{
+            Variant::SinOsc=>create_osc(audio_context, Variant::SinOsc, freq, gain),
+            Variant::SawOsc=>create_osc(audio_context, Variant::SawOsc, freq, gain),
+            Variant::SqrOsc=>create_osc(audio_context, Variant::SqrOsc, freq, gain),
+            Variant::TriOsc=>create_osc(audio_context, Variant::TriOsc, freq, gain),
+          _=>todo!(),
+          }
+        } else {
+          send_err("Unknown oscillator.")
+        }
+      }
       fn prepare_audio(w: &str, audio: &AudioContext){
         let words:Vec<&str> = w.split_whitespace().collect();
         if words.len() == 1{

@@ -10,52 +10,7 @@
     <title>Pulchra</title>
 </head>
 <body>
-<script type="module">
-      import init, {start, set, draw} from './pkg/pulchra.js';
-      let canvas = document.getElementById('canvas');
-      let input = document.getElementById('input');
-      let audio;
-      function animate(){
-       draw(canvas.getContext('webgl2'));
-       requestAnimationFrame(animate);
-      }
-      function startup(){
-        init().then(()=>{start(); animate()});
-      }
-      window.onload = (e) =>{
-      startup();
-      }
-      window.onresize = (e) =>{
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      }
-      function record(){
-        let canvas_stream = canvas.captureStream(60);
-        let recorder = new MediaRecorder(canvas_stream);
-      }
-      input.addEventListener('keydown', (e)=>{
-        if (e.metaKey && e.key == 'Enter'){
-          console.clear();
-          if (typeof audio === 'undefined'){
-            audio = new AudioContext();
-           } else {
-            audio.close();
-            audio = new AudioContext();
-           }
-          if (input.value || input.value != ''){
-            set(String(input.value),canvas.getContext('webgl2'),audio);
-          } else {
-            document.getElementById('error').innerHTML = '';
-          }
-          } 
-          else if (e.ctrlKey && e.key == 'r'){
-          //shows a dialog and starts recording
-          }
-          else if (e.ctrlKey && e.key == 's'){
-          //stops and saves all recordings
-          }
-      });
-</script>
+<script src="index.js" type="module"></script>
 <div id="pulchra">
   <div class="input-area">
     <textarea id="input" placeholder="Welcome to Pulchra!

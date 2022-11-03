@@ -7,6 +7,25 @@ fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
   context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 }
+fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
+  let mut floats:Vec<f32> = vec![];
+  for float in Regex::new(r"((0\.[\d]+)|1|0)").unwrap().find_iter(word){
+    match String::from(float.as_str()).parse::<f32>(){
+      Ok(val)=>floats.push(val),
+      Err(err)=>send_err("Invalid values, could not collect them."),
+    }
+  };
+  if floats.len() == 0{
+    Err("There are no floats in this parameter.")
+  } else {Ok(floats) }
+}
+fn analyze_func(word: &str) -> FnType{
+  if Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgb;}
+  else if Regex::new(r"rgba\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgba;}
+  else if Regex::new(r"fft\[[0-9]+]").unwrap().is_match(word){return FnType::Fft;}
+  else if Regex::new(r"(?!.*(rgb|rgba|fft))").unwrap().is_match(word){return FnType::Unknown;}
+  else {return FnType::NotFunction;}
+  }
 fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
     let program = create_program("
     attribute vec3 a_vertexPosition;
@@ -344,3 +363,110 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
           send_err("Unknown media.");
         }
      }
+     pub fn set(code: String, gl: WebGl2RenderingContext, audio: AudioContext){
+      let web_window = web_sys::window().unwrap();          
+      let viewport = Viewport{
+        width: web_window.inner_width().unwrap().as_f64().unwrap() as u32,
+        height: web_window.inner_height().unwrap().as_f64().unwrap() as u32,
+        x: 0,
+        y: 0
+        };
+      let mut camera:Camera = Camera::new_perspective(
+        viewport,
+        vec3(1.0, 1.0, 3.0),
+        vec3(0.0, 0.0, 0.0),
+        vec3(0.0, 3.0, 0.0),
+        degrees(45.0),
+        0.1,
+        1000.0
+    );
+    camera.set_viewport(viewport); 
+    let vertex_shader_src = "
+    attribute vec3 a_vertexPosition;
+    attribute vec3 a_normal;
+    uniform mat4 u_projection;
+    uniform mat4 u_view;
+    varying vec3 v_normal;
+    void main(){
+      gl_Position = u_projection * u_view * vec4(a_vertexPosition, 1.0);
+      v_normal = a_normal;
+    }
+    ";
+    let fragment_shader_src = "
+    precision mediump float;
+    varying vec3 v_normal;
+    uniform vec3 u_reverseLightDirection;
+    uniform vec4 u_color;
+    void main(){
+      vec3 normal = normalize(v_normal);
+      float light = dot(normal, u_reverseLightDirection);
+      gl_FragColor.rgb *= light;
+    }
+    ";
+    let vertex_shader = gl.create_shader(WebGl2RenderingContext::VERTEX_SHADER).unwrap();
+    let fragment_shader = gl.create_shader(WebGl2RenderingContext::FRAGMENT_SHADER).unwrap();
+    let program = gl.create_program().unwrap();
+    gl.shader_source(&vertex_shader, vertex_shader_src);
+    gl.shader_source(&fragment_shader, fragment_shader_src);
+    gl.compile_shader(&vertex_shader);
+    gl.compile_shader(&fragment_shader);
+    let vertex_status = gl.get_shader_parameter(&vertex_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
+    let fragment_status = gl.get_shader_parameter(&fragment_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
+    let program_status = gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS).as_bool().unwrap(); 
+    let mut model_matrix_array:Vec<f32> = vec![];
+    let mut view_matrix_array:Vec<f32> = vec![];
+    if vertex_status != false && fragment_status != false{
+      gl.attach_shader(&program, &vertex_shader); 
+      gl.attach_shader(&program, &fragment_shader);
+      gl.link_program(&program);
+      gl.use_program(Some(&program));
+      if model_matrix_array.len() == 0 && view_matrix_array.len() == 0{
+         model_matrix_array.push(camera.projection().x.x);
+         model_matrix_array.push(camera.projection().x.y);
+         model_matrix_array.push(camera.projection().x.z);
+         model_matrix_array.push(camera.projection().x.w);
+         model_matrix_array.push(camera.projection().y.x);
+         model_matrix_array.push(camera.projection().y.y);
+         model_matrix_array.push(camera.projection().y.z);
+         model_matrix_array.push(camera.projection().y.w);
+         model_matrix_array.push(camera.projection().z.x);
+         model_matrix_array.push(camera.projection().z.y);
+         model_matrix_array.push(camera.projection().z.z);
+         model_matrix_array.push(camera.projection().z.w);
+         model_matrix_array.push(camera.projection().w.x);
+         model_matrix_array.push(camera.projection().w.y);
+         model_matrix_array.push(camera.projection().w.z);
+         model_matrix_array.push(camera.projection().w.w);
+
+         view_matrix_array.push(camera.view().x.x);
+         view_matrix_array.push(camera.view().x.y);
+         view_matrix_array.push(camera.view().x.z);
+         view_matrix_array.push(camera.view().x.w);
+         view_matrix_array.push(camera.view().y.x);
+         view_matrix_array.push(camera.view().y.y);
+         view_matrix_array.push(camera.view().y.z);
+         view_matrix_array.push(camera.view().y.w);
+         view_matrix_array.push(camera.view().z.x);
+         view_matrix_array.push(camera.view().z.y);
+         view_matrix_array.push(camera.view().z.z);
+         view_matrix_array.push(camera.view().z.w);
+         view_matrix_array.push(camera.view().w.x);
+         view_matrix_array.push(camera.view().w.y);
+         view_matrix_array.push(camera.view().w.z);
+         view_matrix_array.push(camera.view().w.w);
+
+        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_projection").as_ref(), false, &model_matrix_array[ .. ]);
+        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_view").as_ref(), false, &view_matrix_array[ .. ]);
+        }
+    } else {  
+      send_err("Failed compilation of shaders");
+    }
+    if code.contains(';'){
+      let exprs = code.split(';');
+      for expr in exprs{
+       interpret(expr, &gl, &audio);
+      }
+    } else {
+      interpret(&*code, &gl, &audio);
+    }
+    }

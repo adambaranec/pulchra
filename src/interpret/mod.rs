@@ -1,8 +1,9 @@
-pub mod interpret;
 use webgl::*;
 use regex::Regex;
 use web_sys::*;
 use enums::*;
+use error::*;
+use three_d::core::*;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
   context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -355,7 +356,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
           match medium(){
             Medium::Visuals=>prepare_visual(&input, &gl_ctx),
             Medium::Audio=>prepare_audio(&input, &audio),
-            Medium::Mixed=>,
+            Medium::Mixed=>{},
             Medium::Effect=>prepare_effect(&input),
             _=>todo!(),
           }

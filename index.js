@@ -1,18 +1,11 @@
-import init, {start, set, draw} from './pkg/pulchra.js';
+import init, {start, set} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let audio;
-      function run(){
-        draw(canvas.getContext('webgl2'));
-        requestAnimationFrame(run);
-      }
-      function startup(){
-      init().then(()=>{start(canvas.getContext('webgl2')); run()});
-      }
       window.onload = (e) =>{
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        startup();
+        init().then(()=>{start(canvas.getContext('webgl2'))});
       }
       window.onresize = (e) =>{
       canvas.width = window.innerWidth;

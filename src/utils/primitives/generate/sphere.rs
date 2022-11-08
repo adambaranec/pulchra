@@ -1,5 +1,5 @@
 use three_d::core::*;
-fn sphere_vertices(latitudes: u32, longitudes: u32, range: f32)->Vec<f32>{
+pub fn sphere_vertices(latitudes: u32, longitudes: u32, range: f32)->Vec<f32>{
     let half_circle = Deg::<f32>::turn_div_2();
     let full_circle = Deg::<f32>::full_turn();
     let longitudes = 30; 
@@ -27,7 +27,7 @@ fn sphere_vertices(latitudes: u32, longitudes: u32, range: f32)->Vec<f32>{
 
     sphere_pos
   }
-  fn sphere_indices(latitudes: u32, longitudes: u32) -> Vec<u32>{
+  pub fn sphere_indices(latitudes: u32, longitudes: u32) -> Vec<u32>{
   let mut indices:Vec<u32> = vec![];
   for l in 0..longitudes-2{
   indices.push(0);

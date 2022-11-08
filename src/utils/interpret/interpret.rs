@@ -1,9 +1,11 @@
-use webgl::*;
 use regex::Regex;
 use web_sys::*;
-use enums::*;
-use error::*;
 use three_d::core::*;
+use crate::utils::primitives::error::error::send_err;
+use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium};
+use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param};
+use crate::utils::webgl::create_program::create_program;
+use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices};
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
   context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -28,7 +30,8 @@ fn analyze_func(word: &str) -> FnType{
   else {return FnType::NotFunction;}
   }
 fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
-    let program = create_program("
+    let program = create_program(gl,
+    "
     attribute vec3 a_vertexPosition;
     attribute vec3 a_normal;
     uniform mat4 u_projection;
@@ -89,7 +92,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 ];
               },
             Variant::Sphere=>{
-            let sphere_pos = sphere_vertices(30,30);
+            let sphere_pos = sphere_vertices(30,30,range);
             let sphere_ind = &sphere_indices(30,30)[ .. ];
             },
             _=>todo!(),
@@ -343,7 +346,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         }
       }
 
-      fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){
+      pub fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){
       //at first, the error log must be cleaned
       send_err("");
       //individual words of the expression

@@ -1,6 +1,6 @@
-pub mod enums;
+use regex::Regex;
 #[derive(PartialEq)]
-  enum Medium{
+  pub enum Medium{
     Visuals,
     Audio,
     Mixed,
@@ -8,7 +8,7 @@ pub mod enums;
     Unknown
   }
   #[derive(PartialEq)]
-  enum Variant{
+  pub enum Variant{
     Screen,
     Cube,
     Sphere,
@@ -20,7 +20,7 @@ pub mod enums;
     Unknown
   }
   #[derive(PartialEq)]
-  enum Param{
+  pub enum Param{
     Quantity,
     Range,
     Function,
@@ -28,7 +28,7 @@ pub mod enums;
     Unknown
   }
   #[derive(PartialEq)]
-    enum FnType{
+    pub enum FnType{
       Rgb,
       Rgba,
       Fft,
@@ -36,7 +36,7 @@ pub mod enums;
       NotFunction
     }
     #[derive(PartialEq)]
-    enum RealTime{
+    pub enum RealTime{
       Low,
       Mid,
       High,
@@ -46,23 +46,23 @@ pub mod enums;
       Rand
     }
     #[derive(PartialEq)]
-    enum Effect{
+    pub enum Effect{
       Multiplication
     }
     #[derive(PartialEq)]
-  enum Channel{
+  pub enum Channel{
       Red,
       Green,
       Blue
   }
   #[derive(PartialEq)]
-  enum Sound{
+  pub enum Sound{
   Lo,
   Mid,
   Hi
   }
 
-    fn get_medium(word: &str)->Medium{
+    pub fn get_medium(word: &str)->Medium{
     match word{
       "screen"=>Medium::Visuals,
       "cube"=>Medium::Visuals,
@@ -77,7 +77,7 @@ pub mod enums;
     }
     }
 
-    fn get_variant(word: &str)->Variant{
+    pub fn get_variant(word: &str)->Variant{
       match word{
       "screen"=>Variant::Screen,
       "cube"=>Variant::Cube,
@@ -91,7 +91,7 @@ pub mod enums;
       }
     }
 
-    fn get_param(param: &str)->Param{
+    pub fn get_param(param: &str)->Param{
       let range:bool = Regex::new(r"(0.(\d+)|1|0)").unwrap().is_match(param);
       let qnt:bool = Regex::new(r"[0-9]+").unwrap().is_match(param);
       let func:bool = Regex::new(r"[a-zA-Z]+\([^\)]*\)?").unwrap().is_match(param);

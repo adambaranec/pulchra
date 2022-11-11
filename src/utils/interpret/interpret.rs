@@ -5,6 +5,7 @@ use crate::utils::primitives::error::error::send_err;
 use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium};
 use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param};
 use crate::utils::webgl::create_program::create_program;
+use crate::utils::webgl::create_model::create_model;
 use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices};
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
@@ -54,7 +55,6 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       gl_FragColor.rgb *= light;
     }
     ");
-    gl.link_program(&program);
     gl.use_program(Some(&program));
     let vertex_buffer = gl.create_buffer();
     let element_buffer = gl.create_buffer();
@@ -90,10 +90,12 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 //left face 
                 0,3,4,0,4,7
                 ];
+                create_model(gl, &program, &cube_pos, cube_indices);
               },
             Variant::Sphere=>{
             let sphere_pos = sphere_vertices(30,30,range);
             let sphere_ind = &sphere_indices(30,30)[ .. ];
+            create_model(gl, &program, &sphere_pos, sphere_ind);
             },
             _=>todo!(),
            }  

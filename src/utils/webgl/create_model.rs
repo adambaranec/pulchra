@@ -3,7 +3,7 @@ use web_sys::*;
 use js_sys::{Float32Array,Uint32Array};
 use crate::utils::primitives::conversion::conversion::array_to_vec3;
 use crate::utils::primitives::conversion::conversion::vec3_to_array;
-fn create_model(gl: &WebGl2RenderingContext, program: &WebGlProgram, positions: &Vec<f32>, indices: &[u32]){
+pub fn create_model(gl: &WebGl2RenderingContext, program: &WebGlProgram, positions: &Vec<f32>, indices: &[u32]){
     let vertex_buffer = gl.create_buffer();
     let element_buffer = gl.create_buffer();
     let normal_buffer = gl.create_buffer();

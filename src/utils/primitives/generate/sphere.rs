@@ -49,12 +49,12 @@ pub fn sphere_vertices(latitudes: u32, longitudes: u32, range: f32)->Vec<f32>{
   }
   for l in 0..longitudes-2{
     indices.push((latitudes*longitudes)+1);
-    indices.push((latitudes*longitudes - (l+1)));
-    indices.push((latitudes*longitudes - (l+2)));
+    indices.push(latitudes*longitudes - (l+1));
+    indices.push(latitudes*longitudes - (l+2));
   }
   indices.push((latitudes*longitudes)+1);
-  indices.push((latitudes*longitudes));
-  indices.push(((latitudes*longitudes) - longitudes));
+  indices.push(latitudes*longitudes);
+  indices.push((latitudes*longitudes) - longitudes);
 
   indices
   }

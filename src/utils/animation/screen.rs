@@ -9,9 +9,9 @@ fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
 fn check_clear_color_channel(gl: &WebGl2RenderingContext, chan: Channel, amp: f32){
     let parameter = gl.get_parameter(WebGl2RenderingContext::COLOR_CLEAR_VALUE).unwrap().dyn_into::<Float32Array>().unwrap();
     match chan{
-        Red=>set_screen_color(gl, [amp, parameter[1], parameter[2]]),
-        Green=>set_screen_color(gl, [parameter[0], amp, parameter[2]]),
-        Blue=>set_screen_color(gl, [parameter[0], parameter[1], amp]),
+        Channel::Red=>set_screen_color(gl, [amp, parameter.get_index(1), parameter.get_index(2)]),
+        Channel::Green=>set_screen_color(gl, [parameter.get_index(0), amp, parameter.get_index(2)]),
+        Channel::Blue=>set_screen_color(gl, [parameter.get_index(0), parameter.get_index(1), amp]),
         _=>todo!(),
     }
 }
@@ -21,17 +21,17 @@ fn check_clear_color_channel(gl: &WebGl2RenderingContext, chan: Channel, amp: f3
     let min = 0;
     let max = bin_count;
     match eq{
-        Lo=>{
+        Sound::Lo=>{
             let loc = bin_count / 4;
             let freq = ((array[loc] - min) / (max - min)) * mul;
             check_clear_color_channel(gl, chan, freq);
         },
-        Mid=>{
+        Sound::=>{
             let loc = bin_count / 2;
             let freq = ((array[loc] - min) / (max - min)) * mul;
             check_clear_color_channel(gl, chan, freq);
         },
-        Hi=>{
+        Sound::Hi=>{
             let loc = bin_count - (bin_count / 4);
             let freq = ((array[loc] - min) / (max - min)) * mul;
             check_clear_color_channel(gl, chan, freq);
@@ -48,17 +48,17 @@ pub fn screen_fft(gl: &WebGl2RenderingContext, audio: &AudioContext, channel: Ch
     let mut frequencies:Vec<f32> = vec![];
     analyser.get_float_frequency_data(&mut frequencies[ .. ]);
     match eq{
-    Lo=>{
+    Sound::Lo=>{
         let loc = (bin_count / 4) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         check_clear_color_channel(gl, channel, freq);
     },
-    Mid=>{
+    Sound::Mid=>{
         let loc = (bin_count / 2) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         check_clear_color_channel(gl, channel, freq);
     },
-    Hi=>{
+    Sound::Hi=>{
         let loc = (bin_count - (bin_count / 4)) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         check_clear_color_channel(gl, channel, freq);
@@ -78,19 +78,19 @@ pub fn screen_fft_two(gl: &WebGl2RenderingContext, audio: &AudioContext, chan1: 
     let mut frequencies:Vec<f32> = vec![];
     analyser.get_float_frequency_data(&mut frequencies[ .. ]);
     match eq{
-    Lo=>{
+    Sound::Lo=>{
         let loc = (bin_count / 4) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         check_clear_color_channel(gl, chan1, freq);
         check_clear_color_channel(gl, chan2, freq);
     },
-    Mid=>{
+    Sound::Mid=>{
         let loc = (bin_count / 2) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         check_clear_color_channel(gl, chan1, freq);
         check_clear_color_channel(gl, chan2, freq);
     },
-    Hi=>{
+    Sound::Hi=>{
         let loc = (bin_count - (bin_count / 4)) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         check_clear_color_channel(gl, chan1, freq);
@@ -109,17 +109,17 @@ pub fn screen_fft_all(gl: &WebGl2RenderingContext, audio: &AudioContext, eq: Sou
     let mut frequencies:Vec<f32> = vec![];
     analyser.get_float_frequency_data(&mut frequencies[ .. ]);
     match eq{
-    Lo=>{
+    Sound::Lo=>{
         let loc = (bin_count / 4) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         set_screen_color(gl, [freq,freq,freq]);
     },
-    Mid=>{
+    Sound::Mid=>{
         let loc = (bin_count / 2) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         set_screen_color(gl, [freq,freq,freq]);
     },
-    Hi=>{
+    Sound::Hi=>{
         let loc = (bin_count - (bin_count / 4)) as usize;
         let freq = ((frequencies[loc] - min) / (max - min)) * mul;
         set_screen_color(gl, [freq,freq,freq]);

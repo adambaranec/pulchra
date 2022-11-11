@@ -1,5 +1,4 @@
 use web_sys::*;
-use wasm_bindgen::{JsCast,JsValue};
 
 pub fn start(gl: &WebGl2RenderingContext){
     gl.clear_color(0.0,0.0,0.0,1.0);

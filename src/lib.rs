@@ -7,5 +7,11 @@ utils::webgl::startup::start(&gl);
 }
 #[wasm_bindgen]
 pub fn set(code: String, context: WebGl2RenderingContext, audio: AudioContext){
-utils::interpret::interpret::interpret(&code, &context, &audio);
+    if code.contains(';'){
+      for expr in code.split(';'){
+        utils::interpret::interpret::interpret(expr, &context, &audio);
+      }
+    } else {
+        utils::interpret::interpret::interpret(&*code, &context, &audio);
+    }
 }

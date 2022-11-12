@@ -64,6 +64,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
     let color_location = gl.get_uniform_location(&program, "u_color");
     let direction_location = gl.get_uniform_location(&program, "u_reverseLightDirection");
     gl.uniform4f(color_location.as_ref(), color[0], color[1], color[2], 1.0);
+    gl.uniform3f(direction_location.as_ref(), 0.0,0.0,0.0);
            match shape{
             Variant::Cube=>{
               let cube_pos = vec![
@@ -76,7 +77,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 range, range, -range,
                 -range, range, -range   
                   ];
-                let cube_indices = &[
+                let cube_indices = vec![
                 //front face
                 0,1,2,0,3,2, 
                 //back face  
@@ -90,12 +91,12 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 //left face 
                 0,3,4,0,4,7
                 ];
-                create_model(gl, &program, &cube_pos, cube_indices);
+                create_model(gl, &program, &cube_pos, &cube_indices);
               },
             Variant::Sphere=>{
             let sphere_pos = sphere_vertices(30,30,range);
-            let sphere_ind = &sphere_indices(30,30)[ .. ];
-            create_model(gl, &program, &sphere_pos, sphere_ind);
+            let sphere_ind = sphere_indices(30,30);
+            create_model(gl, &program, &sphere_pos, &sphere_ind);
             },
             _=>todo!(),
            }  

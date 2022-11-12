@@ -1,2 +1,2 @@
-pub mod models;
-pub mod screen;
+pub mod movement;
+pub mod fft;

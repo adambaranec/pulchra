@@ -15,29 +15,6 @@ fn check_clear_color_channel(gl: &WebGl2RenderingContext, chan: Channel, amp: f3
         _=>todo!(),
     }
 }
-/*pub fn draw_fft(analyser: &AnalyserNode, gl: &WebGl2RenderingContext, array: &mut [f32], eq: Sound, chan: Channel, mul: f32){
-    analyser.get_float_frequency_data(array);
-    let bin_count = analyser.frequency_bin_count();
-    let min = 0;
-    let max = bin_count;
-    match eq{
-        Sound::Lo=>{
-            let loc = bin_count / 4;
-            let freq = ((array[loc] - min) / (max - min)) * mul;
-            check_clear_color_channel(gl, chan, freq);
-        },
-        Sound::=>{
-            let loc = bin_count / 2;
-            let freq = ((array[loc] - min) / (max - min)) * mul;
-            check_clear_color_channel(gl, chan, freq);
-        },
-        Sound::Hi=>{
-            let loc = bin_count - (bin_count / 4);
-            let freq = ((array[loc] - min) / (max - min)) * mul;
-            check_clear_color_channel(gl, chan, freq);
-        },
-}
-}*/
 pub fn screen_fft(gl: &WebGl2RenderingContext, audio: &AudioContext, channel: Channel, eq: Sound, mul: f32){
     let analyser = AnalyserNode::new(audio).unwrap();
     let bin_count = analyser.frequency_bin_count();
@@ -126,5 +103,4 @@ pub fn screen_fft_all(gl: &WebGl2RenderingContext, audio: &AudioContext, eq: Sou
     },
     _=>todo!(),
     }
-        let window = web_sys::window();
 }

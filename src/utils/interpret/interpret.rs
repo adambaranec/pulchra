@@ -2,11 +2,13 @@ use regex::Regex;
 use web_sys::*;
 use three_d::core::*;
 use crate::utils::primitives::error::error::send_err;
-use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium};
-use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param};
+use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium,Channel,Sound};
+use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param,get_sound};
 use crate::utils::webgl::create_program::create_program;
 use crate::utils::webgl::create_model::create_model;
 use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices};
+use crate::utils::animation::fft::{screen_fft,screen_fft_all};
+use crate::utils::render::render::divide_canvas;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
   context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -103,10 +105,67 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
            gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
            gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
       }
-      fn prepare_effect(w: &str){}
-      fn prepare_mixed(input: &str, gl: &WebGl2RenderingContext, audio: &AudioContext){
-      
+      fn prepare_effect(w: &str, gl: &WebGl2RenderingContext){
+      let expr:Vec<&str> = w.split_whitespace().collect();
+      match get_variant(expr[0]){
+      Variant::Multiplication=>{
+      if expr.len() == 2{
+      match String::from(expr[1]).parse::<u16>(){
+      Ok(val)=>divide_canvas(gl, val, val),
+      Err(err)=>send_err("Invalid parameter for multiplication.")
       }
+      } else if expr.len() == 3{
+      let mut rows:u16=0;
+      let mut columns:u16=0;
+      match String::from(expr[1]).parse::<u16>(){
+      Ok(val)=>rows=val,
+      Err(err)=>send_err("Invalid parameter.")
+      }
+      match String::from(expr[2]).parse::<u16>(){
+      Ok(val)=>columns=val,
+      Err(err)=>send_err("Invalid parameter.")
+      }
+      if rows != 0 && columns != 0{
+        divide_canvas(gl, rows, columns);
+      }
+      }
+      },
+      _=>todo!(),
+      }
+      }
+      fn prepare_mixed(w: &str, gl: &WebGl2RenderingContext, audio: &AudioContext){
+      let expr:Vec<&str> = w.split_whitespace().collect();
+        if Regex::new(r"screen rgb\(((lo|mi|hi)|(0.(\d+)|1|0)),((lo|mi|hi)|(0.(\d+)|1|0)),((lo|mi|hi)|(0.(\d+)|1|0))\)").unwrap().is_match(w){
+          let param_regex = Regex::new(r"((lo|mi|hi)|(0.(\d+)|1|0))/g").unwrap();
+          let float_regex = Regex::new(r"(0.(\d+)|1|0)").unwrap();
+          let freq_regex = Regex::new(r"(lo|mi|hi)").unwrap();
+          let mut param_index = -1;
+          let mut channels:[f32; 3] = [0.0,0.0,0.0];
+          for param in param_regex.find_iter(w){
+           param_index += 1;
+           if float_regex.is_match(param.as_str()){
+           let channel = String::from(param.as_str()).parse::<f32>();
+           match param_index{
+             0=>{channels[0] = channel.unwrap()},
+             1=>{channels[1] = channel.unwrap()},
+             2=>{channels[2] = channel.unwrap()},
+             _=>todo!(),
+           }
+           } else if freq_regex.is_match(param.as_str()){
+           match param_index{
+             0=>screen_fft(gl, audio, Channel::Red, get_sound(param.as_str()), 1.0),
+             1=>screen_fft(gl, audio, Channel::Green, get_sound(param.as_str()), 1.0),
+             2=>screen_fft(gl, audio, Channel::Blue, get_sound(param.as_str()), 1.0),
+             _=>todo!(),
+           }
+           } else {
+             send_err("Unknown parameters for the screen.");
+           }
+          }
+      } else if Regex::new(r"screen (lo|mi|hi)").unwrap().is_match(w){
+        screen_fft_all(gl, audio, get_sound(expr[1]), 1.0);
+      }
+    }
       fn create_osc(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32){
         let gain_node = GainNode::new(&audio_context).unwrap();
         gain_node.gain().set_value(gain);
@@ -125,7 +184,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         }
     
         fn create_noise(gain: f32){
-          use rand::prelude::*;
+          /*use rand::prelude::*;
           let ctx = AudioContext::new().unwrap();
           let gain_node = GainNode::new(&ctx).unwrap();
           gain_node.gain().set_value(gain);
@@ -138,7 +197,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
           options.buffer(Some(&noise_buf));
           options.loop_(true);
           let buf_player = AudioBufferSourceNode::new_with_options(&ctx, &options).unwrap();
-          buf_player.start();
+          buf_player.start();*/
         }
     
       fn create_audio(audio_context: &AudioContext, first_word: &str, freq: f32, gain: f32){
@@ -272,8 +331,6 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                   } else {
                     send_err("Invalid color function for the screen.");
                   }
-                } else {
-                  send_err("Unknown parameters for the screen.");
                 }
               },
               Variant::Cube=>{
@@ -354,7 +411,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       send_err("");
       //individual words of the expression
       let words:Vec<&str> = input.split_whitespace().collect();
-      let medium = || -> Medium {get_medium(words[0])};
+      let medium = || -> Medium {get_medium(input)};
       let variant = || -> Variant {get_variant(words[0])};
       let param = |w: &str| -> Param {get_param(w)};
 
@@ -362,8 +419,8 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
           match medium(){
             Medium::Visuals=>prepare_visual(&input, &gl_ctx),
             Medium::Audio=>prepare_audio(&input, &audio),
-            Medium::Mixed=>{},
-            Medium::Effect=>prepare_effect(&input),
+            Medium::Mixed=>prepare_mixed(&input, &gl_ctx, &audio),
+            Medium::Effect=>prepare_effect(&input, &gl_ctx),
             _=>todo!(),
           }
         } else {

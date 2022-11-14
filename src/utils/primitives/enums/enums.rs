@@ -17,6 +17,7 @@ use regex::Regex;
     SqrOsc,
     TriOsc,
     NoiseOsc,
+    Multiplication,
     Unknown
   }
   #[derive(PartialEq)]
@@ -59,22 +60,22 @@ use regex::Regex;
   pub enum Sound{
   Lo,
   Mid,
-  Hi
+  Hi,
+  Unknown
   }
 
     pub fn get_medium(word: &str)->Medium{
-    match word{
-      "screen"=>Medium::Visuals,
-      "cube"=>Medium::Visuals,
-      "sphere"=>Medium::Visuals,
-      "sin"=>Medium::Audio,
-      "saw"=>Medium::Audio,
-      "sqr"=>Medium::Audio,
-      "tri"=>Medium::Audio,
-      "rnd"=>Medium::Audio,
-      "mul"=>Medium::Effect,
-      _=>Medium::Unknown
-    }
+      if Regex::new("screen").unwrap().is_match(word){Medium::Visuals}
+      else if Regex::new("cube").unwrap().is_match(word){Medium::Visuals}
+      else if Regex::new("sphere").unwrap().is_match(word){Medium::Visuals}
+      else if Regex::new("sin").unwrap().is_match(word){Medium::Audio}
+      else if Regex::new("saw").unwrap().is_match(word){Medium::Audio}
+      else if Regex::new("sqr").unwrap().is_match(word){Medium::Audio}
+      else if Regex::new("tri").unwrap().is_match(word){Medium::Audio}
+      else if Regex::new("rnd").unwrap().is_match(word){Medium::Audio}
+      else if Regex::new("mul").unwrap().is_match(word){Medium::Effect}
+      else if Regex::new("screen").unwrap().is_match(word) && Regex::new("(lo|mid|hi)").unwrap().is_match(word){Medium::Mixed}
+      else {Medium::Unknown}
     }
 
     pub fn get_variant(word: &str)->Variant{
@@ -87,6 +88,7 @@ use regex::Regex;
       "sqr"=>Variant::SqrOsc,
       "tri"=>Variant::TriOsc,
       "rnd"=>Variant::NoiseOsc,
+      "mul"=>Variant::Multiplication,
       _=>Variant::Unknown
       }
     }
@@ -105,5 +107,14 @@ use regex::Regex;
                 false=>Param::Unknown
                }
         },
+      }
+    }
+
+    pub fn get_sound(sound: &str)->Sound{
+      match sound{
+        "lo"=>Sound::Lo,
+        "mi"=>Sound::Mid,
+        "hi"=>Sound::Hi,
+        _=>Sound::Unknown,
       }
     }

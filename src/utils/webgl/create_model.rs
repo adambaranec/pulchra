@@ -1,4 +1,5 @@
 use three_d::renderer::*;
+use three_d::core::prelude::*;
 use web_sys::*;
 use js_sys::{Float32Array,Uint32Array};
 use crate::utils::primitives::conversion::conversion::array_to_vec3;
@@ -11,7 +12,7 @@ let vertex_location = gl.get_attrib_location(program, "a_vertexPosition") as u32
 let normal_location = gl.get_attrib_location(program, "a_normal") as u32;
 let color_location = gl.get_uniform_location(program, "u_color");
 let direction_location = gl.get_uniform_location(program, "u_reverseLightDirection");
-let normals = generate_normals(&array_to_vec3(positions), indices);
+let normals:Vec<f32> = vec![];
 gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
 gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&positions[ .. ]), WebGl2RenderingContext::DYNAMIC_DRAW);
 gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);

@@ -31,4 +31,8 @@ gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
 gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
 gl.enable_vertex_attrib_array(normal_location);
 gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
+/*
+ --- THIS FUNCTION DESTROYS ALL WEBGL PROCESSES! --- 
+let normals = generate_normals(positions, indices);
+*/
 }

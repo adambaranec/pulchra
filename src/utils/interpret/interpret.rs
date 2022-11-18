@@ -57,7 +57,12 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       gl_FragColor.rgb *= light;
     }
     ");
-    gl.use_program(Some(&program));
+    gl.link_program(&program);
+    if gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS) == false{
+      send_err("Failed to compile program.");
+    } else {
+      gl.use_program(Some(&program));
+    }
     let vertex_buffer = gl.create_buffer();
     let element_buffer = gl.create_buffer();
     let normal_buffer = gl.create_buffer();
@@ -79,7 +84,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 range, range, -range,
                 -range, range, -range   
                   ];
-                let cube_indices = vec![
+                let cube_indices:Vec<u32> = vec![
                 //front face
                 0,1,2,0,3,2, 
                 //back face  

@@ -9,7 +9,6 @@ pub fn create_program(gl: &WebGl2RenderingContext, vs: &str, fs: &str)->WebGlPro
     gl.compile_shader(&fragment_shader);
     gl.attach_shader(&program, &vertex_shader); 
     gl.attach_shader(&program, &fragment_shader);
-    gl.link_program(&program);
     
     program
 }

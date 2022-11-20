@@ -16,7 +16,7 @@ fn sub(first: [f32; 3], second: [f32; 3]) -> [f32; 3]{
     first[2]-second[2]]
 }
 
-pub fn generate_normals(positions: &Vec<f32>, indices: &Vec<u32>)->Vec<f32>{
+pub fn generate_normals_from_triangles(positions: &Vec<f32>, indices: &Vec<u32>)->Vec<f32>{
 let mut normals:Vec<f32> = vec![];
 let mut triangle:[[f32; 3]; 3] = [[0.0,0.0,0.0],[0.0,0.0,0.0],[0.0,0.0,0.0]];
 let mut position:[f32; 3] = [0.0,0.0,0.0];

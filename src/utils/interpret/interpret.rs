@@ -4,10 +4,10 @@ use three_d::core::*;
 use crate::utils::primitives::error::error::send_err;
 use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium,Channel,Sound};
 use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param,get_sound};
-use crate::utils::webgl::create_program::create_program;
-use crate::utils::webgl::create_model::create_model;
-use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices};
-use crate::utils::animation::fft::{screen_fft,screen_fft_all};
+use crate::utils::webgl::program::create_program;
+use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_with_pos_normals};
+use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices,sphere_normals};
+use crate::utils::webgl::screen_fft::{screen_fft,screen_fft_all};
 use crate::utils::render::render::divide_canvas;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
@@ -32,7 +32,7 @@ fn analyze_func(word: &str) -> FnType{
   else if Regex::new(r"(?!.*(rgb|rgba|fft))").unwrap().is_match(word){return FnType::Unknown;}
   else {return FnType::NotFunction;}
   }
-fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: Vec<f32>){
+fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: [f32; 3]){
     let program = create_program(gl,
     "
     attribute vec3 a_vertexPosition;
@@ -63,28 +63,53 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
     } else {
       gl.use_program(Some(&program));
     }
-    let vertex_buffer = gl.create_buffer();
-    let element_buffer = gl.create_buffer();
-    let normal_buffer = gl.create_buffer();
-    let vertex_location = gl.get_attrib_location(&program, "a_vertexPosition") as u32;
-    let normal_location = gl.get_attrib_location(&program, "a_normal") as u32;
-    let color_location = gl.get_uniform_location(&program, "u_color");
-    let direction_location = gl.get_uniform_location(&program, "u_reverseLightDirection");
-    gl.uniform4f(color_location.as_ref(), color[0], color[1], color[2], 1.0);
-    gl.uniform3f(direction_location.as_ref(), 0.0,0.0,0.0);
            match shape{
             Variant::Cube=>{
-              let cube_pos = vec![
-                -range, -range, range,
-                range, -range, range,
-                range, range, range,
-                -range, range, range, 
-                -range, -range, -range,
-                range, -range, -range,
-                range, range, -range,
-                -range, range, -range   
-                  ];
-                let cube_indices:Vec<u32> = vec![
+                let positions = vec![
+                  //front face
+                  -range, -range, range,
+                  range, -range, range,
+                  range, range, range,
+                  -range, -range, range,
+                  -range, range, range, 
+                  range, range, range,
+                  //back face
+                  -range, -range, -range,
+                  range, -range, -range,
+                  range, range, -range,
+                  -range, -range, -range,
+                  -range, range, -range,
+                  range, range, -range, 
+                  //upper face
+                  range, range, range,
+                  -range, range, range, 
+                  -range, -range, -range,
+                  range, range, range,
+                  -range, -range, -range,
+                  range, -range, -range,
+                  //bottom face
+                  -range, -range, range,
+                  range, -range, range,
+                  -range, -range, -range,
+                  -range, -range, range,
+                  range, -range, -range,
+                  -range, -range, -range,
+                  //right face
+                  range, -range, range,
+                  range, range, range,
+                  range, -range, -range,
+                  range, range, range,
+                  range, range, -range,
+                  range, -range, -range,
+                  //left face
+                  -range, -range, range,
+                  -range, range, range, 
+                  -range, -range, -range,
+                  -range, -range, range,
+                  -range, -range, -range,
+                  -range, range, -range   
+                ];
+                /*let cube_indices:Vec<u16> = vec![
                 //front face
                 0,1,2,0,3,2, 
                 //back face  
@@ -97,13 +122,56 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 1,2,5,2,6,5,
                 //left face 
                 0,3,4,0,4,7
+                ];*/
+                let cube_normals:Vec<f32> = vec![
+                //front face
+                0.0,0.0,1.0,
+                0.0,0.0,1.0,
+                0.0,0.0,1.0,
+                0.0,0.0,1.0,
+                0.0,0.0,1.0,
+                0.0,0.0,1.0,
+                //back face
+                0.0,0.0,-1.0,
+                0.0,0.0,-1.0,
+                0.0,0.0,-1.0,
+                0.0,0.0,-1.0,
+                0.0,0.0,-1.0,
+                0.0,0.0,-1.0,
+                //upper face
+                0.0,1.0,0.0,
+                0.0,1.0,0.0,
+                0.0,1.0,0.0,
+                0.0,1.0,0.0,
+                0.0,1.0,0.0,
+                0.0,1.0,0.0,
+                //bottom face
+                0.0,-1.0,0.0,
+                0.0,-1.0,0.0,
+                0.0,-1.0,0.0,
+                0.0,-1.0,0.0,
+                0.0,-1.0,0.0,
+                0.0,-1.0,0.0,
+                //right face
+                1.0,0.0,0.0,
+                1.0,0.0,0.0,
+                1.0,0.0,0.0,
+                1.0,0.0,0.0,
+                1.0,0.0,0.0,
+                1.0,0.0,0.0,
+                //left face
+                -1.0,0.0,0.0,
+                -1.0,0.0,0.0,
+                -1.0,0.0,0.0,
+                -1.0,0.0,0.0,
+                -1.0,0.0,0.0,
+                -1.0,0.0,0.0
                 ];
-                create_model(gl, &program, &cube_pos, &cube_indices);
               },
             Variant::Sphere=>{
-            let sphere_pos = sphere_vertices(30,30,range);
-            let sphere_ind = sphere_indices(30,30);
-            create_model(gl, &program, &sphere_pos, &sphere_ind);
+            let positions = sphere_vertices(30,30,range);
+            let indices = sphere_indices(30,30);
+            let normals = sphere_normals(30,30);
             },
             _=>todo!(),
            }  
@@ -305,8 +373,8 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         if expr.len() == 1{
           match get_variant(expr[0]){
             Variant::Screen=>send_err("Missing grayscale or rgb for the screen."),
-            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, vec![1.0,1.0,1.0]),
-            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, vec![1.0,1.0,1.0]),
+            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, [1.0,1.0,1.0]),
+            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, [1.0,1.0,1.0]),
             _=>todo!(),
           }
         }
@@ -344,7 +412,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                     match String::from(expr[1]).parse::<f32>(){
                       Ok(val)=>{
                         if val <= 1.0{
-                          create_visual(gl, Variant::Cube, val, vec![1.0,1.0,1.0]);
+                          create_visual(gl, Variant::Cube, val, [1.0,1.0,1.0]);
                         } else {
                           send_err("Radius must not be greater than 1.")
                         }
@@ -357,8 +425,8 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 } else if Regex::new(r"cube rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
                   let color = rgb.find(w);
                   if color != None {
-                   let channels = floats_from(expr[1]);
-                   create_visual(gl, Variant::Cube, 1.0, channels.unwrap());
+                   let channels = floats_from(expr[1]).unwrap();
+                   create_visual(gl, Variant::Cube, 1.0, [channels[0],channels[1],channels[2]]);
                   } else {
                   send_err("Invalid rgb for the object.");
                   }
@@ -372,7 +440,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                     match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                        create_visual(gl, Variant::Sphere, val, vec![1.0,1.0,1.0]);
+                        create_visual(gl, Variant::Sphere, val, [1.0,1.0,1.0]);
                       } else {
                         send_err("Radius must not be greater than 1.")
                       }
@@ -384,8 +452,8 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 }
               } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
                 if rgb.is_match(expr[1]) {
-                  let channels = floats_from(expr[1]);
-                  create_visual(gl, Variant::Sphere, 1.0, channels.unwrap());
+                  let channels = floats_from(expr[1]).unwrap();
+                  create_visual(gl, Variant::Sphere, 1.0, [channels[0],channels[1],channels[2]]);
                 } else {
                 send_err("Invalid rgb for the object.");
                 }
@@ -450,86 +518,6 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         1000.0
     );
     camera.set_viewport(viewport); 
-    let vertex_shader_src = "
-    attribute vec3 a_vertexPosition;
-    attribute vec3 a_normal;
-    uniform mat4 u_projection;
-    uniform mat4 u_view;
-    varying vec3 v_normal;
-    void main(){
-      gl_Position = u_projection * u_view * vec4(a_vertexPosition, 1.0);
-      v_normal = a_normal;
-    }
-    ";
-    let fragment_shader_src = "
-    precision mediump float;
-    varying vec3 v_normal;
-    uniform vec3 u_reverseLightDirection;
-    uniform vec4 u_color;
-    void main(){
-      vec3 normal = normalize(v_normal);
-      float light = dot(normal, u_reverseLightDirection);
-      gl_FragColor.rgb *= light;
-    }
-    ";
-    let vertex_shader = gl.create_shader(WebGl2RenderingContext::VERTEX_SHADER).unwrap();
-    let fragment_shader = gl.create_shader(WebGl2RenderingContext::FRAGMENT_SHADER).unwrap();
-    let program = gl.create_program().unwrap();
-    gl.shader_source(&vertex_shader, vertex_shader_src);
-    gl.shader_source(&fragment_shader, fragment_shader_src);
-    gl.compile_shader(&vertex_shader);
-    gl.compile_shader(&fragment_shader);
-    let vertex_status = gl.get_shader_parameter(&vertex_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
-    let fragment_status = gl.get_shader_parameter(&fragment_shader, WebGl2RenderingContext::COMPILE_STATUS).as_bool().unwrap();
-    let program_status = gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS).as_bool().unwrap(); 
-    let mut model_matrix_array:Vec<f32> = vec![];
-    let mut view_matrix_array:Vec<f32> = vec![];
-    if vertex_status != false && fragment_status != false{
-      gl.attach_shader(&program, &vertex_shader); 
-      gl.attach_shader(&program, &fragment_shader);
-      gl.link_program(&program);
-      gl.use_program(Some(&program));
-      if model_matrix_array.len() == 0 && view_matrix_array.len() == 0{
-         model_matrix_array.push(camera.projection().x.x);
-         model_matrix_array.push(camera.projection().x.y);
-         model_matrix_array.push(camera.projection().x.z);
-         model_matrix_array.push(camera.projection().x.w);
-         model_matrix_array.push(camera.projection().y.x);
-         model_matrix_array.push(camera.projection().y.y);
-         model_matrix_array.push(camera.projection().y.z);
-         model_matrix_array.push(camera.projection().y.w);
-         model_matrix_array.push(camera.projection().z.x);
-         model_matrix_array.push(camera.projection().z.y);
-         model_matrix_array.push(camera.projection().z.z);
-         model_matrix_array.push(camera.projection().z.w);
-         model_matrix_array.push(camera.projection().w.x);
-         model_matrix_array.push(camera.projection().w.y);
-         model_matrix_array.push(camera.projection().w.z);
-         model_matrix_array.push(camera.projection().w.w);
-
-         view_matrix_array.push(camera.view().x.x);
-         view_matrix_array.push(camera.view().x.y);
-         view_matrix_array.push(camera.view().x.z);
-         view_matrix_array.push(camera.view().x.w);
-         view_matrix_array.push(camera.view().y.x);
-         view_matrix_array.push(camera.view().y.y);
-         view_matrix_array.push(camera.view().y.z);
-         view_matrix_array.push(camera.view().y.w);
-         view_matrix_array.push(camera.view().z.x);
-         view_matrix_array.push(camera.view().z.y);
-         view_matrix_array.push(camera.view().z.z);
-         view_matrix_array.push(camera.view().z.w);
-         view_matrix_array.push(camera.view().w.x);
-         view_matrix_array.push(camera.view().w.y);
-         view_matrix_array.push(camera.view().w.z);
-         view_matrix_array.push(camera.view().w.w);
-
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_projection").as_ref(), false, &model_matrix_array[ .. ]);
-        gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_view").as_ref(), false, &view_matrix_array[ .. ]);
-        }
-    } else {  
-      send_err("Failed compilation of shaders");
-    }
     if code.contains(';'){
       let exprs = code.split(';');
       for expr in exprs{

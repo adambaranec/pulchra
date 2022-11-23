@@ -10,6 +10,7 @@ import init, {start, set} from './pkg/pulchra.js';
       window.onresize = (e) =>{
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
+      canvas.getContext('webgl2').viewport(0,0,canvas.width,canvas.height);
       }
       function record(){
         let canvas_stream = canvas.captureStream(60);

@@ -5,7 +5,7 @@ use crate::utils::primitives::error::error::send_err;
 use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium,Channel,Sound};
 use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param,get_sound};
 use crate::utils::webgl::program::create_program;
-use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_with_pos_normals};
+use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_with_pos_normals, model_with_pos_indices_normals};
 use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices,sphere_normals};
 use crate::utils::webgl::screen_fft::{screen_fft,screen_fft_all};
 use crate::utils::render::render::divide_canvas;
@@ -123,7 +123,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 //left face 
                 0,3,4,0,4,7
                 ];*/
-                let cube_normals:Vec<f32> = vec![
+                let normals:Vec<f32> = vec![
                 //front face
                 0.0,0.0,1.0,
                 0.0,0.0,1.0,
@@ -167,16 +167,16 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 -1.0,0.0,0.0,
                 -1.0,0.0,0.0
                 ];
+                model_with_pos_normals(gl, &program, "a_vertexPosition", "a_normal", &positions, &normals);
               },
             Variant::Sphere=>{
             let positions = sphere_vertices(30,30,range);
             let indices = sphere_indices(30,30);
             let normals = sphere_normals(30,30);
+            model_with_pos_indices_normals(gl, &program, "a_vertexPosition", "a_normal", &positions, &normals, &indices);
             },
             _=>todo!(),
            }  
-           gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, None);
-           gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, None);
       }
       fn prepare_effect(w: &str, gl: &WebGl2RenderingContext){
       let expr:Vec<&str> = w.split_whitespace().collect();

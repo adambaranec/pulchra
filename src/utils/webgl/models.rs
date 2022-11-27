@@ -10,7 +10,7 @@ gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
 gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&positions[ .. ]), WebGl2RenderingContext::STATIC_DRAW);
 gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
 gl.enable_vertex_attrib_array(vertex_location);
-gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 1 as i32);
+gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, (positions.len() / 3) as i32);
 }
 
 pub fn model_with_pos_indices(gl: &WebGl2RenderingContext, program: &WebGlProgram, vertex_attrib_name: &str, positions: &Vec<f32>, indices: &Vec<u16>){
@@ -25,7 +25,7 @@ gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, vertex_buffer.as_ref());
 gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
 gl.enable_vertex_attrib_array(vertex_location);
 gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
-gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
+gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, (indices.len() / 3) as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
 }
 
 pub fn model_with_pos_indices_normals(gl: &WebGl2RenderingContext, program: &WebGlProgram, vertex_attrib_name: &str, normal_attrib_name: &str, positions: &Vec<f32>, normals: &Vec<f32>, indices: &Vec<u16>){
@@ -44,7 +44,7 @@ gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FL
 gl.enable_vertex_attrib_array(normal_location);
 gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
 gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, &Uint16Array::from(&indices[ .. ]), WebGl2RenderingContext::STATIC_DRAW);
-gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
+gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, (indices.len() / 3) as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
 }
 
 pub fn model_with_pos_normals(gl: &WebGl2RenderingContext, program: &WebGlProgram, vertex_attrib_name: &str, normal_attrib_name: &str, positions: &Vec<f32>, normals: &Vec<f32>){
@@ -60,5 +60,5 @@ gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
 gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&normals[ .. ]), WebGl2RenderingContext::STATIC_DRAW);
 gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
 gl.enable_vertex_attrib_array(normal_location);
-gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 1 as i32);
+gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, (positions.len() / 3) as i32);
 }

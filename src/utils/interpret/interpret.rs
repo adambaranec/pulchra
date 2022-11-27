@@ -1,6 +1,7 @@
 use regex::Regex;
 use web_sys::*;
 use three_d::core::*;
+use three_d::renderer::*;
 use crate::utils::primitives::error::error::send_err;
 use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium,Channel,Sound};
 use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param,get_sound};
@@ -8,7 +9,10 @@ use crate::utils::webgl::program::create_program;
 use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_with_pos_normals, model_with_pos_indices_normals};
 use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices,sphere_normals};
 use crate::utils::webgl::screen_fft::{screen_fft,screen_fft_all};
-use crate::utils::render::render::divide_canvas;
+use crate::utils::render::scissor::divide_canvas;
+use crate::utils::primitives::generate::matrices::fill_program_matrices;
+use crate::utils::render::viewport::set_viewport;
+use crate::utils::webgl::uniforms::animate_uniform;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
   context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -63,7 +67,25 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
     } else {
       gl.use_program(Some(&program));
     }
-           match shape{
+    let web_window = web_sys::window().unwrap();          
+    let viewport = Viewport{
+      width: web_window.inner_width().unwrap().as_f64().unwrap() as u32,
+      height: web_window.inner_height().unwrap().as_f64().unwrap() as u32,
+      x: 0,
+      y: 0
+      };
+    let mut camera:Camera = Camera::new_perspective(
+      viewport,
+      vec3(1.0, 1.0, 3.0),
+      vec3(0.0, 0.0, 0.0),
+      vec3(0.0, 3.0, 0.0),
+      degrees(45.0),
+      0.1,
+      1000.0
+  );
+  fill_program_matrices(&camera, &program, "u_projection", "u_view", &gl);
+  gl.uniform4f(gl.get_uniform_location(&program, "u_color").as_ref(), color[0], color[1], color[2], 1.0);
+  match shape{
             Variant::Cube=>{
                 let positions = vec![
                   //front face
@@ -256,7 +278,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         osc.start();
         }
     
-        fn create_noise(gain: f32){
+        fn create_noise(ctx: &AudioContext, gain: f32){
           /*use rand::prelude::*;
           let ctx = AudioContext::new().unwrap();
           let gain_node = GainNode::new(&ctx).unwrap();
@@ -354,7 +376,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
               Err(err)=>send_err("Invalid gain."),
              }
              if gain != 0.0{
-              create_noise(gain);
+              create_noise(audio, gain);
              }
             } else {
              send_err("Unknown parameters for the noise.")
@@ -501,23 +523,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         }
      }
      pub fn set(code: String, gl: WebGl2RenderingContext, audio: AudioContext){
-      let web_window = web_sys::window().unwrap();          
-      let viewport = Viewport{
-        width: web_window.inner_width().unwrap().as_f64().unwrap() as u32,
-        height: web_window.inner_height().unwrap().as_f64().unwrap() as u32,
-        x: 0,
-        y: 0
-        };
-      let mut camera:Camera = Camera::new_perspective(
-        viewport,
-        vec3(1.0, 1.0, 3.0),
-        vec3(0.0, 0.0, 0.0),
-        vec3(0.0, 3.0, 0.0),
-        degrees(45.0),
-        0.1,
-        1000.0
-    );
-    camera.set_viewport(viewport); 
+     set_viewport();
     if code.contains(';'){
       let exprs = code.split(';');
       for expr in exprs{

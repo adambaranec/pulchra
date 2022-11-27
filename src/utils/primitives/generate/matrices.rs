@@ -1,6 +1,6 @@
 use three_d::core::*;
 use web_sys::*;
-fn fill_program_matrices(camera: &Camera, program: &WebGlProgram, proj_location: &str, view_location: &str, gl: &WebGl2RenderingContext){
+pub fn fill_program_matrices(camera: &Camera, program: &WebGlProgram, proj_location: &str, view_location: &str, gl: &WebGl2RenderingContext){
     let mut model_matrix_array:Vec<f32> = vec![];
     let mut view_matrix_array:Vec<f32> = vec![];
     model_matrix_array.push(camera.projection().x.x);

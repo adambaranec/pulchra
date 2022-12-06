@@ -10,7 +10,7 @@ use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_
 use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices,sphere_normals};
 use crate::utils::webgl::screen_fft::{screen_fft,screen_fft_all};
 use crate::utils::render::scissor::divide_canvas;
-use crate::utils::primitives::generate::matrices::fill_program_matrices;
+use crate::utils::primitives::generate::matrices::view_mat_to_program;
 use crate::utils::render::viewport::set_viewport;
 use crate::utils::webgl::uniforms::animate_uniform;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
@@ -41,11 +41,11 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
     "
     attribute vec3 a_vertexPosition;
     attribute vec3 a_normal;
-    uniform mat4 u_projection;
     uniform mat4 u_view;
+    uniform mat4 u_transform;
     varying vec3 v_normal;
     void main(){
-      gl_Position = u_projection * u_view * vec4(a_vertexPosition, 1.0);
+      gl_Position = u_view * u_transform * vec4(a_vertexPosition, 1.0);
       v_normal = a_normal;
     }
     ",
@@ -83,8 +83,9 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       0.1,
       1000.0
   );
-  fill_program_matrices(&camera, &program, "u_projection", "u_view", &gl);
+  view_mat_to_program(&camera, &program, "u_view", &gl);
   gl.uniform4f(gl.get_uniform_location(&program, "u_color").as_ref(), color[0], color[1], color[2], 1.0);
+  gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_transform").as_ref(), false, &[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]);
   match shape{
             Variant::Cube=>{
                 let positions = vec![

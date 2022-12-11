@@ -74,7 +74,7 @@ use regex::Regex;
       else if Regex::new("tri").unwrap().is_match(word){Medium::Audio}
       else if Regex::new("rnd").unwrap().is_match(word){Medium::Audio}
       else if Regex::new("mul").unwrap().is_match(word){Medium::Effect}
-      else if Regex::new("screen").unwrap().is_match(word) && Regex::new("(lo|mid|hi)").unwrap().is_match(word){Medium::Mixed}
+      else if Regex::new("(lo|mi|hi)/g").unwrap().is_match(word){Medium::Mixed}
       else {Medium::Unknown}
     }
 

@@ -2,10 +2,11 @@ import init, {start, draw, set} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let audio;
+      let gl;
       window.onload = (e) =>{
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        init().then(()=>{start(canvas.getContext('webgl2')); console.log(requestAnimationFrame(draw))});
+        init().then(()=>{start(canvas.getContext('webgl2'))});
       }
       window.onresize = (e) =>{
       canvas.width = window.innerWidth;
@@ -25,10 +26,15 @@ import init, {start, draw, set} from './pkg/pulchra.js';
             audio.close();
             audio = new AudioContext();
            }
+          if (typeof gl === 'undefined'){
+            gl = canvas.getContext('webgl2');
+          }
           if (input.value || input.value != ''){
-            set(String(input.value),canvas.getContext('webgl2'),audio);
+            let string = String(input.value);
+            set(string,gl,audio);
           } else {
             document.getElementById('error').innerHTML = '';
+            start(gl);
           }
           } 
           else if (e.ctrlKey && e.key == 'r'){

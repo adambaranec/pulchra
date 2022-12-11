@@ -1,12 +1,9 @@
 use three_d::core::*;
-pub fn sphere_vertices(latitudes: u32, longitudes: u32, range: f32)->Vec<f32>{
+pub fn sphere_vertices(latitudes: u16, longitudes: u16, range: f32)->Vec<f32>{
     let mut sphere_pos:Vec<f32> = vec![];
     let half_circle = Deg::<f32>::turn_div_2();
-    let longitudes = 30; 
-    let latitudes = 30;
     let longitude_distance = half_circle / longitudes as f32;
     let latitude_distance = half_circle / latitudes as f32;
-    let mut sphere_pos:Vec<f32> = vec![];
     sphere_pos.push(0.0);
     sphere_pos.push(range);
     sphere_pos.push(0.0);

@@ -75,7 +75,6 @@ pub fn screen_fft_two(gl: &WebGl2RenderingContext, audio: &AudioContext, chan1: 
     },
     _=>todo!(),
     }
-        let window = web_sys::window();
 }
 pub fn screen_fft_all(gl: &WebGl2RenderingContext, audio: &AudioContext, eq: Sound, mul: f32){
     let analyser = AnalyserNode::new(audio).unwrap();

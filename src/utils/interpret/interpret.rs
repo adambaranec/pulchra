@@ -45,7 +45,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
     uniform mat4 u_transform;
     varying vec3 v_normal;
     void main(){
-      gl_Position = u_view * u_transform * vec4(a_vertexPosition, 1.0);
+      gl_Position = u_view * u_transform * a_vertexPosition;
       v_normal = a_normal;
     }
     ",
@@ -84,8 +84,8 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       1000.0
   );
   view_mat_to_program(&camera, &program, "u_view", &gl);
-  gl.uniform4f(gl.get_uniform_location(&program, "u_color").as_ref(), color[0], color[1], color[2], 1.0);
-  gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_transform").as_ref(), false, &[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]);
+      gl.uniform4f(gl.get_uniform_location(&program, "u_color").as_ref(), color[0], color[1], color[2], 1.0);
+      gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_transform").as_ref(), false, &[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]);
   match shape{
             Variant::Cube=>{
                 let positions = vec![
@@ -322,7 +322,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         else if words.len() == 2{
           if get_variant(words[0]) != Variant::NoiseOsc{
             if Regex::new(r"([\d]+|[\d]+\.[\d]+)\*(0.(\d+)|1|0)").unwrap().is_match(words[1]){
-              let freq_result = Regex::new(r"[\d]+").unwrap().find(w);
+              let freq_result = Regex::new(r"[\d]+\.[\d]+|[\d]+").unwrap().find(w);
               let gain_result = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap().find(w);
               let mut freq:f32=0.0;
               let mut gain:f32=0.0;
@@ -410,8 +410,6 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                         Ok(val)=>{
                           if val <= 1.0{
                             set_screen_color(gl, [val,val,val]);
-                          } else {
-                            send_err("Grayscale must not be greater than 1.");
                           }
                         },
                         Err(err)=>send_err("Invalid grayscale for the screen."),
@@ -427,6 +425,8 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                   } else {
                     send_err("Invalid color function for the screen.");
                   }
+                } else {
+                  send_err("Unknown parameters for the screen.");
                 }
               },
               Variant::Cube=>{
@@ -508,8 +508,6 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       //individual words of the expression
       let words:Vec<&str> = input.split_whitespace().collect();
       let medium = || -> Medium {get_medium(input)};
-      let variant = || -> Variant {get_variant(words[0])};
-      let param = |w: &str| -> Param {get_param(w)};
 
         if medium() != Medium::Unknown {
           match medium(){

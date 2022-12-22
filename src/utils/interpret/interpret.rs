@@ -10,7 +10,7 @@ use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_
 use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices,sphere_normals};
 use crate::utils::webgl::screen_fft::{screen_fft,screen_fft_all};
 use crate::utils::render::scissor::divide_canvas;
-use crate::utils::primitives::generate::matrices::view_mat_to_program;
+use crate::utils::primitives::generate::matrices::view_projection;
 use crate::utils::render::viewport::set_viewport;
 use crate::utils::webgl::uniforms::animate_uniform;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
@@ -39,31 +39,31 @@ fn analyze_func(word: &str) -> FnType{
 fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: [f32; 3]){
     let program = create_program(gl,
     "
-    attribute vec3 a_vertexPosition;
-    attribute vec3 a_normal;
-    uniform mat4 u_view;
-    uniform mat4 u_transform;
-    varying vec3 v_normal;
+    attribute vec3 position;
+    attribute vec3 normal;
+    uniform mat4 view;
+    uniform mat4 projection;
+    varying vec3 normalForDot;
     void main(){
-      gl_Position = u_view * u_transform * a_vertexPosition;
-      v_normal = a_normal;
+      gl_Position = view * projection * vec4(position, 1.0);
+      normalForDot = normal;
     }
     ",
     "
     precision mediump float;
-    varying vec3 v_normal;
-    uniform vec3 u_reverseLightDirection;
-    uniform vec4 u_color;
+    uniform vec4 color;
+    uniform vec3 lightDirection;
+    varying vec3 normalForDot;
     void main(){
-      vec3 normal = normalize(v_normal);
-      float light = dot(normal, u_reverseLightDirection);
-      gl_FragColor = u_color;
+      vec3 normal = normalize(normalForDot);     
+      float light = dot(normal, lightDirection);
+      gl_FragColor = color;
       gl_FragColor.rgb *= light;
     }
     ");
     gl.link_program(&program);
     if gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS) == false{
-      send_err("Failed to compile program.");
+      send_err(gl.get_program_info_log(&program).unwrap().as_str());
     } else {
       gl.use_program(Some(&program));
     }
@@ -83,9 +83,9 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       0.1,
       1000.0
   );
-  view_mat_to_program(&camera, &program, "u_view", &gl);
-      gl.uniform4f(gl.get_uniform_location(&program, "u_color").as_ref(), color[0], color[1], color[2], 1.0);
-      gl.uniform_matrix4fv_with_f32_array(gl.get_uniform_location(&program, "u_transform").as_ref(), false, &[1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0]);
+  view_projection(&camera, &program, "view", "projection", &gl);
+  gl.uniform4fv_with_f32_array(gl.get_uniform_location(&program, "color").as_ref(), &[color[0], color[1], color[2], 1.0]);
+  //gl.uniform3fv_with_f32_array(gl.get_uniform_location(&program, "lightDirection").as_ref(), &[0.0,0.0,0.0]);
   match shape{
             Variant::Cube=>{
                 let positions = vec![
@@ -190,13 +190,13 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                 -1.0,0.0,0.0,
                 -1.0,0.0,0.0
                 ];
-                model_with_pos_normals(gl, &program, "a_vertexPosition", "a_normal", &positions, &normals);
+                model_with_pos_normals(gl, &program, "position", "normal", &positions, &normals);
               },
             Variant::Sphere=>{
-            let positions = sphere_vertices(30,30,range);
+            let positions = sphere_vertices(30,range);
             let indices = sphere_indices(30,30);
-            let normals = sphere_normals(30,30);
-            model_with_pos_indices_normals(gl, &program, "a_vertexPosition", "a_normal", &positions, &normals, &indices);
+            let normals = sphere_normals(30);
+          /model_with_pos_indices_normals(gl, &program, "position", "normal", &positions, &normals, &indices);
             },
             _=>todo!(),
            }  

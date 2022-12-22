@@ -24,7 +24,6 @@ gl.enable_vertex_attrib_array(vertex_location);
 gl.vertex_attrib_pointer_with_f64(vertex_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
 gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
 gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, &Uint16Array::from(&indices[ .. ]), WebGl2RenderingContext::STATIC_DRAW);
-gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
 }
     
@@ -44,7 +43,6 @@ gl.enable_vertex_attrib_array(normal_location);
 gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
 gl.bind_buffer(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, element_buffer.as_ref());
 gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ELEMENT_ARRAY_BUFFER, &Uint16Array::from(&indices[ .. ]), WebGl2RenderingContext::STATIC_DRAW);
-gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 gl.draw_elements_with_f64(WebGl2RenderingContext::TRIANGLES, indices.len() as i32, WebGl2RenderingContext::UNSIGNED_INT,0.0);
 }
 
@@ -61,6 +59,5 @@ gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, normal_buffer.as_ref());
 gl.buffer_data_with_array_buffer_view(WebGl2RenderingContext::ARRAY_BUFFER, &Float32Array::from(&normals[ .. ]), WebGl2RenderingContext::STATIC_DRAW);
 gl.enable_vertex_attrib_array(normal_location);
 gl.vertex_attrib_pointer_with_f64(normal_location, 3, WebGl2RenderingContext::FLOAT, false, 0, 0.0);
-gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, (positions.len() / 3) as i32);
 }

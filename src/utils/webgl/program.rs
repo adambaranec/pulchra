@@ -5,10 +5,9 @@ pub fn create_program(gl: &WebGl2RenderingContext, vs: &str, fs: &str)->WebGlPro
     let program = gl.create_program().unwrap();
     gl.shader_source(&vertex_shader, vs);
     gl.shader_source(&fragment_shader, fs);
-    gl.compile_shader(&vertex_shader);
-    gl.compile_shader(&fragment_shader);
     gl.attach_shader(&program, &vertex_shader); 
+    gl.compile_shader(&vertex_shader);    
     gl.attach_shader(&program, &fragment_shader);
-    
+    gl.compile_shader(&fragment_shader);
     program
 }

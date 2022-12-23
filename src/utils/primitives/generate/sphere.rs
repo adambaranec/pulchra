@@ -2,11 +2,16 @@ use three_d::core::*;
 use three_d::CpuMesh;
 use crate::utils::primitives::conversion::conversion::vec3_to_array;
 pub fn sphere_vertices(subdivisions: u32, range: f32)->Vec<f32>{
-    let mut sphere_pos:Vec<f32> = vec![];
+    let mut positions:Vec<f32> = vec![];
     let sphere = CpuMesh::sphere(subdivisions);
-    sphere_pos = vec3_to_array(&sphere.positions.into_f32());
+    positions = vec3_to_array(&sphere.positions.into_f32());
+    if range < 1.0 {
+      for num in 0..positions.len() - 1{
+        positions[num] *= range;
+      }
+    }
    
-    sphere_pos
+    positions
   }
   pub fn sphere_indices(latitudes: u16, longitudes: u16) -> Vec<u16>{
   let mut indices:Vec<u16> = vec![];

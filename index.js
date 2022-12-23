@@ -1,4 +1,4 @@
-import init, {start, draw, set} from './pkg/pulchra.js';
+import init, {start, set} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let audio;
@@ -31,7 +31,7 @@ import init, {start, draw, set} from './pkg/pulchra.js';
           }
           if (input.value || input.value != ''){
             let string = String(input.value);
-            set(string,gl,audio);
+            set(string,audio);
           } else {
             document.getElementById('error').innerHTML = '';
             start(gl);

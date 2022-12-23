@@ -1,4 +1,5 @@
 use regex::Regex;
+use wasm_bindgen::JsCast;
 use web_sys::*;
 use three_d::core::*;
 use three_d::renderer::*;
@@ -13,6 +14,7 @@ use crate::utils::render::scissor::divide_canvas;
 use crate::utils::primitives::generate::matrices::view_projection;
 use crate::utils::render::viewport::set_viewport;
 use crate::utils::webgl::uniforms::animate_uniform;
+use crate::drawing::renderer::render;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
   context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -36,178 +38,27 @@ fn analyze_func(word: &str) -> FnType{
   else if Regex::new(r"(?!.*(rgb|rgba|fft))").unwrap().is_match(word){return FnType::Unknown;}
   else {return FnType::NotFunction;}
   }
-fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color: [f32; 3]){
-    let program = create_program(gl,
-    "
-    attribute vec3 position;
-    attribute vec3 normal;
-    uniform mat4 view;
-    uniform mat4 projection;
-    varying vec3 normalForDot;
-    void main(){
-      gl_Position = view * projection * vec4(position, 1.0);
-      normalForDot = normal;
-    }
-    ",
-    "
-    precision mediump float;
-    uniform vec4 color;
-    uniform vec3 lightDirection;
-    varying vec3 normalForDot;
-    void main(){
-      vec3 normal = normalize(normalForDot);     
-      float light = dot(normal, lightDirection);
-      gl_FragColor = color;
-      gl_FragColor.rgb *= light;
-    }
-    ");
-    gl.link_program(&program);
-    if gl.get_program_parameter(&program, WebGl2RenderingContext::LINK_STATUS) == false{
-      send_err(gl.get_program_info_log(&program).unwrap().as_str());
-    } else {
-      gl.use_program(Some(&program));
-    }
-    let web_window = web_sys::window().unwrap();          
-    let viewport = Viewport{
-      width: web_window.inner_width().unwrap().as_f64().unwrap() as u32,
-      height: web_window.inner_height().unwrap().as_f64().unwrap() as u32,
-      x: 0,
-      y: 0
-      };
-    let mut camera:Camera = Camera::new_perspective(
-      viewport,
-      vec3(1.0, 1.0, 3.0),
-      vec3(0.0, 0.0, 0.0),
-      vec3(0.0, 3.0, 0.0),
-      degrees(45.0),
-      0.1,
-      1000.0
-  );
-  view_projection(&camera, &program, "view", "projection", &gl);
-  gl.uniform4fv_with_f32_array(gl.get_uniform_location(&program, "color").as_ref(), &[color[0], color[1], color[2], 1.0]);
-  //gl.uniform3fv_with_f32_array(gl.get_uniform_location(&program, "lightDirection").as_ref(), &[0.0,0.0,0.0]);
+fn create_visual(shape: Variant, range: f32, color: [f32; 3]){
   match shape{
             Variant::Cube=>{
-                let positions = vec![
-                  //front face
-                  -range, -range, range,
-                  range, -range, range,
-                  range, range, range,
-                  -range, -range, range,
-                  -range, range, range, 
-                  range, range, range,
-                  //back face
-                  -range, -range, -range,
-                  range, -range, -range,
-                  range, range, -range,
-                  -range, -range, -range,
-                  -range, range, -range,
-                  range, range, -range, 
-                  //upper face
-                  range, range, range,
-                  -range, range, range, 
-                  -range, -range, -range,
-                  range, range, range,
-                  -range, -range, -range,
-                  range, -range, -range,
-                  //bottom face
-                  -range, -range, range,
-                  range, -range, range,
-                  -range, -range, -range,
-                  -range, -range, range,
-                  range, -range, -range,
-                  -range, -range, -range,
-                  //right face
-                  range, -range, range,
-                  range, range, range,
-                  range, -range, -range,
-                  range, range, range,
-                  range, range, -range,
-                  range, -range, -range,
-                  //left face
-                  -range, -range, range,
-                  -range, range, range, 
-                  -range, -range, -range,
-                  -range, -range, range,
-                  -range, -range, -range,
-                  -range, range, -range   
-                ];
-                /*let cube_indices:Vec<u16> = vec![
-                //front face
-                0,1,2,0,3,2, 
-                //back face  
-                4,5,6,4,7,6, 
-                //upper face
-                2,3,4,2,4,5,
-                //bottom face
-                0,1,4,0,5,4, 
-                //right face
-                1,2,5,2,6,5,
-                //left face 
-                0,3,4,0,4,7
-                ];*/
-                let normals:Vec<f32> = vec![
-                //front face
-                0.0,0.0,1.0,
-                0.0,0.0,1.0,
-                0.0,0.0,1.0,
-                0.0,0.0,1.0,
-                0.0,0.0,1.0,
-                0.0,0.0,1.0,
-                //back face
-                0.0,0.0,-1.0,
-                0.0,0.0,-1.0,
-                0.0,0.0,-1.0,
-                0.0,0.0,-1.0,
-                0.0,0.0,-1.0,
-                0.0,0.0,-1.0,
-                //upper face
-                0.0,1.0,0.0,
-                0.0,1.0,0.0,
-                0.0,1.0,0.0,
-                0.0,1.0,0.0,
-                0.0,1.0,0.0,
-                0.0,1.0,0.0,
-                //bottom face
-                0.0,-1.0,0.0,
-                0.0,-1.0,0.0,
-                0.0,-1.0,0.0,
-                0.0,-1.0,0.0,
-                0.0,-1.0,0.0,
-                0.0,-1.0,0.0,
-                //right face
-                1.0,0.0,0.0,
-                1.0,0.0,0.0,
-                1.0,0.0,0.0,
-                1.0,0.0,0.0,
-                1.0,0.0,0.0,
-                1.0,0.0,0.0,
-                //left face
-                -1.0,0.0,0.0,
-                -1.0,0.0,0.0,
-                -1.0,0.0,0.0,
-                -1.0,0.0,0.0,
-                -1.0,0.0,0.0,
-                -1.0,0.0,0.0
-                ];
-                model_with_pos_normals(gl, &program, "position", "normal", &positions, &normals);
+              
               },
             Variant::Sphere=>{
-            let positions = sphere_vertices(30,range);
-            let indices = sphere_indices(30,30);
-            let normals = sphere_normals(30);
-          /model_with_pos_indices_normals(gl, &program, "position", "normal", &positions, &normals, &indices);
+ 
             },
             _=>todo!(),
            }  
       }
-      fn prepare_effect(w: &str, gl: &WebGl2RenderingContext){
+      fn prepare_effect(w: &str){
+        let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
+        .dyn_into::<HtmlCanvasElement>().unwrap();
+         let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
       let expr:Vec<&str> = w.split_whitespace().collect();
       match get_variant(expr[0]){
       Variant::Multiplication=>{
       if expr.len() == 2{
       match String::from(expr[1]).parse::<u16>(){
-      Ok(val)=>divide_canvas(gl, val, val),
+      Ok(val)=>divide_canvas(&gl, val, val),
       Err(err)=>send_err("Invalid parameter for multiplication.")
       }
       } else if expr.len() == 3{
@@ -222,14 +73,17 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
       Err(err)=>send_err("Invalid parameter.")
       }
       if rows != 0 && columns != 0{
-        divide_canvas(gl, rows, columns);
+        divide_canvas(&gl, rows, columns);
       }
       }
       },
       _=>todo!(),
       }
       }
-      fn prepare_mixed(w: &str, gl: &WebGl2RenderingContext, audio: &AudioContext){
+      fn prepare_mixed(w: &str, audio: &AudioContext){
+        let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
+        .dyn_into::<HtmlCanvasElement>().unwrap();
+         let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
       let expr:Vec<&str> = w.split_whitespace().collect();
         if Regex::new(r"screen rgb\(((lo|mi|hi)|(0.(\d+)|1|0)),((lo|mi|hi)|(0.(\d+)|1|0)),((lo|mi|hi)|(0.(\d+)|1|0))\)").unwrap().is_match(w){
           let param_regex = Regex::new(r"((lo|mi|hi)|(0.(\d+)|1|0))/g").unwrap();
@@ -249,9 +103,9 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
            }
            } else if freq_regex.is_match(param.as_str()){
            match param_index{
-             0=>screen_fft(gl, audio, Channel::Red, get_sound(param.as_str()), 1.0),
-             1=>screen_fft(gl, audio, Channel::Green, get_sound(param.as_str()), 1.0),
-             2=>screen_fft(gl, audio, Channel::Blue, get_sound(param.as_str()), 1.0),
+             0=>screen_fft(&gl, audio, Channel::Red, get_sound(param.as_str()), 1.0),
+             1=>screen_fft(&gl, audio, Channel::Green, get_sound(param.as_str()), 1.0),
+             2=>screen_fft(&gl, audio, Channel::Blue, get_sound(param.as_str()), 1.0),
              _=>todo!(),
            }
            } else {
@@ -259,7 +113,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
            }
           }
       } else if Regex::new(r"screen (lo|mi|hi)").unwrap().is_match(w){
-        screen_fft_all(gl, audio, get_sound(expr[1]), 1.0);
+        screen_fft_all(&gl, audio, get_sound(expr[1]), 1.0);
       }
     }
       fn create_osc(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32){
@@ -387,17 +241,21 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
             send_err("Too many parameters for audio.")
           }
       }
-      fn prepare_visual(w: &str, gl: &WebGl2RenderingContext){
+      fn prepare_visual(w: &str){
         let expr:Vec<&str> = w.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
         let uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
+
+        let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
+       .dyn_into::<HtmlCanvasElement>().unwrap();
+        let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
          
         if expr.len() == 1{
           match get_variant(expr[0]){
             Variant::Screen=>send_err("Missing grayscale or rgb for the screen."),
-            Variant::Cube=>create_visual(gl, Variant::Cube, 1.0, [1.0,1.0,1.0]),
-            Variant::Sphere=>create_visual(gl, Variant::Sphere, 1.0, [1.0,1.0,1.0]),
+            Variant::Cube=>create_visual(Variant::Cube, 1.0, [1.0,1.0,1.0]),
+            Variant::Sphere=>create_visual(Variant::Sphere, 1.0, [1.0,1.0,1.0]),
             _=>todo!(),
           }
         }
@@ -409,7 +267,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                       match String::from(expr[1]).parse::<f32>(){
                         Ok(val)=>{
                           if val <= 1.0{
-                            set_screen_color(gl, [val,val,val]);
+                            set_screen_color(&gl, [val,val,val]);
                           }
                         },
                         Err(err)=>send_err("Invalid grayscale for the screen."),
@@ -419,7 +277,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                   if rgb.is_match(expr[1]){
                     let channels = floats_from(expr[1]);
                     match channels{
-                      Ok(val)=>set_screen_color(gl, [val[0], val[1], val[2]]),
+                      Ok(val)=>set_screen_color(&gl, [val[0], val[1], val[2]]),
                       Err(err)=>send_err(err),
                     }
                   } else {
@@ -435,7 +293,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                     match String::from(expr[1]).parse::<f32>(){
                       Ok(val)=>{
                         if val <= 1.0{
-                          create_visual(gl, Variant::Cube, val, [1.0,1.0,1.0]);
+                          create_visual(Variant::Cube, val, [1.0,1.0,1.0]);
                         } else {
                           send_err("Radius must not be greater than 1.")
                         }
@@ -449,7 +307,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                   let color = rgb.find(w);
                   if color != None {
                    let channels = floats_from(expr[1]).unwrap();
-                   create_visual(gl, Variant::Cube, 1.0, [channels[0],channels[1],channels[2]]);
+                   create_visual(Variant::Cube, 1.0, [channels[0],channels[1],channels[2]]);
                   } else {
                   send_err("Invalid rgb for the object.");
                   }
@@ -463,7 +321,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
                     match String::from(expr[1]).parse::<f32>(){
                     Ok(val)=>{
                       if val <= 1.0{
-                        create_visual(gl, Variant::Sphere, val, [1.0,1.0,1.0]);
+                        create_visual(Variant::Sphere, val, [1.0,1.0,1.0]);
                       } else {
                         send_err("Radius must not be greater than 1.")
                       }
@@ -476,7 +334,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
               } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
                 if rgb.is_match(expr[1]) {
                   let channels = floats_from(expr[1]).unwrap();
-                  create_visual(gl, Variant::Sphere, 1.0, [channels[0],channels[1],channels[2]]);
+                  create_visual(Variant::Sphere, 1.0, [channels[0],channels[1],channels[2]]);
                 } else {
                 send_err("Invalid rgb for the object.");
                 }
@@ -502,7 +360,7 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
         }
       }
 
-      pub fn interpret(input: &str, gl_ctx: &WebGl2RenderingContext, audio: &AudioContext){
+      pub fn interpret(input: &str, audio: &AudioContext){
       //at first, the error log must be cleaned
       send_err("");
       //individual words of the expression
@@ -511,24 +369,13 @@ fn create_visual(gl: &WebGl2RenderingContext, shape: Variant, range: f32, color:
 
         if medium() != Medium::Unknown {
           match medium(){
-            Medium::Visuals=>prepare_visual(&input, &gl_ctx),
+            Medium::Visuals=>prepare_visual(&input),
             Medium::Audio=>prepare_audio(&input, &audio),
-            Medium::Mixed=>prepare_mixed(&input, &gl_ctx, &audio),
-            Medium::Effect=>prepare_effect(&input, &gl_ctx),
+            Medium::Mixed=>prepare_mixed(&input, &audio),
+            Medium::Effect=>prepare_effect(&input),
             _=>todo!(),
           }
         } else {
           send_err("Unknown media.");
         }
      }
-     pub fn set(code: String, gl: WebGl2RenderingContext, audio: AudioContext){
-     set_viewport();
-    if code.contains(';'){
-      let exprs = code.split(';');
-      for expr in exprs{
-       interpret(expr, &gl, &audio);
-      }
-    } else {
-      interpret(&*code, &gl, &audio);
-    }
-    }

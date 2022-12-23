@@ -51,12 +51,16 @@ use regex::Regex;
       Multiplication
     }
     #[derive(PartialEq)]
+    #[derive(Copy)]
+    #[derive(Clone)]
   pub enum Channel{
       Red,
       Green,
       Blue
   }
   #[derive(PartialEq)]
+  #[derive(Copy)]
+ #[derive(Clone)]
   pub enum Sound{
   Lo,
   Mid,

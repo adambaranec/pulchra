@@ -1,7 +1,7 @@
 use web_sys::*;
 use js_sys::Float32Array;
 use wasm_bindgen::JsCast;
-use crate::utils::primitives::enums::enums::{Channel,Sound};
+use crate::enums::enums::{Channel,Sound};
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
     context.clear_color(channels[0], channels[1], channels[2], 1.0);
     context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);

@@ -1,7 +1,6 @@
 use web_sys::*;
-use crate::utils::primitives::enums::enums::Sound;
-pub fn fft(audio: &AudioContext, sound: Sound)->f32{
-let analyser = AnalyserNode::new(audio).unwrap();
+use crate::enums::enums::Sound;
+pub fn fft(analyser: &AnalyserNode, sound: Sound)->f32{
 let freq_count = analyser.frequency_bin_count();
 let mut frequencies:Vec<f32> = vec![];
 let freq = analyser.get_float_frequency_data(&mut frequencies);

@@ -3,9 +3,9 @@ use wasm_bindgen::JsCast;
 use web_sys::*;
 use three_d::core::*;
 use three_d::renderer::*;
-use crate::utils::primitives::error::error::send_err;
-use crate::utils::primitives::enums::enums::{FnType,Variant,Param,Medium,Channel,Sound};
-use crate::utils::primitives::enums::enums::{get_variant,get_medium,get_param,get_sound};
+use crate::error::error::send_err;
+use crate::enums::enums::{FnType,Variant,Param,Medium,Channel,Sound};
+use crate::enums::enums::{get_variant,get_medium,get_param,get_sound};
 use crate::utils::webgl::program::create_program;
 use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_with_pos_normals, model_with_pos_indices_normals};
 use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices,sphere_normals};
@@ -15,6 +15,7 @@ use crate::utils::primitives::generate::matrices::view_projection;
 use crate::utils::render::viewport::set_viewport;
 use crate::utils::webgl::uniforms::animate_uniform;
 use crate::drawing::renderer::render;
+use crate::fft::fft_options::FftOptions;
 fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
   context.clear_color(channels[0], channels[1], channels[2], 1.0);
   context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -246,119 +247,62 @@ fn create_visual(shape: Variant, range: f32, color: [f32; 3]){
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
         let uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
+        let plus_minus_float = Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))").unwrap();
 
         let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
        .dyn_into::<HtmlCanvasElement>().unwrap();
         let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
          
-        if expr.len() == 1{
-          match get_variant(expr[0]){
-            Variant::Screen=>send_err("Missing grayscale or rgb for the screen."),
-            Variant::Cube=>create_visual(Variant::Cube, 1.0, [1.0,1.0,1.0]),
-            Variant::Sphere=>create_visual(Variant::Sphere, 1.0, [1.0,1.0,1.0]),
-            _=>todo!(),
-          }
+        let mut visual:Variant = Variant::Unknown;
+        let mut r:f32 = 0.0;
+        let mut color:[f32; 3] = [0.0,0.0,0.0];
+        let mut coords:Option<[f32; 2]> = None;
+        let mut rotation:Option<f64> = None;
+        let mut opts:Option<FftOptions> = None;
+        let variant = get_variant(expr[0]);
+
+        match variant{
+          Variant::Cube=>visual = Variant::Cube,
+          Variant::Sphere=>visual = Variant::Sphere,
+          Variant::Screen=>visual = Variant::Screen,
+          _=>send_err("Unknown media."),
         }
-        else if expr.len() == 2{
-            match get_variant(expr[0]){
-              Variant::Screen=>{
-                if Regex::new(r"screen (0.(\d+)|1|0)").unwrap().is_match(w){
-                    if range.is_match(expr[1]){
-                      match String::from(expr[1]).parse::<f32>(){
-                        Ok(val)=>{
-                          if val <= 1.0{
-                            set_screen_color(&gl, [val,val,val]);
-                          }
-                        },
-                        Err(err)=>send_err("Invalid grayscale for the screen."),
-                      }
-                    }
-                } else if Regex::new(r"screen rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
-                  if rgb.is_match(expr[1]){
-                    let channels = floats_from(expr[1]);
-                    match channels{
-                      Ok(val)=>set_screen_color(&gl, [val[0], val[1], val[2]]),
-                      Err(err)=>send_err(err),
-                    }
-                  } else {
-                    send_err("Invalid color function for the screen.");
-                  }
-                } else {
-                  send_err("Unknown parameters for the screen.");
-                }
-              },
-              Variant::Cube=>{
-                if Regex::new(r"cube (0.(\d+)|1|0)").unwrap().is_match(w){
-                  if range.is_match(expr[1]) {
-                    match String::from(expr[1]).parse::<f32>(){
-                      Ok(val)=>{
-                        if val <= 1.0{
-                          create_visual(Variant::Cube, val, [1.0,1.0,1.0]);
-                        } else {
-                          send_err("Radius must not be greater than 1.")
-                        }
-                      },
-                      Err(err)=>send_err("Invalid radius for the object."),
-                    }
-                  } else {
-                    send_err("Radius must not be greater than 1.");
-                  }
-                } else if Regex::new(r"cube rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
-                  let color = rgb.find(w);
-                  if color != None {
-                   let channels = floats_from(expr[1]).unwrap();
-                   create_visual(Variant::Cube, 1.0, [channels[0],channels[1],channels[2]]);
-                  } else {
-                  send_err("Invalid rgb for the object.");
-                  }
-                } else {
-                  send_err("Unknown parameters for the object.");
-                }
-              },
-              Variant::Sphere=>{ 
-                if Regex::new(r"sphere (0.(\d+)|1|0)").unwrap().is_match(w){
-                  if range.is_match(expr[1]) {
-                    match String::from(expr[1]).parse::<f32>(){
-                    Ok(val)=>{
-                      if val <= 1.0{
-                        create_visual(Variant::Sphere, val, [1.0,1.0,1.0]);
-                      } else {
-                        send_err("Radius must not be greater than 1.")
-                      }
-                    },
-                    Err(err)=>send_err("Invalid radius for the object."),
-                  }
-                } else {
-                  send_err("Radius must not be greater than 1.");
-                }
-              } else if Regex::new(r"sphere rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(w){
-                if rgb.is_match(expr[1]) {
-                  let channels = floats_from(expr[1]).unwrap();
-                  create_visual(Variant::Sphere, 1.0, [channels[0],channels[1],channels[2]]);
-                } else {
-                send_err("Invalid rgb for the object.");
-                }
-              } else {
-                send_err("Unknown parameters for the object.");
-              }},
-              _=>todo!(),
+
+        let mut inspect_colors = |word: &str| -> Result<[f32; 3], &'static str>{
+          if rgb.is_match(word){
+            let channels = floats_from(word).unwrap();
+            color = [channels[0],channels[1],channels[2]];
+            Ok(color)
+          } else if word == "red"{color = [1.0,0.0,0.0]; Ok(color)}
+          else if word == "green"{color = [0.0,1.0,0.0]; Ok(color)}
+          else if word == "blue"{color = [0.0,0.0,1.0]; Ok(color)}
+          else if word == "yellow"{color = [1.0,1.0,0.0]; Ok(color)}
+          else {
+            if variant != Variant::Screen{
+              send_err("Invalid radius for the object.");
+            } else {
+              send_err("Invalid grayscale for the screen.");
             }
-        }
-        else if expr.len() == 3{
-          match get_variant(expr[0]){
-           Variant::Cube=>{},
-           Variant::Sphere=>{},
-           _=>todo!(),
+            Err("error")
           }
-        } else if expr.len() > 2 || get_variant(expr[0]) == Variant::Screen{
-         send_err("Too many parameters for the screen.");
-        } else if expr.len() > 3 || get_variant(expr[0]) == Variant::Cube ||
-        get_variant(expr[0]) == Variant::Sphere{
-          send_err("Too many parameters for the object.");
-        } else {
-          todo!();
+        };
+        let mut inspect_range = |word: &str| -> Result<f32, &'static str>{
+          if range.is_match(word){
+            match String::from(word).parse::<f32>(){
+              Ok(val)=>r = val,
+              Err(err)=>todo!()
+            }
+            Ok(r)
+            } else {
+              Err("error")
+            }
+        };
+          
+        if variant != Variant::Unknown{
+          
         }
-      }
+          render(visual, r, color, coords, rotation, opts);
+        }
 
       pub fn interpret(input: &str, audio: &AudioContext){
       //at first, the error log must be cleaned

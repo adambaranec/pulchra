@@ -14,12 +14,21 @@
 <div id="pulchra">
   <div class="input-area">
     <textarea id="input" placeholder="Welcome to Pulchra!
-Just write e.g. sin 300" autofocus="true" rows="8"></textarea>
+Just write e.g. cube red" autofocus="true" rows="8"></textarea>
   </div>
   <div class="background">
     <canvas id="canvas"></canvas>
   </div>
 </div>
+<dialog>
+  <div class="up"><button id="close-dialog">x</button></div>
+  <div class="question">What would you like to record?</div>
+  <form id="form">
+    <input type="checkbox" name="video">Video</input>
+    <input type="checkbox" name="audio">Audio</input>
+    <input type="submit" value="Record"></input>
+  </form>
+</dialog>
 <footer><p id="error"></p></footer>
 </body>
 </html>

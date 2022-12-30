@@ -1,8 +1,7 @@
 use three_d::*;
-use web_sys::{HtmlCanvasElement,Window,AudioContext,AnalyserNode};
+use web_sys::HtmlCanvasElement;
 use wasm_bindgen::JsCast;
-use crate::enums::enums::{Variant,Sound,Channel};
-use crate::error::error::send_err;
+use crate::enums::enums::{Variant,Channel};
 use crate::fft::fft_options::FftOptions;
 use crate::fft::fft::fft;
 
@@ -26,6 +25,7 @@ let mut camera:Camera = Camera::new_perspective(
 );
 let light = DirectionalLight::new(&context, 0.5, Color::WHITE, &vec3(0.0,0.0,0.0));
 let mut mesh = Gm::new(Mesh::new(&context, &CpuMesh{..Default::default()}), ColorMaterial::default());
+let mut clear_state = ClearState{alpha: Some(1.0), ..Default::default()};
 match variant{
     Variant::Cube=>{
         mesh = Gm::new(Mesh::new(&context, &CpuMesh::cube()), ColorMaterial{color: Color::new_opaque((color[0] * 255.0) as u8,(color[1] * 255.0) as u8,(color[2] * 255.0) as u8), ..Default::default()});
@@ -41,11 +41,15 @@ if uv != None{
     mesh.set_transformation(Mat4::from_translation(Camera::position_at_uv_coordinates(&camera,(uv.unwrap()[0],uv.unwrap()[1]))));
  }
 if fft_op == None {
-    window.render_loop(move |mut frame_input: FrameInput|{
+    window.render_loop(move |frame_input: FrameInput|{
         camera.set_viewport(frame_input.viewport);   
-        frame_input.screen().render(&camera, &[&mesh], &[&light]);
-        if rotation != None {
-        mesh.set_transformation(Mat4::from_angle_x(radians((frame_input.accumulated_time * rotation.unwrap()) as f32)));
+        if variant != Variant::Screen{
+            frame_input.screen().render(&camera, &[&mesh], &[&light]);
+            if rotation != None {
+                mesh.set_transformation(Mat4::from_angle_x(radians((frame_input.accumulated_time * rotation.unwrap()) as f32)));
+                }
+        } else {
+            frame_input.screen().clear(ClearState::color(color[0],color[1],color[2],1.0));
         }
         FrameOutput::default()
     });  
@@ -54,8 +58,7 @@ let options = fft_op.unwrap();
 let analyser = options.analyser;
 let freq = options.sound;
 let chan = options.channel;
-let mut clear_state = ClearState{alpha: Some(1.0), ..Default::default()};
-   window.render_loop(move |mut frame_input: FrameInput|{
+   window.render_loop(move |frame_input: FrameInput|{
     camera.set_viewport(frame_input.viewport); 
     if variant != Variant::Screen{
         frame_input.screen().render(&camera, &[&mesh], &[&light]);
@@ -70,6 +73,7 @@ let mut clear_state = ClearState{alpha: Some(1.0), ..Default::default()};
          Channel::Blue=>{clear_state.blue = Some(fft(&analyser, freq))},
          _=>todo!(),
         }
+        frame_input.screen().clear(clear_state);
     }
     FrameOutput::default()
    });

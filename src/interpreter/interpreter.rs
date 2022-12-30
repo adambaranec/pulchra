@@ -1,28 +1,15 @@
 use regex::Regex;
 use wasm_bindgen::JsCast;
 use web_sys::*;
-use three_d::core::*;
-use three_d::renderer::*;
-use crate::error::error::send_err;
-use crate::enums::enums::{FnType,Variant,Param,Medium,Channel,Sound};
-use crate::enums::enums::{get_variant,get_medium,get_param,get_sound};
-use crate::utils::webgl::program::create_program;
-use crate::utils::webgl::models::{model_with_pos, model_with_pos_indices, model_with_pos_normals, model_with_pos_indices_normals};
-use crate::utils::primitives::generate::sphere::{sphere_vertices,sphere_indices,sphere_normals};
-use crate::utils::webgl::screen_fft::{screen_fft,screen_fft_all};
-use crate::utils::render::scissor::divide_canvas;
-use crate::utils::primitives::generate::matrices::view_projection;
-use crate::utils::render::viewport::set_viewport;
-use crate::utils::webgl::uniforms::animate_uniform;
+use crate::canvas::scissor::divide_canvas;
 use crate::drawing::renderer::render;
+use crate::error::error::send_err;
+use crate::enums::enums::{Variant,Medium};
+use crate::enums::enums::{get_variant,get_medium};
 use crate::fft::fft_options::FftOptions;
-fn set_screen_color(context: &WebGl2RenderingContext, channels: [f32; 3]){
-  context.clear_color(channels[0], channels[1], channels[2], 1.0);
-  context.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
-}
 fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
   let mut floats:Vec<f32> = vec![];
-  for float in Regex::new(r"((0\.[\d]+)|1|0)").unwrap().find_iter(word){
+  for float in Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))").unwrap().find_iter(word){
     match String::from(float.as_str()).parse::<f32>(){
       Ok(val)=>floats.push(val),
       Err(err)=>send_err("Invalid values, could not collect them."),
@@ -32,6 +19,7 @@ fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
     Err("There are no floats in this parameter.")
   } else {Ok(floats) }
 }
+/* ----- just a legacy function ----------
 fn analyze_func(word: &str) -> FnType{
   if Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgb;}
   else if Regex::new(r"rgba\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1),(0.(\d+)|1|0)\)").unwrap().is_match(word){return FnType::Rgba;}
@@ -39,17 +27,7 @@ fn analyze_func(word: &str) -> FnType{
   else if Regex::new(r"(?!.*(rgb|rgba|fft))").unwrap().is_match(word){return FnType::Unknown;}
   else {return FnType::NotFunction;}
   }
-fn create_visual(shape: Variant, range: f32, color: [f32; 3]){
-  match shape{
-            Variant::Cube=>{
-              
-              },
-            Variant::Sphere=>{
- 
-            },
-            _=>todo!(),
-           }  
-      }
+*/
       fn prepare_effect(w: &str){
         let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
         .dyn_into::<HtmlCanvasElement>().unwrap();
@@ -86,168 +64,164 @@ fn create_visual(shape: Variant, range: f32, color: [f32; 3]){
         .dyn_into::<HtmlCanvasElement>().unwrap();
          let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
       let expr:Vec<&str> = w.split_whitespace().collect();
-        if Regex::new(r"screen rgb\(((lo|mi|hi)|(0.(\d+)|1|0)),((lo|mi|hi)|(0.(\d+)|1|0)),((lo|mi|hi)|(0.(\d+)|1|0))\)").unwrap().is_match(w){
-          let param_regex = Regex::new(r"((lo|mi|hi)|(0.(\d+)|1|0))/g").unwrap();
-          let float_regex = Regex::new(r"(0.(\d+)|1|0)").unwrap();
-          let freq_regex = Regex::new(r"(lo|mi|hi)").unwrap();
-          let mut param_index = -1;
-          let mut channels:[f32; 3] = [0.0,0.0,0.0];
-          for param in param_regex.find_iter(w){
-           param_index += 1;
-           if float_regex.is_match(param.as_str()){
-           let channel = String::from(param.as_str()).parse::<f32>();
-           match param_index{
-             0=>{channels[0] = channel.unwrap()},
-             1=>{channels[1] = channel.unwrap()},
-             2=>{channels[2] = channel.unwrap()},
-             _=>todo!(),
-           }
-           } else if freq_regex.is_match(param.as_str()){
-           match param_index{
-             0=>screen_fft(&gl, audio, Channel::Red, get_sound(param.as_str()), 1.0),
-             1=>screen_fft(&gl, audio, Channel::Green, get_sound(param.as_str()), 1.0),
-             2=>screen_fft(&gl, audio, Channel::Blue, get_sound(param.as_str()), 1.0),
-             _=>todo!(),
-           }
-           } else {
-             send_err("Unknown parameters for the screen.");
-           }
-          }
-      } else if Regex::new(r"screen (lo|mi|hi)").unwrap().is_match(w){
-        screen_fft_all(&gl, audio, get_sound(expr[1]), 1.0);
-      }
+      let analyser = AnalyserNode::new(audio).unwrap();
     }
-      fn create_osc(audio_context: &AudioContext, wave: Variant, freq: f32, gain: f32){
-        let gain_node = GainNode::new(&audio_context).unwrap();
-        gain_node.gain().set_value(gain);
-        let osc = OscillatorNode::new(&audio_context).unwrap();
-        osc.frequency().set_value(freq);
-        match wave{
-        Variant::SinOsc=>osc.set_type(OscillatorType::Sine),
-        Variant::SawOsc=>osc.set_type(OscillatorType::Sawtooth),
-        Variant::SqrOsc=>osc.set_type(OscillatorType::Square),
-        Variant::TriOsc=>osc.set_type(OscillatorType::Triangle),
-        _=>todo!(),
-        }
-        osc.connect_with_audio_node(&gain_node);
-        gain_node.connect_with_audio_node(&audio_context.destination());
-        osc.start();
-        }
-    
-        fn create_noise(ctx: &AudioContext, gain: f32){
-          /*use rand::prelude::*;
-          let ctx = AudioContext::new().unwrap();
-          let gain_node = GainNode::new(&ctx).unwrap();
-          gain_node.gain().set_value(gain);
-          let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * ctx.sample_rate() as u32, ctx.sample_rate())).unwrap();
-          let mut output:Vec<f32> = noise_buf.get_channel_data(0).unwrap();
-          for mut val in output{
-           val = rand::thread_rng().gen::<f32>() - gain * 2.0;
+      fn prepare_audio(w: &str, audio: &AudioContext){
+        let expr:Vec<&str> = w.split_whitespace().collect();
+        let freq_regex = Regex::new(r"[\d]+\.[\d]+|[\d]+").unwrap();
+        let gain_regex = Regex::new(r"((0.(\d+)|1|0)").unwrap();
+        let pan_regex = Regex::new(r"\[(((0.(\d+)|1|0))|(l)|(c)|(r))\]").unwrap();
+        let variant = get_variant(expr[0]);
+
+        let gain = GainNode::new(audio).unwrap();
+        let panner = StereoPannerNode::new(audio).unwrap();
+
+        let inspect_freq = |word: &str| -> Result<f32, &'static str>{
+          if freq_regex.is_match(word){
+            match String::from(word).parse::<f32>(){
+             Ok(val)=>return Ok(val),
+             Err(err)=>match String::from(word).parse::<u16>(){
+                  Ok(val)=>return Ok(val as f32),
+                  Err(err)=>return Err("Invalid frequency argument.")
+                   }
+            }
+          } else {
+            Err("Unknown parameter for the oscillator.")
           }
-          let mut options = AudioBufferSourceOptions::new();
-          options.buffer(Some(&noise_buf));
-          options.loop_(true);
-          let buf_player = AudioBufferSourceNode::new_with_options(&ctx, &options).unwrap();
-          buf_player.start();*/
-        }
-    
-      fn create_audio(audio_context: &AudioContext, first_word: &str, freq: f32, gain: f32){
-        let variant = get_variant(first_word);
-        if variant != Variant::Unknown {
-          match variant{
-            Variant::SinOsc=>create_osc(audio_context, Variant::SinOsc, freq, gain),
-            Variant::SawOsc=>create_osc(audio_context, Variant::SawOsc, freq, gain),
-            Variant::SqrOsc=>create_osc(audio_context, Variant::SqrOsc, freq, gain),
-            Variant::TriOsc=>create_osc(audio_context, Variant::TriOsc, freq, gain),
-          _=>todo!(),
+        };
+
+        let inspect_gain = |word: &str| -> Result<f32, &'static str>{
+          let mut gainval:f32 = 0.0;
+          if gain_regex.is_match(word){
+          match String::from(word).parse::<f32>(){
+          Ok(val)=>{
+            gainval = val;
+            if gainval > 1.0{
+              Err("Gain must not be higher than 1.")
+            } else {
+              Ok(gainval)
+            }
+          },
+          Err(err)=>Err("Not a valid gain"),
           }
         } else {
-          send_err("Unknown oscillator.")
+          Err("error")
         }
-      }
-      fn prepare_audio(w: &str, audio: &AudioContext){
-        let words:Vec<&str> = w.split_whitespace().collect();
-        if words.len() == 1{
-          if get_variant(words[0]) != Variant::NoiseOsc{
-            send_err("Missing frequency for oscillator.");
+        };
+
+        let inspect_pan = |word: &str| -> Result<f32, &'static str>{
+          if pan_regex.is_match(word){
+             if word.contains("l"){Ok(0.0)}
+             else if word.contains("c"){Ok(0.5)}
+             else if word.contains("r"){Ok(1.0)}
+             else{
+              match floats_from(word){
+                Ok(val)=>{if val.len() == 0 {Err("Pan range is 0 - 1.")} else {
+                  Ok(val[0])
+                }
+                }
+                Err(err)=>Err("Invalid pan argument.")
+              }
+             }
           } else {
-            send_err("Missing gain for noise.");
+            Err("Invalid panorama.")
           }
+        };
+
+        if variant != Variant::Unknown{
+          if variant != Variant::NoiseOsc{
+            let oscillator = OscillatorNode::new(audio).unwrap();
+            match variant{
+              Variant::SinOsc=>oscillator.set_type(OscillatorType::Sine),
+              Variant::SqrOsc=>oscillator.set_type(OscillatorType::Square),
+              Variant::TriOsc=>oscillator.set_type(OscillatorType::Triangle),
+              Variant::SawOsc=>oscillator.set_type(OscillatorType::Sawtooth),
+              _=>todo!()
+             }
+             if expr.len() == 2{
+              gain.gain().set_value(1.0);
+              panner.pan().set_value(0.0);
+              match inspect_freq(expr[1]){
+                Ok(val)=>oscillator.frequency().set_value(val),
+                Err(err)=>send_err("Invalid frequency value."),
+              }
+            } else if expr.len() == 3{
+              match inspect_freq(expr[1]){
+                Ok(val)=>oscillator.frequency().set_value(val),
+                Err(err)=>send_err("Invalid frequency value."),
+              }
+              match inspect_gain(expr[2]){
+                Ok(val)=>gain.gain().set_value(val),
+                Err(err)=>match inspect_pan(expr[2]){
+                      Ok(val)=>panner.pan().set_value(val * 2.0 - 1.0),
+                      Err(err)=>send_err("Invalid second parameter. Only gain or pan is allowed"),
+                         }
+              }
+            } else if expr.len() == 4{
+              match inspect_freq(expr[1]){
+                Ok(val)=>oscillator.frequency().set_value(val),
+                Err(err)=>send_err("Invalid frequency value."),
+              }
+              match inspect_gain(expr[2]){
+                Ok(val)=>gain.gain().set_value(val),
+                Err(err)=>send_err("Invalid gain."),
+              }
+              match inspect_pan(expr[3]){
+                Ok(val)=>panner.pan().set_value(val * 2.0 - 1.0),
+                Err(err)=>send_err("Invalid pan."),
+              }
+            }
+            oscillator.connect_with_audio_node(&gain);
+            oscillator.connect_with_audio_node(&panner);
+            gain.connect_with_audio_node(&audio.destination());
+            panner.connect_with_audio_node(&audio.destination());
+            oscillator.start();
+          } else {
+            /*----------NOISE--------------*/
+            let mut painval:Option<f32> = None;
+            let mut gainval:Option<f32> = None;
+            if expr.len() == 2{
+              match inspect_gain(expr[1]){
+                Ok(g)=>{gain.gain().set_value(g); gainval = Some(g)},
+                Err(err)=>match inspect_pan(expr[1]){
+                      Ok(p)=>{panner.pan().set_value(p * 2.0 - 1.0); painval = Some(p)},
+                      Err(err)=>send_err("Invalid second parameter. Only gain or pan is allowed"),
+                         }
+              }
+            } else if expr.len() == 3{
+              match inspect_gain(expr[1]){
+                Ok(val)=>{gain.gain().set_value(val); gainval = Some(val)},
+                Err(err)=>send_err("Invalid gain.")
+              }
+              match inspect_pan(expr[2]){
+                Ok(val)=>{panner.pan().set_value(val * 2.0 - 1.0); painval = Some(val)},
+                Err(err)=>send_err("Invalid pan.")
+              }
+            }
+            if painval != None && gainval != None{
+              use rand::prelude::*;
+              let noise_buf = AudioBuffer::new(&AudioBufferOptions::new(2 * audio.sample_rate() as u32, audio.sample_rate())).unwrap();
+              let output:Vec<f32> = noise_buf.get_channel_data(0).unwrap();
+              for mut val in output{
+              val = rand::thread_rng().gen::<f32>() * gainval.unwrap() * 2.0 - 1.0;
+              }
+              let mut options = AudioBufferSourceOptions::new();
+              options.buffer(Some(&noise_buf));
+              options.loop_(true);
+              let buf_player = AudioBufferSourceNode::new_with_options(audio, &options).unwrap();
+              buf_player.start();
+            }
+          }
+        } else {
+          send_err("Unknown audio oscillator.");
         }
-        else if words.len() == 2{
-          if get_variant(words[0]) != Variant::NoiseOsc{
-            if Regex::new(r"([\d]+|[\d]+\.[\d]+)\*(0.(\d+)|1|0)").unwrap().is_match(words[1]){
-              let freq_result = Regex::new(r"[\d]+\.[\d]+|[\d]+").unwrap().find(w);
-              let gain_result = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap().find(w);
-              let mut freq:f32=0.0;
-              let mut gain:f32=0.0;
-              if freq_result != None && gain_result != None{
-                match String::from(freq_result.unwrap().as_str()).parse::<f32>(){
-                  Ok(val)=>{freq = val;},
-                  Err(err)=>send_err("Invalid frequency."),
-                }
-                match String::from(gain_result.unwrap().as_str()).parse::<f32>(){
-                  Ok(val)=>{
-                    if val <= 1.0{
-                      gain = val;
-                    } else {
-                      send_err("Invalid gain.");
-                    }
-                  },
-                  Err(err)=>send_err("Invalid gain."),
-                }
-                if freq != 0.0 && gain <= 1.0{
-                  create_audio(audio, words[0], freq, gain);
-                } else {
-                  send_err("Invalid oscillator.")
-                }
-              } else if freq_result != None && gain_result == None{
-                send_err("Gain must not be greater than 1.");
-              }
-            }
-            else if Regex::new(r"([\d]+|[\d]+\.[\d]+)").unwrap().is_match(words[1]){
-              let freq_result = Regex::new(r"[\d]+").unwrap().find(w);
-              let mut freq:f32=0.0;
-              match String::from(freq_result.unwrap().as_str()).parse::<f32>(){
-                Ok(val)=>{freq = val},
-                Err(err)=>send_err("Invalid frequency."),
-              }
-              if freq != 0.0{
-                create_audio(audio, words[0], freq, 1.0);
-              }
-              else{
-                send_err("Invalid oscillator. Frequency must be always greater than zero.");
-              }
-            }
-          } else {
-            if Regex::new(r"(0.(\d+)|1|0)").unwrap().is_match(words[1]){
-              let mut gain:f32=0.0;
-             match String::from(words[1]).parse::<f32>(){
-              Ok(val)=>{
-                if val <= 1.0{
-                gain = val;
-              } else {
-                send_err("Unknown parameters for the noise.");
-              }},
-              Err(err)=>send_err("Invalid gain."),
-             }
-             if gain != 0.0{
-              create_noise(audio, gain);
-             }
-            } else {
-             send_err("Unknown parameters for the noise.")
-            }
-          }
-          } else {
-            send_err("Too many parameters for audio.")
-          }
       }
       fn prepare_visual(w: &str){
         let expr:Vec<&str> = w.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
-        let uv = Regex::new(r"\[(0.(\d+)|1|0),(0.(\d+)|1|0)\]").unwrap();
-        let plus_minus_float = Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))").unwrap();
+        let uv = Regex::new(r"\[(((0.(\d+)|1|0))|\-(0.(\d+)|1|0)),(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\]").unwrap();
+        let rotate = Regex::new(r"rotate\((((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\)").unwrap();
 
         let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
        .dyn_into::<HtmlCanvasElement>().unwrap();
@@ -258,25 +232,22 @@ fn create_visual(shape: Variant, range: f32, color: [f32; 3]){
         let mut color:[f32; 3] = [0.0,0.0,0.0];
         let mut coords:Option<[f32; 2]> = None;
         let mut rotation:Option<f64> = None;
-        let mut opts:Option<FftOptions> = None;
         let variant = get_variant(expr[0]);
-
-        match variant{
-          Variant::Cube=>visual = Variant::Cube,
-          Variant::Sphere=>visual = Variant::Sphere,
-          Variant::Screen=>visual = Variant::Screen,
-          _=>send_err("Unknown media."),
-        }
 
         let mut inspect_colors = |word: &str| -> Result<[f32; 3], &'static str>{
           if rgb.is_match(word){
             let channels = floats_from(word).unwrap();
             color = [channels[0],channels[1],channels[2]];
             Ok(color)
-          } else if word == "red"{color = [1.0,0.0,0.0]; Ok(color)}
+          } 
+          else if word == "red"{color = [1.0,0.0,0.0]; Ok(color)}
           else if word == "green"{color = [0.0,1.0,0.0]; Ok(color)}
           else if word == "blue"{color = [0.0,0.0,1.0]; Ok(color)}
           else if word == "yellow"{color = [1.0,1.0,0.0]; Ok(color)}
+          else if word == "magenta"{color = [1.0,0.0,1.0]; Ok(color)}
+          else if word == "cyan"{color = [0.0,1.0,1.0]; Ok(color)}
+          else if word == "orange"{color = [1.0,0.5,0.0]; Ok(color)}
+          else if word == "pink"{color = [1.0,0.6,0.8]; Ok(color)}
           else {
             if variant != Variant::Screen{
               send_err("Invalid radius for the object.");
@@ -297,20 +268,139 @@ fn create_visual(shape: Variant, range: f32, color: [f32; 3]){
               Err("error")
             }
         };
+        let mut inspect_uv = |word: &str| -> Result<[f32; 2], &'static str>{
+          if uv.is_match(word){
+           let floats = floats_from(word).unwrap();
+           coords = Some([floats[0],floats[1]]);
+           Ok(coords.unwrap())
+          } else {
+            Err("error")
+          }
+        };
+        let mut inspect_rotate = |word: &str| -> Result<f64, &'static str>{
+        if rotate.is_match(word){
+          let speed = floats_from(word).unwrap();
+          rotation = Some(speed[0] as f64);
+          Ok(rotation.unwrap())
+        }
+        else {Err("error")}
+        };
+
+        match variant{
+          Variant::Cube=>visual = Variant::Cube,
+          Variant::Sphere=>visual = Variant::Sphere,
+          Variant::Screen=>visual = Variant::Screen,
+          _=>send_err("Unknown media."),
+        }
           
         if variant != Variant::Unknown{
-          
-        }
-          render(visual, r, color, coords, rotation, opts);
+          if variant != Variant::Screen{
+            /*---------- VARIANT - WHATEVER SHAPE ------------*/
+            if inspect_range(expr[1]) != Ok(r){ 
+              if inspect_colors(expr[1]) != Ok(color){
+
+              } else { /*IF COLOR PASSES AS FIRST PARAMETER - BEGINNING*/
+                if expr.len() == 3{
+                  render(visual, 1.0, color, None, None, None);
+                } else if expr.len() == 3{
+                  /*ONE PARAMETER*/
+                  if inspect_uv(expr[2]) != Ok(coords.unwrap()){
+                 /*IF UV PARAMETER PASSES AS SECOND PARAMETER - BEGINNING*/
+                    if inspect_rotate(expr[2]) != Ok(rotation.unwrap()){
+                    /*IF ROTATION PARAMETER PASSES AS SECOND - BEGINNING*/
+                     send_err("Invalid second argument. Only UV or rotation is allowed.");
+                  } else {
+                      render(visual, 1.0, color, None, rotation, None);
+                  }  /*IF ROTATION PARAMETER PASSES AS SECOND - ENDING*/
+              } else {
+                render(visual, 1.0, color, coords, None, None);
+              } /*IF UV PARAMETER PASSES AS SECOND PARAMETER - ENDING*/
+            } else if expr.len() == 4{
+              /*TWO PARAMETERS*/
+            }
+           } /*IF COLOR PASSES AS FIRST PARAMETER - ENDING*/
+           } else { /*IF RANGE PASSES AS FIRST PARAMETER - BEGINNING*/
+              if expr.len() == 2{
+                render(visual, 1.0, [1.0,1.0,1.0], None, None, None);
+              } else if expr.len() == 3{ 
+                /*---------ONE PARAMETER----------*/
+                if inspect_colors(expr[2]) != Ok(color){
+                 /*IF COLOR PARAMETER PASSES AS SECOND PARAMETER - BEGINNING*/
+                   if inspect_uv(expr[2]) != Ok(coords.unwrap()){
+                   /*IF UV PARAMETER PASSES AS SECOND PARAMETER - BEGINNING*/
+                     if inspect_rotate(expr[2]) != Ok(rotation.unwrap()){
+                      /*IF ROTATION PARAMETER PASSES AS SECOND - BEGINNING*/
+                      send_err("Invalid parameter. Color, coordinations or rotation are allowed.");
+                     } else {
+                       render(visual, r, [1.0,1.0,1.0], None, rotation, None);
+                     } /*IF ROTATION PARAMETER PASSES AS SECOND - ENDING*/
+                   } else {
+                     render(visual, r, [1.0,1.0,1.0], coords, None, None);
+                   }
+                    /*IF UV PARAMETER PASSES AS SECOND PARAMETER - ENDING*/
+                } else {
+                  render(visual, r, color, None, None, None);
+                } /*IF COLOR PARAMETER PASSES AS SECOND PARAMETER - ENDING*/
+                /*---------ONE PARAMETER----------ENDING*/
+              } else if expr.len() == 5{
+               /*THREE PARAMETERS*/
+               if inspect_colors(expr[2]) != Ok(color){
+               /*IF COLOR PASSES AS SECOND PARAMETER - BEGINNING*/
+                send_err("Invalid second argument. Only color allowed.");
+               } else{
+                /*IF UV PASSES AS THIRD PARAMETER - BEGINNING*/
+                 if inspect_uv(expr[3]) != Ok(coords.unwrap()){
+                 /*IF ROTATION PASSES AS FOURTH PARAMETER - BEGINNING */
+                   send_err("Invalid third argument. Only UV allowed.");
+                 } else {
+                   if inspect_rotate(expr[4]) != Ok(rotation.unwrap()){
+                    send_err("Invalid fourth argument. Only rotation allowed.");
+                   } else{
+                    render(visual, r, color, coords, rotation, None);
+                   }/*IF ROTATION PASSES AS FOURTH PARAMETER - ENDING */
+                 }/*IF UV PASSES AS THIRD PARAMETER - ENDING*/
+               } /*IF COLOR PASSES AS SECOND PARAMETER - ENDING*/
+              } else if expr.len() == 4{
+                /*TWO PARAMETERS*/
+                if inspect_colors(expr[2]) != Ok(color){
+                /*IF COLOR PASSES AS SECOND PARAMETER - BEGINNING*/
+                }else{
+                  /*IF UV OR ROTATION PASS AS THIRD PARAMETER - BEGINNING*/
+                  if inspect_uv(expr[3]) == Ok(coords.unwrap()){
+                   render(visual, r, color, coords, None, None);
+                  }
+                  else if inspect_rotate(expr[3]) == Ok(rotation.unwrap()){
+                   render(visual, r, color, None, rotation, None);
+                  }
+                  else{send_err("Invalid parameter.");}
+                  /*IF UV OR ROTATION PASS AS THIRD PARAMETER - ENDING*/
+                }/*IF COLOR PASSES AS SECOND PARAMETER - ENDING*/
+              }
+            }/*IF RANGE PASSES AS FIRST PARAMETER - ENDING*/
+          }
+          /*---------------VARIANT: SCREEN---------------------*/
+            } else {
+             if expr.len() == 2{
+              if inspect_range(expr[1]) != Ok(r){
+                if inspect_colors(expr[1]) != Ok(color){
+                } else {
+                  render(visual, 0.0, color, None, None, None);
+                }
+              } else {
+                render(visual, 0.0, [r,r,r], None, None, None);
+              }
+             } else if expr.len() == 1{
+              send_err("Missing grayscale or color for the screen.");
+             } else {
+              send_err("Too many parameters for the screen.");
+             }
+          }
         }
 
       pub fn interpret(input: &str, audio: &AudioContext){
       //at first, the error log must be cleaned
       send_err("");
-      //individual words of the expression
-      let words:Vec<&str> = input.split_whitespace().collect();
       let medium = || -> Medium {get_medium(input)};
-
         if medium() != Medium::Unknown {
           match medium(){
             Medium::Visuals=>prepare_visual(&input),

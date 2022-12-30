@@ -1,17 +1,16 @@
 use wasm_bindgen::prelude::*;
-use web_sys::{WebGl2RenderingContext, AudioContext, Window};
-use js_sys::{Object, Function};
+use web_sys::{WebGl2RenderingContext, AudioContext};
 
-pub mod utils;
+pub mod canvas;
 pub mod drawing;
-pub mod fft;
-pub mod interpreter;
 pub mod enums;
 pub mod error;
+pub mod fft;
+pub mod interpreter;
 
 #[wasm_bindgen]
 pub fn start(gl: WebGl2RenderingContext){
-utils::webgl::startup::start(&gl);
+drawing::startup::start(&gl);
 }
 #[wasm_bindgen]
 pub fn set(mut code: String, audio: AudioContext){

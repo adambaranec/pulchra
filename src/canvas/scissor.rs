@@ -9,7 +9,6 @@ pub fn divide_canvas(gl: &WebGl2RenderingContext, rows: u16, columns: u16){
         let scissor_height = height.unwrap() as i32 / columns as i32;
         for c in 0..columns-1{
             for r in 0..rows-1{
-            gl.viewport(scissor_width * r as i32, scissor_height * c as i32, scissor_width, scissor_height);
             gl.scissor(scissor_width * r as i32, scissor_height * c as i32, scissor_width, scissor_height);
             }
         }

@@ -1,5 +1,5 @@
-use web_sys::*;
-use three_d::core::*;
+use three_d::core::{Viewport,Camera};
+use three_d::{vec3,degrees};
 pub fn set_viewport(){
     let web_window = web_sys::window().unwrap();          
       let viewport = Viewport{

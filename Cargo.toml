@@ -3,6 +3,7 @@ name = "pulchra"
 authors = ["Adam Baranec"]
 version = "0.1.0"
 edition = "2021"
+description = "Live coding environment for 3D art"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
@@ -38,6 +39,7 @@ features = [
   'HtmlCanvasElement',
   'HtmlTextAreaElement',
   'Node',
+  'StereoPannerNode',
   'WebGlProgram',
   'WebGl2RenderingContext',
   'WebGlShader',

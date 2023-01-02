@@ -35,6 +35,7 @@ match variant{
         mesh = Gm::new(Mesh::new(&context, &CpuMesh::sphere(30)), ColorMaterial{color: Color::new_opaque((color[0] * 255.0) as u8,(color[1] * 255.0) as u8,(color[2] * 255.0) as u8), ..Default::default()});
         mesh.set_transformation(Mat4::from_scale(range));
     },
+    Variant::Screen=>{clear_state.red = Some(color[0]); clear_state.green = Some(color[1]); clear_state.blue = Some(color[2]);},
     _=>{},
         }
 if uv != None{
@@ -49,7 +50,7 @@ if fft_op == None {
                 mesh.set_transformation(Mat4::from_angle_x(radians((frame_input.accumulated_time * rotation.unwrap()) as f32)));
                 }
         } else {
-            frame_input.screen().clear(ClearState::color(color[0],color[1],color[2],1.0));
+            frame_input.screen().clear(clear_state);
         }
         FrameOutput::default()
     });  

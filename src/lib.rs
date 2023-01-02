@@ -14,7 +14,7 @@ drawing::startup::start(&gl);
 }
 #[wasm_bindgen]
 pub fn set(mut code: String, audio: AudioContext){
-    if code.contains(';'){
+   if code.contains(';'){
       if code.chars().last().unwrap() == ';'{
         code.pop();
       }

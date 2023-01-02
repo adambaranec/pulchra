@@ -20,13 +20,20 @@ Just write e.g. cube red" autofocus="true" rows="8"></textarea>
     <canvas id="canvas"></canvas>
   </div>
 </div>
-<dialog>
+<dialog id="dialog">
   <div class="up"><button id="close-dialog">x</button></div>
   <div class="question">What would you like to record?</div>
   <form id="form">
     <input type="checkbox" name="video">Video</input>
     <input type="checkbox" name="audio">Audio</input>
     <input type="submit" value="Record"></input>
+  </form>
+</dialog>
+<dialog id="dialog2">
+  <div class="up"><button id="close-dialog-2">x</button></div>
+  <div class="title"><h1>Save as:</h1></div>
+  <form>
+    <input type="text" name="filename" id="filename"></input>
   </form>
 </dialog>
 <footer><p id="error"></p></footer>

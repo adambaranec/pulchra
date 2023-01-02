@@ -69,6 +69,7 @@ fn analyze_func(word: &str) -> FnType{
       fn prepare_audio(w: &str, audio: &AudioContext){
         let expr:Vec<&str> = w.split_whitespace().collect();
         let freq_regex = Regex::new(r"[\d]+\.[\d]+|[\d]+").unwrap();
+        let note_regex = Regex::new(r"((c|d|e|f|g|a|b)(\d)|(c|d|e|f|g|a|b)(#|b)(\d))").unwrap();
         let gain_regex = Regex::new(r"((0.(\d+)|1|0)").unwrap();
         let pan_regex = Regex::new(r"\[(((0.(\d+)|1|0))|(l)|(c)|(r))\]").unwrap();
         let variant = get_variant(expr[0]);
@@ -81,7 +82,7 @@ fn analyze_func(word: &str) -> FnType{
             match String::from(word).parse::<f32>(){
              Ok(val)=>return Ok(val),
              Err(err)=>match String::from(word).parse::<u16>(){
-                  Ok(val)=>return Ok(val as f32),
+                  Ok(freq)=>return Ok(freq as f32),
                   Err(err)=>return Err("Invalid frequency argument.")
                    }
             }
@@ -223,9 +224,9 @@ fn analyze_func(word: &str) -> FnType{
         let uv = Regex::new(r"\[(((0.(\d+)|1|0))|\-(0.(\d+)|1|0)),(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\]").unwrap();
         let rotate = Regex::new(r"rotate\((((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\)").unwrap();
 
-        let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
-       .dyn_into::<HtmlCanvasElement>().unwrap();
-        let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
+        //let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
+      // .dyn_into::<HtmlCanvasElement>().unwrap();
+        //let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
          
         let mut visual:Variant = Variant::Unknown;
         let mut r:f32 = 0.0;
@@ -234,20 +235,25 @@ fn analyze_func(word: &str) -> FnType{
         let mut rotation:Option<f64> = None;
         let variant = get_variant(expr[0]);
 
-        let mut inspect_colors = |word: &str| -> Result<[f32; 3], &'static str>{
+        let mut inspect_color = |word: &str| -> Result<[f32; 3], &'static str>{
           if rgb.is_match(word){
             let channels = floats_from(word).unwrap();
-            color = [channels[0],channels[1],channels[2]];
-            Ok(color)
+            Ok([channels[0],channels[1],channels[2]])
           } 
-          else if word == "red"{color = [1.0,0.0,0.0]; Ok(color)}
-          else if word == "green"{color = [0.0,1.0,0.0]; Ok(color)}
-          else if word == "blue"{color = [0.0,0.0,1.0]; Ok(color)}
-          else if word == "yellow"{color = [1.0,1.0,0.0]; Ok(color)}
-          else if word == "magenta"{color = [1.0,0.0,1.0]; Ok(color)}
-          else if word == "cyan"{color = [0.0,1.0,1.0]; Ok(color)}
-          else if word == "orange"{color = [1.0,0.5,0.0]; Ok(color)}
-          else if word == "pink"{color = [1.0,0.6,0.8]; Ok(color)}
+          else if word == "red"{Ok([1.0,0.0,0.0])}
+          else if word == "green"{Ok([0.0,1.0,0.0])}
+          else if word == "blue"{Ok([0.0,0.0,1.0])}
+          else if word == "yellow"{Ok([1.0,1.0,0.0])}
+          else if word == "magenta"{Ok([1.0,0.0,1.0])}
+          else if word == "cyan"{Ok([0.0,1.0,1.0])}
+          else if word == "orange"{Ok([1.0,0.45,0.0])}
+          else if word == "pink"{Ok([1.0,0.6,0.8])}
+          else if word == "purple"{Ok([0.2,0.0,0.5])}
+          else if word == "brown"{Ok([0.3,0.2,0.1])}
+          else if word == "beige"{Ok([0.5,0.4,0.3])}
+          else if word == "black"{Ok([0.0,0.0,0.0])}
+          else if word == "white"{Ok([1.0,1.0,1.0])}
+          else if word == "gray" || word == "grey"{Ok([0.3,0.3,0.3])}
           else {
             if variant != Variant::Screen{
               send_err("Invalid radius for the object.");
@@ -257,22 +263,21 @@ fn analyze_func(word: &str) -> FnType{
             Err("error")
           }
         };
+
         let mut inspect_range = |word: &str| -> Result<f32, &'static str>{
           if range.is_match(word){
             match String::from(word).parse::<f32>(){
-              Ok(val)=>r = val,
-              Err(err)=>todo!()
+              Ok(val)=>Ok(val),
+              Err(err)=>Err("Error in parsing range.")
             }
-            Ok(r)
             } else {
-              Err("error")
+              Err("Error")
             }
         };
         let mut inspect_uv = |word: &str| -> Result<[f32; 2], &'static str>{
           if uv.is_match(word){
            let floats = floats_from(word).unwrap();
-           coords = Some([floats[0],floats[1]]);
-           Ok(coords.unwrap())
+           Ok([floats[0],floats[1]])
           } else {
             Err("error")
           }
@@ -280,8 +285,7 @@ fn analyze_func(word: &str) -> FnType{
         let mut inspect_rotate = |word: &str| -> Result<f64, &'static str>{
         if rotate.is_match(word){
           let speed = floats_from(word).unwrap();
-          rotation = Some(speed[0] as f64);
-          Ok(rotation.unwrap())
+          Ok(speed[0] as f64)
         }
         else {Err("error")}
         };
@@ -292,110 +296,119 @@ fn analyze_func(word: &str) -> FnType{
           Variant::Screen=>visual = Variant::Screen,
           _=>send_err("Unknown media."),
         }
-          
-        if variant != Variant::Unknown{
-          if variant != Variant::Screen{
-            /*---------- VARIANT - WHATEVER SHAPE ------------*/
-            if inspect_range(expr[1]) != Ok(r){ 
-              if inspect_colors(expr[1]) != Ok(color){
 
-              } else { /*IF COLOR PASSES AS FIRST PARAMETER - BEGINNING*/
-                if expr.len() == 3{
-                  render(visual, 1.0, color, None, None, None);
-                } else if expr.len() == 3{
-                  /*ONE PARAMETER*/
-                  if inspect_uv(expr[2]) != Ok(coords.unwrap()){
-                 /*IF UV PARAMETER PASSES AS SECOND PARAMETER - BEGINNING*/
-                    if inspect_rotate(expr[2]) != Ok(rotation.unwrap()){
-                    /*IF ROTATION PARAMETER PASSES AS SECOND - BEGINNING*/
-                     send_err("Invalid second argument. Only UV or rotation is allowed.");
-                  } else {
-                      render(visual, 1.0, color, None, rotation, None);
-                  }  /*IF ROTATION PARAMETER PASSES AS SECOND - ENDING*/
-              } else {
-                render(visual, 1.0, color, coords, None, None);
-              } /*IF UV PARAMETER PASSES AS SECOND PARAMETER - ENDING*/
-            } else if expr.len() == 4{
-              /*TWO PARAMETERS*/
-            }
-           } /*IF COLOR PASSES AS FIRST PARAMETER - ENDING*/
-           } else { /*IF RANGE PASSES AS FIRST PARAMETER - BEGINNING*/
-              if expr.len() == 2{
-                render(visual, 1.0, [1.0,1.0,1.0], None, None, None);
-              } else if expr.len() == 3{ 
-                /*---------ONE PARAMETER----------*/
-                if inspect_colors(expr[2]) != Ok(color){
-                 /*IF COLOR PARAMETER PASSES AS SECOND PARAMETER - BEGINNING*/
-                   if inspect_uv(expr[2]) != Ok(coords.unwrap()){
-                   /*IF UV PARAMETER PASSES AS SECOND PARAMETER - BEGINNING*/
-                     if inspect_rotate(expr[2]) != Ok(rotation.unwrap()){
-                      /*IF ROTATION PARAMETER PASSES AS SECOND - BEGINNING*/
-                      send_err("Invalid parameter. Color, coordinations or rotation are allowed.");
-                     } else {
-                       render(visual, r, [1.0,1.0,1.0], None, rotation, None);
-                     } /*IF ROTATION PARAMETER PASSES AS SECOND - ENDING*/
-                   } else {
-                     render(visual, r, [1.0,1.0,1.0], coords, None, None);
-                   }
-                    /*IF UV PARAMETER PASSES AS SECOND PARAMETER - ENDING*/
-                } else {
-                  render(visual, r, color, None, None, None);
-                } /*IF COLOR PARAMETER PASSES AS SECOND PARAMETER - ENDING*/
-                /*---------ONE PARAMETER----------ENDING*/
-              } else if expr.len() == 5{
-               /*THREE PARAMETERS*/
-               if inspect_colors(expr[2]) != Ok(color){
-               /*IF COLOR PASSES AS SECOND PARAMETER - BEGINNING*/
-                send_err("Invalid second argument. Only color allowed.");
-               } else{
-                /*IF UV PASSES AS THIRD PARAMETER - BEGINNING*/
-                 if inspect_uv(expr[3]) != Ok(coords.unwrap()){
-                 /*IF ROTATION PASSES AS FOURTH PARAMETER - BEGINNING */
-                   send_err("Invalid third argument. Only UV allowed.");
-                 } else {
-                   if inspect_rotate(expr[4]) != Ok(rotation.unwrap()){
-                    send_err("Invalid fourth argument. Only rotation allowed.");
-                   } else{
-                    render(visual, r, color, coords, rotation, None);
-                   }/*IF ROTATION PASSES AS FOURTH PARAMETER - ENDING */
-                 }/*IF UV PASSES AS THIRD PARAMETER - ENDING*/
-               } /*IF COLOR PASSES AS SECOND PARAMETER - ENDING*/
-              } else if expr.len() == 4{
-                /*TWO PARAMETERS*/
-                if inspect_colors(expr[2]) != Ok(color){
-                /*IF COLOR PASSES AS SECOND PARAMETER - BEGINNING*/
-                }else{
-                  /*IF UV OR ROTATION PASS AS THIRD PARAMETER - BEGINNING*/
-                  if inspect_uv(expr[3]) == Ok(coords.unwrap()){
-                   render(visual, r, color, coords, None, None);
+          if variant != Variant::Unknown{
+            if variant != Variant::Screen{
+             /*---------- VARIANT - WHATEVER SHAPE ------------*/
+             if expr.len() == 1 { render(visual, 1.0, [1.0,1.0,1.0], None, None, None); }
+             else if expr.len() == 2 {
+              match inspect_range(expr[1]){
+                Ok(val)=>{r = val; render(visual, r, color, None, None, None);},
+                Err(err)=>{
+                  match inspect_color(expr[1]){
+                    Ok(val)=>{color = val; render(visual, 1.0, color, None, None, None);},
+                    Err(err)=>send_err("Invalid second parameter. Only radius or color are allowed."),
                   }
-                  else if inspect_rotate(expr[3]) == Ok(rotation.unwrap()){
-                   render(visual, r, color, None, rotation, None);
-                  }
-                  else{send_err("Invalid parameter.");}
-                  /*IF UV OR ROTATION PASS AS THIRD PARAMETER - ENDING*/
-                }/*IF COLOR PASSES AS SECOND PARAMETER - ENDING*/
+                },
               }
-            }/*IF RANGE PASSES AS FIRST PARAMETER - ENDING*/
-          }
-          /*---------------VARIANT: SCREEN---------------------*/
-            } else {
-             if expr.len() == 2{
-              if inspect_range(expr[1]) != Ok(r){
-                if inspect_colors(expr[1]) != Ok(color){
-                } else {
-                  render(visual, 0.0, color, None, None, None);
-                }
-              } else {
-                render(visual, 0.0, [r,r,r], None, None, None);
-              }
-             } else if expr.len() == 1{
-              send_err("Missing grayscale or color for the screen.");
-             } else {
-              send_err("Too many parameters for the screen.");
              }
+             else if expr.len() == 3 {
+              match inspect_range(expr[1]){
+                Ok(val)=>{r = val;
+                  match inspect_uv(expr[2]){
+                    Ok(c)=>{coords = Some(c); render(visual, r, [1.0,1.0,1.0], coords, None, None);},
+                    Err(err)=>{
+                      match inspect_rotate(expr[2]){
+                        Ok(rot)=>{rotation = Some(rot); render(visual, r, [1.0,1.0,1.0], None, rotation, None);},
+                        Err(err)=>send_err("Invalid second parameter. Only UV or rotation allowed."),
+                      }
+                    },
+                  }
+                },
+                Err(err)=>{
+                  match inspect_color(expr[1]){
+                    Ok(val)=>{color = val;
+                      match inspect_uv(expr[2]){
+                        Ok(c)=>{coords = Some(c); render(visual, 1.0, color, coords, None, None);},
+                        Err(err)=>{
+                          match inspect_rotate(expr[2]){
+                            Ok(rot)=>{rotation = Some(rot); render(visual, r, color, None, rotation, None);},
+                            Err(err)=>send_err("Invalid second parameter. Only UV or rotation allowed."),
+                          }
+                        },
+                      }
+                    },
+                    Err(err)=>send_err("Invalid first parameter. Cannot proceed further."),
+                  }
+                },
+              }
+             }
+             else if expr.len() == 4 {
+              let mut first:Option<f32> = None;
+              let mut second:Option<[f32; 3]> = None; 
+              match inspect_range(expr[1]){
+                Ok(val)=>first = Some(val),
+                Err(err)=>send_err("To proceed, the first parameter must be a radius."),
+              }
+              match inspect_color(expr[2]){
+                Ok(val)=>second = Some(val),
+                Err(err)=>send_err("To proceed, the second parameter must be a color."),
+              }
+              if first != None && second != None{
+                match inspect_uv(expr[3]){
+                  Ok(val)=>{coords = Some(val); render(visual, first.unwrap(), second.unwrap(), coords, None, None);},
+                  Err(err)=>{
+                    match inspect_rotate(expr[3]){
+                      Ok(val)=>{rotation = Some(val); render(visual, first.unwrap(), second.unwrap(), None, rotation, None);},
+                      Err(err)=>send_err("Invalid third parameter. Only UV or rotation allowed."),
+                    }
+                  },
+                }
+              }
+             }
+             else if expr.len() == 5 {
+              let mut first:Option<f32> = None;
+              let mut second:Option<[f32; 3]> = None;
+              let mut third:Option<[f32; 2]> = None;
+              let mut fourth:Option<f64> = None;
+              match inspect_range(expr[1]){
+               Ok(val)=>first = Some(val),
+               Err(err)=>send_err("To proceed, the first parameter must be a radius."),
+              }
+              match inspect_color(expr[2]){
+               Ok(val)=>second = Some(val),
+               Err(err)=>send_err("To proceed, the second parameter must be a color."),
+              }
+              match inspect_uv(expr[3]){
+               Ok(val)=>third = Some(val),
+               Err(err)=>send_err("To proceed, the third parameter must be UV coordinates."),
+              }
+              match inspect_rotate(expr[4]){
+               Ok(val)=>fourth = Some(val),
+               Err(err)=>send_err("To proceed, the fourth parameter must be rotation speed."),
+              }
+              if first != None && second != None && third != None && fourth != None{
+                render(visual, first.unwrap(), second.unwrap(), third, fourth, None);
+              }
+             } else if expr.len() > 5{ send_err("Too many parameters for the shape."); }
+            } else {
+             /*---------- VARIANT - SCREEN ------------*/
+             if expr.len() == 2 {
+              match inspect_range(expr[1]){
+                Ok(val)=>render(visual, 0.0, [r,r,r], None, None, None),
+                Err(err)=>{
+                  match inspect_color(expr[2]){
+                   Ok(col)=>render(visual, 0.0, color, None, None, None),
+                   Err(err)=>send_err("Invalid second parameter. Only grayscale or RGB allowed.")
+                  }
+                },
+              }
+             }
+             else if expr.len() > 2 {send_err("Too many parameters for the screen.")}
+             else if expr.len() == 1 {send_err("Describe grayscale or RGB.");}
+            }
           }
-        }
+      }
 
       pub fn interpret(input: &str, audio: &AudioContext){
       //at first, the error log must be cleaned

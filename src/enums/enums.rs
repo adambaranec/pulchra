@@ -12,6 +12,11 @@ use regex::Regex;
     Screen,
     Cube,
     Sphere,
+    Quad,
+    Circle,
+    Line,
+    Point,
+    Arc,
     SinOsc,
     SawOsc,
     SqrOsc,
@@ -24,6 +29,7 @@ use regex::Regex;
   pub enum Param{
     Quantity,
     Range,
+    Color,
     Function,
     Realtime,
     Unknown
@@ -98,7 +104,7 @@ use regex::Regex;
     }
 
     pub fn get_param(param: &str)->Param{
-      let range:bool = Regex::new(r"(0.(\d+)|1|0)").unwrap().is_match(param);
+      let range:bool = Regex::new(r"((0.(\d+)|1|0))|\-(0.(\d+)|1|0))").unwrap().is_match(param);
       let qnt:bool = Regex::new(r"[0-9]+").unwrap().is_match(param);
       let func:bool = Regex::new(r"[a-zA-Z]+\([^\)]*\)?").unwrap().is_match(param);
       match range{

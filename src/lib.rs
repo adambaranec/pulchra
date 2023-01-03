@@ -14,16 +14,5 @@ drawing::startup::start(&gl);
 }
 #[wasm_bindgen]
 pub fn set(mut code: String, audio: AudioContext){
-   if code.contains(';'){
-      if code.chars().last().unwrap() == ';'{
-        code.pop();
-      }
-      for expr in code.split(';'){
-        interpreter::interpreter::interpret(expr, &audio);
-      }
-      }
-     else {
-        interpreter::interpreter::interpret(&*code, &audio);
-    }
-  }
+}
   

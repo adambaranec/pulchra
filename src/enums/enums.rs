@@ -2,6 +2,7 @@ use regex::Regex;
 #[derive(PartialEq)]
   pub enum Medium{
     Visuals,
+    Background,
     Audio,
     Mixed,
     Effect,
@@ -75,7 +76,7 @@ use regex::Regex;
   }
 
     pub fn get_medium(word: &str)->Medium{
-      if Regex::new("screen").unwrap().is_match(word){Medium::Visuals}
+      if Regex::new("screen").unwrap().is_match(word){Medium::Background}
       else if Regex::new("cube").unwrap().is_match(word){Medium::Visuals}
       else if Regex::new("sphere").unwrap().is_match(word){Medium::Visuals}
       else if Regex::new("sin").unwrap().is_match(word){Medium::Audio}

@@ -1,6 +1,7 @@
 use regex::Regex;
 use wasm_bindgen::JsCast;
 use web_sys::*;
+use three_d::*;
 use crate::canvas::scissor::divide_canvas;
 use crate::drawing::renderer::render;
 use crate::error::error::send_err;
@@ -223,10 +224,6 @@ fn analyze_func(word: &str) -> FnType{
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
         let uv = Regex::new(r"\[(((0.(\d+)|1|0))|\-(0.(\d+)|1|0)),(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\]").unwrap();
         let rotate = Regex::new(r"rotate\((((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\)").unwrap();
-
-        //let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
-      // .dyn_into::<HtmlCanvasElement>().unwrap();
-        //let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
          
         let mut visual:Variant = Variant::Unknown;
         let mut r:f32 = 0.0;
@@ -409,20 +406,151 @@ fn analyze_func(word: &str) -> FnType{
             }
           }
       }
-
-      pub fn interpret(input: &str, audio: &AudioContext){
-      //at first, the error log must be cleaned
-      send_err("");
-      let medium = || -> Medium {get_medium(input)};
-        if medium() != Medium::Unknown {
+      
+      fn prepare_screen(input: &str) -> ClearState{
+         if expr.len() == 2 {
+              match inspect_range(expr[1]){
+                Ok(val)=>ClearState::color(val,val,val,1.0),
+                Err(err)=>{
+                  match inspect_color(expr[2]){
+                   Ok(col)=>ClearState::color(col[0],col[1],col[2],1.0),
+                   Err(err)=>send_err("Invalid second parameter. Only grayscale or RGB allowed.")
+                  }
+                },
+              }
+             }
+             else if expr.len() > 2 {send_err("Too many parameters for the screen.")}
+             else if expr.len() == 1 {send_err("Describe grayscale or RGB.");}
+            }
+          }
+      }
+       
+       struct Shape {
+        variant: Variant,
+        radius: f32,
+        color: Color,
+        coords: Option<[f32; 2]>,
+        rotation: Option<f32>
+       }
+       
+       struct Oscillator {
+       osc: AudioNode,
+       gain: GainNode,
+       pan: StereoPannerNode,
+       freq: f32,
+       gain_val: f32,
+       pan_val: f32
+       }
+      
+       struct Engine {
+       shapes: Vec<Shape>,
+       oscillators: Vec<Oscillator>,
+       screen_color: ClearState
+       }
+      
+       pub fn interpret(input: &str, audio: &AudioContext) -> Engine{
+        let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
+        .dyn_into::<HtmlCanvasElement>().unwrap();
+        let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
+        let window = three_d::Window::new(WindowSettings {
+          canvas: Some(canvas),
+         ..Default:: default()
+         }).unwrap();
+        //at first, the error log must be cleaned
+        send_err("");
+        let mut oscillatorsArray:Vec<Oscillator> = vec![];
+        let mut shapesArray:Vec<Shape> = vec![];
+        let mut clear_color:ClearState = ClearState{..Default::default()};
+        
+        if input.contains(';'){
+           if code.chars().last().unwrap() == ';'{
+             code.pop();
+          }
+        for expr in code.split(';'){
+         if get_medium(expr) != Medium::Unknown {
           match medium(){
-            Medium::Visuals=>prepare_visual(&input),
-            Medium::Audio=>prepare_audio(&input, &audio),
-            Medium::Mixed=>prepare_mixed(&input, &audio),
+            Medium::Visuals=>shapesArray.push(prepare_visual(&expr)),
+            Medium::Background=>clear_color = prepare_screen(&expr),
+            Medium::Audio=>oscillatorsArray.push(prepare_audio(&expr, &audio)),
+            Medium::Mixed=>{},
+            Medium::Effect=>prepare_effect(&expr),
+            _=>todo!(),
+          }
+        } else {
+          send_err("Unknown media.");
+        }
+          }
+        }
+        else {
+              if get_medium(input) != Medium::Unknown {
+          match medium(){
+            Medium::Visuals=>shapesArray.push(prepare_visual(&input)),
+            Medium::Background=>clear_color = prepare_screen(&input),
+            Medium::Audio=>oscillatorsArray.push(prepare_audio(&input, &audio)),
+            Medium::Mixed=>{},
             Medium::Effect=>prepare_effect(&input),
             _=>todo!(),
           }
         } else {
           send_err("Unknown media.");
         }
+        }
+         Engine{shapes: shapesArray, oscillators: oscillatorsArray, screen_color: clear_color}
+     }
+
+     fn prepare_rendering(shapes: Vec<Shape>, clear_color: Option<ClearState>, fft: Option<FftOptions>){
+       let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
+       .dyn_into::<HtmlCanvasElement>().unwrap();
+       let window = three_d::Window::new(WindowSettings {
+        canvas: Some(canvas),
+       ..Default::default()
+       }).unwrap();
+       let context = window.gl();
+       let mut camera:Camera = Camera::new_perspective(
+       window.viewport(),
+       vec3(1.0, 1.0, 3.0),
+       vec3(0.0, 0.0, 0.0),
+       vec3(0.0, 3.0, 0.0),
+       degrees(45.0),
+       0.1,
+       1000.0
+       );
+       let light = DirectionalLight::new(&context, 0.5, Color::WHITE, &vec3(0.0,0.0,0.0));
+       let mut clear_state = ClearState{..Default::default()};
+       let mut cpu_mesh = CpuMesh{..Default::default()};
+       if clear_color != None {clear_state = ClearState::color(1.0,1.0,1.0,1.0);} else {clear_state = clear_color;}
+       if fft != None {
+         if shapes.len() == 0{
+             window.render_loop(move |frame_input: FrameInput|{
+               frame_input.screen().clear(clear_state);
+             FrameOutput::default()
+             });
+         }
+         else
+         {
+           window.render_loop(move |frame_input: FrameInput|{
+             for shape in shapes{
+               match shape.variant{
+               Variant::Cube=>cpu_mesh = CpuMesh::cube(),
+               Variant::Sphere=>cpu_mesh = CpuMesh::sphere(30),
+               _=>todo!(),
+               }
+               let object = Gm::new(Mesh::new(&context, &cpu_mesh), ColorMaterial{color: shape.color, ..Default::default()});
+               if shape.coords != None {} else {}
+               if shape.rotation != None {} else {}
+               render_to_target(&object, &camera, &light, &frame_input.screen().clear(clear_state));
+             }
+           FrameOutput::default()
+           });
+         }
+       }
+       else {
+         window.render_loop(move |frame_input: FrameInput|{
+         FrameOutput::default()
+         });
+       }
+     }
+
+     fn render_to_target(object: &Object, camera: &Camera, light: light: &Light, target: &RenderTarget){
+      target.render(&[camera], &[object], &[light]);
      }

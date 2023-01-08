@@ -60,10 +60,11 @@ use regex::Regex;
     #[derive(PartialEq)]
     #[derive(Copy)]
     #[derive(Clone)]
-  pub enum Channel{
+  pub enum Fft{
       Red,
       Green,
-      Blue
+      Blue,
+      Range
   }
   #[derive(PartialEq)]
   #[derive(Copy)]

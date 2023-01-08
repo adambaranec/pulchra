@@ -1,4 +1,4 @@
-import init, {start, set} from './pkg/pulchra.js';
+import init, {clear, set, Shape, Oscillator, Engine} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let audio;
@@ -87,27 +87,23 @@ import init, {start, set} from './pkg/pulchra.js';
         }
       });
       });
-      let previousCode = new String();
-      let currentCode = new String();
-      let oldNodesArray = [];
-      let newNodesArray = [];
+      let currentSession = undefined;
+      let previousSession = undefined;
       input.addEventListener('keydown', (e)=>{
-        previousCode = currentCode;
         let string = String(input.value);
-        currentCode = string;
         if (e.metaKey && e.key == 'Enter'){
           console.clear();
           if (typeof audio === 'undefined'){
-            audio = new AudioContext();
-           } else {
-            audio.close();
             audio = new AudioContext();
            }
           if (typeof gl === 'undefined'){
             gl = canvas.getContext('webgl2');
           }
-          if (input.value || input.value != ''){
-            set(string,audio);            
+          if (string != ''){
+            if (typeof currentSession === 'undefined'){
+                        
+            } else {           
+            }
           } else {
             document.getElementById('error').innerHTML = '';
             start(gl);

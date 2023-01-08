@@ -8,6 +8,7 @@ use crate::enums::enums::{Variant,Medium};
 use crate::enums::enums::{get_variant,get_medium};
 use crate::fft::fft_options::FftOptions;
 use serde::{Serialize, Deserialize};
+use wasm_bindgen::prelude::*;
 fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
   let mut floats:Vec<f32> = vec![];
   for float in Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))").unwrap().find_iter(word){
@@ -67,15 +68,16 @@ fn analyze_func(word: &str) -> FnType{
       let expr:Vec<&str> = w.split_whitespace().collect();
       let analyser = AnalyserNode::new(audio).unwrap();
     }
-
-    struct Shape {
+    #[wasm_bindgen]
+    pub struct Shape {
       variant: Variant,
       radius: f32,
       color: Color,
       coords: Option<[f32; 2]>,
       rotation: Option<f32>
      }
-     struct Oscillator {
+     #[wasm_bindgen]
+     pub struct Oscillator {
      osc: OscillatorNode,
      gain: GainNode,
      pan: StereoPannerNode,
@@ -83,7 +85,8 @@ fn analyze_func(word: &str) -> FnType{
      gain_val: f32,
      pan_val: f32
      }
-     struct Engine {
+     #[wasm_bindgen]
+     pub struct Engine {
      shapes: Vec<Shape>,
      oscillators: Vec<Oscillator>,
      screen_color: ClearState
@@ -166,36 +169,48 @@ fn analyze_func(word: &str) -> FnType{
               gain.gain().set_value(1.0);
               panner.pan().set_value(0.0);
               match inspect_freq(expr[1]){
-                Ok(val)=>oscillator.frequency().set_value(val),
-                Err(err)=>send_err("Invalid frequency value."),
-              }              
+                Ok(val)=>{oscillator.frequency().set_value(val); Ok(Oscillator{})},
+                Err(err)=>{send_err("Invalid frequency value."); Err(())},
+              }             
             } else if expr.len() == 3{
+              let mut freq:Option<f32> = None;
+              let mut second:Option<f32> = None;
               match inspect_freq(expr[1]){
-                Ok(val)=>oscillator.frequency().set_value(val),
+                Ok(val)=>{oscillator.frequency().set_value(val); freq = Some(val);},
                 Err(err)=>send_err("Invalid frequency value."),
               }
               match inspect_gain(expr[2]){
-                Ok(val)=>gain.gain().set_value(val),
+                Ok(val)=>{gain.gain().set_value(val); second = Some(val)},
                 Err(err)=>match inspect_pan(expr[2]){
-                      Ok(val)=>panner.pan().set_value(val * 2.0 - 1.0),
+                      Ok(val)=>{panner.pan().set_value(val * 2.0 - 1.0); second = Some(val);},
                       Err(err)=>send_err("Invalid second parameter. Only gain or pan is allowed"),
                          }
               }
+              if freq != None && second != None {
+                Ok(Oscillator{})
+              } else {Err(())}
             } else if expr.len() == 4{
+              let mut freq:Option<f32> = None;
+              let mut amp:Option<f32> = None;
+              let mut pan:Option<f32> = None;
               match inspect_freq(expr[1]){
-                Ok(val)=>oscillator.frequency().set_value(val),
+                Ok(val)=>{oscillator.frequency().set_value(val); freq = Some(val);},
                 Err(err)=>send_err("Invalid frequency value."),
               }
               match inspect_gain(expr[2]){
-                Ok(val)=>gain.gain().set_value(val),
+                Ok(val)=>{gain.gain().set_value(val); amp = Some(val);},
                 Err(err)=>send_err("Invalid gain."),
               }
               match inspect_pan(expr[3]){
-                Ok(val)=>panner.pan().set_value(val * 2.0 - 1.0),
+                Ok(val)=>{panner.pan().set_value(val * 2.0 - 1.0); pan = Some(val);},
                 Err(err)=>send_err("Invalid pan."),
               }
+              if freq != None && amp != None && pan != None {
+                Ok(Oscillator{})
+              } else {Err(())}
             } else {
-
+             send_err("Incorrect parameters for the oscillator.");
+             Err(())
             }
               /*} else {
             /*----------NOISE--------------*/
@@ -233,7 +248,7 @@ fn analyze_func(word: &str) -> FnType{
               buf_player.start();
             }*/
           } else {todo!()}
-        } else {send_err("Unknown media.");}
+        } else {send_err("Unknown media."); Err(())}
       }
       
       fn prepare_visual(w: &str) -> Result<Shape, ()>{
@@ -247,7 +262,7 @@ fn analyze_func(word: &str) -> FnType{
         let mut r:f32 = 0.0;
         let mut color:[f32; 3] = [0.0,0.0,0.0];
         let mut coords:Option<[f32; 2]> = None;
-        let mut rotation:Option<f64> = None;
+        let mut rotation:Option<f32> = None;
         let variant = get_variant(expr[0]);
 
         let mut inspect_color = |word: &str| -> Result<[f32; 3], &'static str>{
@@ -293,10 +308,10 @@ fn analyze_func(word: &str) -> FnType{
             Err("error")
           }
         };
-        let mut inspect_rotate = |word: &str| -> Result<f64, &'static str>{
+        let mut inspect_rotate = |word: &str| -> Result<f32, &'static str>{
         if rotate.is_match(word){
           let speed = floats_from(word).unwrap();
-          Ok(speed[0] as f64)
+          Ok(speed[0])
         }
         else {Err("error")}
         };
@@ -311,52 +326,51 @@ fn analyze_func(word: &str) -> FnType{
           if variant != Variant::Unknown{
             if variant != Variant::Screen{
              /*---------- VARIANT - WHATEVER SHAPE ------------*/
-             if expr.len() == 1 { //returns Shape 
+             if expr.len() == 1 { return Ok(Shape{variant: visual, radius: });
             }
               else if expr.len() == 2 {
               match inspect_range(expr[1]){
-                Ok(val)=>{r = val; //returns Shape)
+                Ok(val)=>{r = val; return Ok(Shape{variant: visual, radius: });
                 }
                 Err(err)=>{
                   match inspect_color(expr[1]){
-                    Ok(val)=>{color = val; //returns Shape
+                    Ok(val)=>{color = val; return Ok(Shape{variant: visual, radius: });
                     }
-                    Err(err)=>send_err("Invalid second parameter. Only radius or color are allowed."),
+                    Err(err)=>{send_err("Invalid second parameter. Only radius or color are allowed."); return Err(());},
                   }
                 },
               }
              }
-             else if expr.len() == 3 {
+             else if expr.len() == 3 {        
               match inspect_range(expr[1]){
-                Ok(val)=>{r = val;
+                Ok(val)=>{r = val; 
                   match inspect_uv(expr[2]){
-                    Ok(c)=>{coords = Some(c);}
-                      Err(err)=>{
+                    Ok(c)=>{coords = Some(c); return Ok(Shape{variant: visual, radius: });},
+                    Err(err)=>{
                       match inspect_rotate(expr[2]){
-                        Ok(rot)=>{rotation = Some(rot);} //returns Shape             
-                        Err(err)=>send_err("Invalid second parameter. Only UV or rotation allowed."),
+                        Ok(rot)=>{rotation = Some(rot); return Ok(Shape{variant: visual, radius: });},//returns Shape             
+                        Err(err)=>{send_err("Invalid second parameter. Only UV or rotation allowed."); return Err(());},
                       }
                     },
                   }
                 },
-                Err(err)=>{
-                  match inspect_color(expr[1]){
+                Err(err)=>{match inspect_color(expr[1]){
                     Ok(val)=>{color = val;
                       match inspect_uv(expr[2]){
-                        Ok(c)=>{coords = Some(c); }//returns Shape     
-                          Err(err)=>{
+                        Ok(c)=>{coords = Some(c); return Ok(Shape{variant: visual, radius: });},
+                        Err(err)=>{
                           match inspect_rotate(expr[2]){
-                            Ok(rot)=>{rotation = Some(rot);} //returns Shape         
-                              Err(err)=>send_err("Invalid second parameter. Only UV or rotation allowed."),
-                          }
+                            Ok(rot)=>{rotation = Some(rot); return Ok(Shape{variant: visual, radius: });},//returns Shape             
+                            Err(err)=>{send_err("Invalid second parameter. Only UV or rotation allowed."); return Err(());},
+                          } 
                         },
-                      }
+                      } 
                     },
-                    Err(err)=>send_err("Invalid first parameter. Cannot proceed further."),
-                  }
-                },
-              }
-             }
+                    Err(err)=>{send_err("Invalid first parameter. Cannot proceed further."); return Err(());},
+                    },
+              },
+            }
+          }
              else if expr.len() == 4 {
               let mut first:Option<f32> = None;
               let mut second:Option<[f32; 3]> = None; 
@@ -370,12 +384,12 @@ fn analyze_func(word: &str) -> FnType{
               }
               if first != None && second != None{
                 match inspect_uv(expr[3]){
-                  Ok(val)=>{coords = Some(val); }//returns Shape,
+                  Ok(val)=>{coords = Some(val); },
                   Err(err)=>{
                     match inspect_rotate(expr[3]){
-                      Ok(val)=>{rotation = Some(val); //returns Shape;
+                      Ok(val)=>{rotation = Some(val); return Ok(Shape{variant: visual, radius: });
                       },
-                      Err(err)=>send_err("Invalid third parameter. Only UV or rotation allowed."),
+                      Err(err)=>{send_err("Invalid third parameter. Only UV or rotation allowed."); return Err(());},
                     }
                   },
                 }
@@ -385,7 +399,7 @@ fn analyze_func(word: &str) -> FnType{
               let mut first:Option<f32> = None;
               let mut second:Option<[f32; 3]> = None;
               let mut third:Option<[f32; 2]> = None;
-              let mut fourth:Option<f64> = None;
+              let mut fourth:Option<f32> = None;
               match inspect_range(expr[1]){
                Ok(val)=>first = Some(val),
                Err(err)=>send_err("To proceed, the first parameter must be a radius."),
@@ -403,31 +417,15 @@ fn analyze_func(word: &str) -> FnType{
                Err(err)=>send_err("To proceed, the fourth parameter must be rotation speed."),
               }
               if first != None && second != None && third != None && fourth != None{
-                //returns Shape
-              }
-             } else if expr.len() > 5{ send_err("Too many parameters for the shape."); }
-            } else {
-             /*---------- VARIANT - SCREEN ------------*/
-             if expr.len() == 2 {
-              match inspect_range(expr[1]){
-                Ok(val)=>//render(visual, 0.0, [r,r,r], None, None, None)
-                {},
-                Err(err)=>{
-                  match inspect_color(expr[2]){
-                   Ok(col)=>//render(visual, 0.0, color, None, None, None)
-                   {},
-                   Err(err)=>send_err("Invalid second parameter. Only grayscale or RGB allowed.")
-                  }
-                },
-              }
-             }
-             else if expr.len() > 2 {send_err("Too many parameters for the screen.")}
-             else if expr.len() == 1 {send_err("Describe grayscale or RGB.");}
+               return Ok(Shape{variant: visual, radius: first.unwrap(), color: Color::new_opaque(&second.unwrap()[ .. ]), coords: third.unwrap(), rotation: fourth.unwrap(), fft: None});
+              } else {return Err(());}
+             } else if expr.len() > 5{ send_err("Too many parameters for the shape."); return Err(());}
+             else {return Err(());}
             }
           }
-      }
+        }
       
-      fn prepare_screen(input: &str) -> ClearState{
+      fn prepare_screen(input: &str) -> Result<ClearState, ()>{
         let expr:Vec<&str> = input.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -467,17 +465,18 @@ fn analyze_func(word: &str) -> FnType{
         };
          if expr.len() == 2 {
               match inspect_range(expr[1]){
-                Ok(val)=>ClearState::color(val,val,val,1.0),
+                Ok(val)=>Ok(ClearState::color(val,val,val,1.0)),
                 Err(err)=>{
                   match inspect_color(expr[2]){
-                   Ok(col)=>ClearState::color(col[0],col[1],col[2],1.0),
-                   Err(err)=>send_err("Invalid second parameter. Only grayscale or RGB allowed.")
+                   Ok(col)=>Ok(ClearState::color(col[0],col[1],col[2],1.0)),
+                   Err(err)=>{send_err("Invalid second parameter. Only grayscale or RGB allowed."); Err(())}
                   }
                 },
               }
              }
-             else if expr.len() > 2 {send_err("Too many parameters for the screen.")}
-             else if expr.len() == 1 {send_err("Describe grayscale or RGB.");}
+             else if expr.len() > 2 {Err(())}
+             else if expr.len() == 1 {Err(())}
+             else {todo!()}
             }
       
        pub fn interpret(input: &str, audio: &AudioContext) -> Engine{
@@ -496,14 +495,14 @@ fn analyze_func(word: &str) -> FnType{
         
         if input.contains(';'){
            if input.chars().last().unwrap() == ';'{
-             input.pop();
+             String::from(input).pop();
           }
         for expr in input.split(';'){
          if get_medium(expr) != Medium::Unknown {
           match get_medium(expr){
-            Medium::Visuals=>shapesArray.push(prepare_visual(&expr)),
-            Medium::Background=>clear_color = prepare_screen(&expr),
-            Medium::Audio=>oscillatorsArray.push(prepare_audio(&expr, &audio)),
+            Medium::Visuals=>shapesArray.push(prepare_visual(&expr).unwrap()),
+            Medium::Background=>clear_color = prepare_screen(&expr).unwrap(),
+            Medium::Audio=>oscillatorsArray.push(prepare_audio(&expr, &audio).unwrap()),
             Medium::Mixed=>{},
             Medium::Effect=>prepare_effect(&expr),
             _=>todo!(),
@@ -516,9 +515,9 @@ fn analyze_func(word: &str) -> FnType{
         else {
               if get_medium(input) != Medium::Unknown {
           match get_medium(input){
-            Medium::Visuals=>shapesArray.push(prepare_visual(&input)),
-            Medium::Background=>clear_color = prepare_screen(&input),
-            Medium::Audio=>oscillatorsArray.push(prepare_audio(&input, &audio)),
+            Medium::Visuals=>shapesArray.push(prepare_visual(&input).unwrap()),
+            Medium::Background=>clear_color = prepare_screen(&input).unwrap(),
+            Medium::Audio=>oscillatorsArray.push(prepare_audio(&input, &audio).unwrap()),
             Medium::Mixed=>{},
             Medium::Effect=>prepare_effect(&input),
             _=>todo!(),
@@ -534,7 +533,7 @@ fn analyze_func(word: &str) -> FnType{
       target.render(&camera, &[object], &[light]);
      }
 
-     fn render(shapes: &Vec<Shape>, clear_color: Option<ClearState>, fft: Option<FftOptions>){
+     fn render(shapes: Vec<Shape>, clear_color: Option<ClearState>, fft: Option<FftOptions>){
        let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
        .dyn_into::<HtmlCanvasElement>().unwrap();
        let window = three_d::Window::new(WindowSettings {
@@ -554,7 +553,7 @@ fn analyze_func(word: &str) -> FnType{
        let light = DirectionalLight::new(&context, 0.5, Color::WHITE, &vec3(0.0,0.0,0.0));
        let mut clear_state = ClearState{..Default::default()};
        let mut cpu_mesh = CpuMesh{..Default::default()};
-       if clear_color != None {clear_state = ClearState::color(1.0,1.0,1.0,1.0);} else {clear_state = clear_color;}
+       if clear_color != None {clear_state = ClearState::color(1.0,1.0,1.0,1.0);} else {clear_state = clear_color.unwrap();}
        if fft != None {
          if shapes.len() == 0{
              window.render_loop(move |frame_input: FrameInput|{

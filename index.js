@@ -1,4 +1,4 @@
-import init, {clear, set, Shape, Oscillator, Engine} from './pkg/pulchra.js';
+import init, {clear, set} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let audio;
@@ -87,8 +87,7 @@ import init, {clear, set, Shape, Oscillator, Engine} from './pkg/pulchra.js';
         }
       });
       });
-      let currentSession = undefined;
-      let previousSession = undefined;
+
       input.addEventListener('keydown', (e)=>{
         let string = String(input.value);
         if (e.metaKey && e.key == 'Enter'){
@@ -100,13 +99,10 @@ import init, {clear, set, Shape, Oscillator, Engine} from './pkg/pulchra.js';
             gl = canvas.getContext('webgl2');
           }
           if (string != ''){
-            if (typeof currentSession === 'undefined'){
-                        
-            } else {           
-            }
+            set(string,audio);
           } else {
             document.getElementById('error').innerHTML = '';
-            start(gl);
+            clear(gl);
           }
           } 
       });

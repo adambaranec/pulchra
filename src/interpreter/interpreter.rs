@@ -10,7 +10,6 @@ use crate::fft::fft_options::FftOptions;
 use crate::fft::fft::fft;
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::prelude::*;
-#[wasm_bindgen]
 pub struct Shape {
   variant: Variant,
   radius: f32,
@@ -18,7 +17,6 @@ pub struct Shape {
   coords: Option<[f32; 2]>,
   rotation: Option<f32>
  }
- #[wasm_bindgen]
  #[derive(PartialEq)]
  pub struct Oscillator {
  osc: OscillatorNode,
@@ -28,7 +26,6 @@ pub struct Shape {
  gain_val: f32,
  pan_val: f32
  }
- #[wasm_bindgen]
  pub struct Engine {
  pub shapes: Vec<Shape>,
  pub oscillators: Vec<Oscillator>,
@@ -592,8 +589,6 @@ fn analyze_func(word: &str) -> FnType{
      }
 
      pub fn play_audios(context: &AudioContext, oscs: &Vec<Oscillator>){
-      use std::fs::File;
-      use std::path::Path;
       for osc in oscs{
         let o = &osc.osc;
         let g = &osc.gain;

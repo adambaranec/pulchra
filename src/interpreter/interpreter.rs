@@ -1,3 +1,4 @@
+use js_sys::*;
 use regex::Regex;
 use wasm_bindgen::JsCast;
 use web_sys::*;
@@ -10,28 +11,6 @@ use crate::fft::fft_options::FftOptions;
 use crate::fft::fft::fft;
 use serde::{Serialize, Deserialize};
 use wasm_bindgen::prelude::*;
-pub struct Shape {
-  variant: Variant,
-  radius: f32,
-  color: [f32; 3],
-  coords: Option<[f32; 2]>,
-  rotation: Option<f32>
- }
- #[derive(PartialEq)]
- pub struct Oscillator {
- osc: OscillatorNode,
- gain: GainNode,
- pan: StereoPannerNode,
- freq: f32,
- gain_val: f32,
- pan_val: f32
- }
- pub struct Engine {
- pub shapes: Vec<Shape>,
- pub oscillators: Vec<Oscillator>,
- pub fft_options: Option<Vec<FftOptions>>,
- pub screen_color: ClearState
- }
 fn floats_from(word: &str)->Result<Vec<f32>,&'static str>{
   let mut floats:Vec<f32> = vec![];
   for float in Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))").unwrap().find_iter(word){
@@ -94,7 +73,7 @@ fn analyze_func(word: &str) -> FnType{
       let analyser = AnalyserNode::new(audio).unwrap();
     }*/
 
-      fn prepare_audio(w: &str, audio: &AudioContext) -> Result<Oscillator, ()>{
+      fn prepare_audio(w: &str, audio: &AudioContext) -> Result<js_sys::Object, ()>{
         let expr:Vec<&str> = w.split_whitespace().collect();
         let freq_regex = Regex::new(r"[\d]+\.[\d]+|[\d]+").unwrap();
         let note_regex = Regex::new(r"((c|d|e|f|g|a|b)(\d)|(c|d|e|f|g|a|b)(#|b)(\d))").unwrap();
@@ -104,6 +83,7 @@ fn analyze_func(word: &str) -> FnType{
 
         let gain = GainNode::new(audio).unwrap();
         let panner = StereoPannerNode::new(audio).unwrap();
+        const osc:js_sys::Object = js_sys::Object::new();
 
         let inspect_freq = |word: &str| -> Result<f32, &'static str>{
           if freq_regex.is_match(word){
@@ -171,9 +151,16 @@ fn analyze_func(word: &str) -> FnType{
               gain.gain().set_value(1.0);
               panner.pan().set_value(0.5);
               match inspect_freq(expr[1]){
-                Ok(val)=>{oscillator.frequency().set_value(val); return Ok(Oscillator{
-                  osc: oscillator, gain: gain, pan: panner, freq: val, gain_val: 1.0, pan_val: 0.0
-                });},
+                Ok(val)=>{
+                  oscillator.frequency().set_value(val); 
+                  js_sys::Object::define_property(&osc, &JsValue::from(oscillator), &js_sys::Object::from(JsValue::from("oscNode")));
+                  js_sys::Object::define_property(&osc, &JsValue::from(gain),  &js_sys::Object::from(JsValue::from("gainNode")));
+                  js_sys::Object::define_property(&osc, &JsValue::from(panner), &js_sys::Object::from(JsValue::from("panner")));
+                  js_sys::Object::define_property(&osc, &JsValue::from(val), &js_sys::Object::from(JsValue::from("freq")));
+                  js_sys::Object::define_property(&osc, &JsValue::from(1.0), &js_sys::Object::from(JsValue::from("gain")));
+                  js_sys::Object::define_property(&osc, &JsValue::from(0.5), &js_sys::Object::from(JsValue::from("pan")));
+                  Ok(osc)                     
+                },
                 Err(err)=>{send_err("Invalid frequency value."); return Err(());},
               }             
             } else if expr.len() == 3{
@@ -192,11 +179,16 @@ fn analyze_func(word: &str) -> FnType{
                          }
               }
               if freq != None && amp != None {
-                return Ok(Oscillator{osc: oscillator, gain: gain, pan: panner, freq: freq.unwrap(), gain_val: amp.unwrap(), pan_val: 0.0});
-              } else if freq != None && pan != None {
-                return Ok(Oscillator{osc: oscillator, gain: gain, pan: panner, freq: freq.unwrap(), gain_val: 1.0, pan_val: pan.unwrap()});
-              } else {return Err(());}
-            } else if expr.len() == 4{
+                js_sys::Object::define_property(&osc, &JsValue::from(oscillator), &js_sys::Object::from(JsValue::from("oscNode")));
+                js_sys::Object::define_property(&osc, &JsValue::from(gain), &js_sys::Object::from(JsValue::from("gainNode")));
+                js_sys::Object::define_property(&osc, &JsValue::from(panner), &js_sys::Object::from(JsValue::from("panner")));
+                js_sys::Object::define_property(&osc, &JsValue::from(freq), &js_sys::Object::from(JsValue::from("freq")));
+                js_sys::Object::define_property(&osc, &JsValue::from(amp), &js_sys::Object::from(JsValue::from("gain")));
+                js_sys::Object::define_property(&osc, &JsValue::from(pan), &js_sys::Object::from(JsValue::from("pan")));
+                Ok(osc)
+              } else {Err(())}
+              }
+              else if expr.len() == 4{
               let mut freq:Option<f32> = None;
               let mut amp:Option<f32> = None;
               let mut pan:Option<f32> = None;
@@ -213,9 +205,15 @@ fn analyze_func(word: &str) -> FnType{
                 Err(err)=>send_err("Invalid pan."),
               }
               if freq != None && amp != None && pan != None {
-                return Ok(Oscillator{osc: oscillator, gain: gain, pan: panner, freq: freq.unwrap(), gain_val: amp.unwrap(), pan_val: pan.unwrap()});
-              } else {return Err(());}
-            } else {
+                js_sys::Object::define_property(&osc, &JsValue::from(oscillator), &js_sys::Object::from(JsValue::from("oscNode")));
+                js_sys::Object::define_property(&osc, &JsValue::from(gain), &js_sys::Object::from(JsValue::from("gainNode")));
+                js_sys::Object::define_property(&osc, &JsValue::from(panner), &js_sys::Object::from(JsValue::from("panner")));
+                js_sys::Object::define_property(&osc, &JsValue::from(freq), &js_sys::Object::from(JsValue::from("freq")));
+                js_sys::Object::define_property(&osc, &JsValue::from(amp), &js_sys::Object::from(JsValue::from("gain")));
+                js_sys::Object::define_property(&osc, &JsValue::from(pan), &js_sys::Object::from(JsValue::from("pan")));
+                Ok(osc)
+              } else
+                 {
              send_err("Incorrect parameters for the oscillator.");
             return Err(());
             }
@@ -256,9 +254,10 @@ fn analyze_func(word: &str) -> FnType{
             }*/
           } else {todo!()}
         } else {send_err("Unknown media."); Err(())}
+        } else {Err(())}
       }
       
-      fn prepare_visual(w: &str) -> Result<Shape, ()>{
+      fn prepare_visual(w: &str) -> Result<js_sys::Object, ()>{
         let expr:Vec<&str> = w.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -266,10 +265,7 @@ fn analyze_func(word: &str) -> FnType{
         let rotate = Regex::new(r"rotate\((((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\)").unwrap();
          
         let mut visual:Variant = Variant::Unknown;
-        let mut r:f32 = 0.0;
-        let mut color:[f32; 3] = [0.0,0.0,0.0];
-        let mut coords:Option<[f32; 2]> = None;
-        let mut rotation:Option<f32> = None;
+        const shape:js_sys::Object = js_sys::Object::new();
         let variant = get_variant(expr[0]);
 
         let mut inspect_color = |word: &str| -> Result<[f32; 3], &'static str>{
@@ -332,106 +328,196 @@ fn analyze_func(word: &str) -> FnType{
 
           if variant != Variant::Unknown{
             if variant != Variant::Screen{
-             /*---------- VARIANT - WHATEVER SHAPE ------------*/
-             if expr.len() == 1 { return Ok(Shape{variant: visual, radius: 1.0, color: [1.0,1.0,1.0], coords: None, rotation: None});
-            }
-              else if expr.len() == 2 {
-              match inspect_range(expr[1]){
-                Ok(val)=>{r = val; return Ok(Shape{variant: visual, radius: r, color: [1.0,1.0,1.0], coords: None, rotation: None});
+              if expr.len() == 1 { 
+                const color:Array = Array::new();
+                color.push(&JsValue::from(1.0)); color.push(&JsValue::from(1.0)); color.push(&JsValue::from(1.0));
+                const coords:Array = Array::new();
+                coords.push(&JsValue::from(0.0)); coords.push(&JsValue::from(0.0));
+                js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                js_sys::Object::define_property(&shape, &JsValue::from(1.0), &js_sys::Object::from(JsValue::from("radius")));
+                js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("color")));
+                js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                js_sys::Object::define_property(&shape, &JsValue::NULL, &js_sys::Object::from(JsValue::from("rotation")));
+                Ok(shape)
                 }
-                Err(err)=>{
-                  match inspect_color(expr[1]){
-                    Ok(val)=>{color = val; return Ok(Shape{variant: visual, radius: 1.0, color: color, coords: None, rotation: None});
-                    }
-                    Err(err)=>{send_err("Invalid second parameter. Only radius or color are allowed."); return Err(());},
+                else if expr.len() == 2 {
+                const color:Array = Array::new();
+                const coords:Array = Array::new();
+                coords.push(&JsValue::from(0.0)); coords.push(&JsValue::from(0.0));
+                match inspect_range(expr[1]){
+                  Ok(val)=>{
+                    color.push(&JsValue::from(1.0)); color.push(&JsValue::from(1.0)); color.push(&JsValue::from(1.0));
+                    js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                    js_sys::Object::define_property(&shape, &JsValue::from(val), &js_sys::Object::from(JsValue::from("radius")));
+                    js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("color")));
+                    js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                    js_sys::Object::define_property(&shape, &JsValue::NULL, &js_sys::Object::from(JsValue::from("rotation")));
+                    Ok(shape)
                   }
-                },
-              }
-             }
-             else if expr.len() == 3 {        
-              match inspect_range(expr[1]){
-                Ok(val)=>{r = val; 
-                  match inspect_uv(expr[2]){
-                    Ok(c)=>{coords = Some(c); return Ok(Shape{variant: visual, radius: r, color: [1.0,1.0,1.0], coords: coords, rotation: None});},
-                    Err(err)=>{
-                      match inspect_rotate(expr[2]){
-                        Ok(rot)=>{rotation = Some(rot); return Ok(Shape{variant: visual, radius: r, color: [1.0,1.0,1.0], coords: None, rotation: rotation});},//returns Shape             
-                        Err(err)=>{send_err("Invalid second parameter. Only UV or rotation allowed."); return Err(());},
-                      }
-                    },
-                  }
-                },
-                Err(err)=>{match inspect_color(expr[1]){
-                    Ok(val)=>{color = val;
-                      match inspect_uv(expr[2]){
-                        Ok(c)=>{coords = Some(c); return Ok(Shape{variant: visual, radius: 1.0, color: val, coords: coords, rotation: None});},
-                        Err(err)=>{
-                          match inspect_rotate(expr[2]){
-                            Ok(rot)=>{rotation = Some(rot); return Ok(Shape{variant: visual, radius: 1.0, color: val, coords: None, rotation: rotation});},//returns Shape             
-                            Err(err)=>{send_err("Invalid second parameter. Only UV or rotation allowed."); return Err(());},
-                          } 
-                        },
-                      } 
-                    },
-                    Err(err)=>{send_err("Invalid first parameter. Cannot proceed further."); return Err(());},
-                    }
-              },
-            }
-          }
-             else if expr.len() == 4 {
-              let mut first:Option<f32> = None;
-              let mut second:Option<[f32; 3]> = None; 
-              match inspect_range(expr[1]){
-                Ok(val)=>first = Some(val),
-                Err(err)=>send_err("To proceed, the first parameter must be a radius."),
-              }
-              match inspect_color(expr[2]){
-                Ok(val)=>second = Some(val),
-                Err(err)=>send_err("To proceed, the second parameter must be a color."),
-              }
-              if first != None && second != None{
-                match inspect_uv(expr[3]){
-                  Ok(val)=>{coords = Some(val); return Ok(Shape{variant: visual, radius: first.unwrap(), color: second.unwrap(), coords: coords, rotation: None});},
                   Err(err)=>{
-                    match inspect_rotate(expr[3]){
-                      Ok(val)=>{rotation = Some(val); return Ok(Shape{variant: visual, radius: first.unwrap(), color: second.unwrap(), coords: None, rotation: rotation});},
-                      Err(err)=>{send_err("Invalid third parameter. Only UV or rotation allowed."); return Err(());},
+                    match inspect_color(expr[1]){
+                      Ok(val)=>{
+                        color.push(&JsValue::from(val[0])); color.push(&JsValue::from(val[1])); color.push(&JsValue::from(val[2]));
+                       js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                        js_sys::Object::define_property(&shape, &JsValue::from(1.0), &js_sys::Object::from(JsValue::from("radius")));
+                        js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("color")));
+                        js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                        js_sys::Object::define_property(&shape, &JsValue::NULL, &js_sys::Object::from(JsValue::from("rotation")));
+                        Ok(shape)
+                      }
+                      Err(err)=>{send_err("Invalid second parameter. Only radius or color are allowed."); return Err(());},
+                    }
+                  },
+                }
+               }
+               else if expr.len() == 3 {  
+                const color:Array = Array::new();
+                const coords:Array = Array::new();      
+                match inspect_range(expr[1]){
+                  Ok(val)=>{ color.push(&JsValue::from(1.0)); color.push(&JsValue::from(1.0)); color.push(&JsValue::from(1.0));
+                    match inspect_uv(expr[2]){
+                      Ok(c)=>{
+                        coords.push(&JsValue::from(c[0])); coords.push(&JsValue::from(c[1]));
+                        js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                        js_sys::Object::define_property(&shape, &JsValue::from(val), &js_sys::Object::from(JsValue::from("radius")));
+                        js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("color")));
+                        js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                        js_sys::Object::define_property(&shape, &JsValue::NULL, &js_sys::Object::from(JsValue::from("rotation")));  
+                        Ok(shape)
+                      }
+                      Err(err)=>{
+                        match inspect_rotate(expr[2]){
+                          Ok(rot)=>{
+                            coords.push(&JsValue::from(0.0)); coords.push(&JsValue::from(0.0));
+                            js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                            js_sys::Object::define_property(&shape, &JsValue::from(val), &js_sys::Object::from(JsValue::from("radius")));
+                            js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("color")));
+                            js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                            js_sys::Object::define_property(&shape, &JsValue::from(rot), &js_sys::Object::from(JsValue::from("rotation")));
+                            Ok(shape)
+                           },           
+                          Err(err)=>{send_err("Invalid second parameter. Only UV or rotation allowed."); return Err(());},
+                        }
+                      }
+                    }
+                  },
+                  Err(err)=>{match inspect_color(expr[1]){
+                      Ok(val)=>{
+                        color.push(&JsValue::from(val[0])); color.push(&JsValue::from(val[1])); color.push(&JsValue::from(val[2]));
+                        match inspect_uv(expr[2]){
+                          Ok(c)=>{
+                            coords.push(&JsValue::from(c[0])); coords.push(&JsValue::from(c[1]));
+                            js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                            js_sys::Object::define_property(&shape, &JsValue::from(1.0), &js_sys::Object::from(JsValue::from("radius")));
+                            js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("color")));
+                            js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                            js_sys::Object::define_property(&shape, &JsValue::NULL, &js_sys::Object::from(JsValue::from("rotation"))); 
+                            Ok(shape)      
+                          }         
+                          Err(err)=>{
+                            match inspect_rotate(expr[2]){
+                              Ok(rot)=>{
+                                coords.push(&JsValue::from(0.0)); coords.push(&JsValue::from(0.0));
+                                js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                                js_sys::Object::define_property(&shape, &JsValue::from(1.0), &js_sys::Object::from(JsValue::from("radius")));
+                                js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("color")));
+                                js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                                js_sys::Object::define_property(&shape, &JsValue::from(rot), &js_sys::Object::from(JsValue::from("rotation")));
+                                Ok(shape)                             
+                              }           
+                              Err(err)=>{send_err("Invalid second parameter. Only UV or rotation allowed."); return Err(());},
+                            } 
+                          },
+                        } 
+                      },
+                      Err(err)=>{send_err("Invalid first parameter. Cannot proceed further."); return Err(());},
                       }
                     }
                   }
+               }
+               else if expr.len() == 4 {
+                let mut first:Option<f32> = None;
+                let mut second:Option<[f32; 3]> = None; 
+                match inspect_range(expr[1]){
+                  Ok(val)=>first = Some(val),
+                  Err(err)=>send_err("To proceed, the first parameter must be a radius."),
+                }
+                match inspect_color(expr[2]){
+                  Ok(val)=>second = Some(val),
+                  Err(err)=>send_err("To proceed, the second parameter must be a color."),
+                }
+                const color:Array = Array::new();
+                const coords:Array = Array::new();
+                if first != None && second != None{
+                  color.push(&JsValue::from(second.unwrap()[0])); color.push(&JsValue::from(second.unwrap()[1])); color.push(&JsValue::from(second.unwrap()[2]));
+                  match inspect_uv(expr[3]){
+                    Ok(val)=>{
+                      coords.push(&JsValue::from(val[0])); coords.push(&JsValue::from(val[1])); 
+                      js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                      js_sys::Object::define_property(&shape, &JsValue::from(first.unwrap()), &js_sys::Object::from(JsValue::from("radius")));
+                      js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("radius")));
+                      js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                      js_sys::Object::define_property(&shape, &JsValue::NULL, &js_sys::Object::from(JsValue::from("rotation"))); 
+                      Ok(shape)                    
+                    },
+                    Err(err)=>{
+                      match inspect_rotate(expr[3]){
+                        Ok(val)=>{
+                          coords.push(&JsValue::from(0.0)); coords.push(&JsValue::from(0.0));
+                          js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                          js_sys::Object::define_property(&shape, &JsValue::from(first.unwrap()), &js_sys::Object::from(JsValue::from("radius")));
+                          js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("radius")));
+                          js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                          js_sys::Object::define_property(&shape, &JsValue::from(val), &js_sys::Object::from(JsValue::from("rotation")));
+                          Ok(shape)  
+                        },
+                        Err(err)=>{send_err("Invalid third parameter. Only UV or rotation allowed."); return Err(());},                     
+                         }
+                        }
+                      }
+                    } else {return Err(());}
+                  } 
+               else if expr.len() == 5 {
+                let mut first:Option<f32> = None;
+                let mut second:Option<[f32; 3]> = None;
+                let mut third:Option<[f32; 2]> = None;
+                let mut fourth:Option<f32> = None;
+                match inspect_range(expr[1]){
+                 Ok(val)=>first = Some(val),
+                 Err(err)=>send_err("To proceed, the first parameter must be a radius."),
+                }
+                match inspect_color(expr[2]){
+                 Ok(val)=>second = Some(val),
+                 Err(err)=>send_err("To proceed, the second parameter must be a color."),
+                }
+                match inspect_uv(expr[3]){
+                 Ok(val)=>third = Some(val),
+                 Err(err)=>send_err("To proceed, the third parameter must be UV coordinates."),
+                }
+                match inspect_rotate(expr[4]){
+                 Ok(val)=>fourth = Some(val),
+                 Err(err)=>send_err("To proceed, the fourth parameter must be rotation speed."),
+                }
+                if first != None && second != None && third != None && fourth != None{
+                  const color:Array = Array::new();
+                  const coords:Array = Array::new();
+                  color.push(&JsValue::from(second.unwrap()[0])); color.push(&JsValue::from(second.unwrap()[1])); color.push(&JsValue::from(second.unwrap()[2]));
+                  coords.push(&JsValue::from(third.unwrap()[0])); coords.push(&JsValue::from(third.unwrap()[1]));
+                  js_sys::Object::define_property(&shape, &JsValue::from(visual.str()), &js_sys::Object::from(JsValue::from("type")));
+                  js_sys::Object::define_property(&shape, &JsValue::from(first.unwrap()), &js_sys::Object::from(JsValue::from("radius")));
+                  js_sys::Object::define_property(&shape, &JsValue::from(color), &js_sys::Object::from(JsValue::from("radius")));
+                  js_sys::Object::define_property(&shape, &JsValue::from(coords), &js_sys::Object::from(JsValue::from("coords")));
+                  js_sys::Object::define_property(&shape, &JsValue::from(fourth.unwrap()), &js_sys::Object::from(JsValue::from("rotation")));
+                  Ok(shape)
                 } else {return Err(());}
-              }
-             else if expr.len() == 5 {
-              let mut first:Option<f32> = None;
-              let mut second:Option<[f32; 3]> = None;
-              let mut third:Option<[f32; 2]> = None;
-              let mut fourth:Option<f32> = None;
-              match inspect_range(expr[1]){
-               Ok(val)=>first = Some(val),
-               Err(err)=>send_err("To proceed, the first parameter must be a radius."),
-              }
-              match inspect_color(expr[2]){
-               Ok(val)=>second = Some(val),
-               Err(err)=>send_err("To proceed, the second parameter must be a color."),
-              }
-              match inspect_uv(expr[3]){
-               Ok(val)=>third = Some(val),
-               Err(err)=>send_err("To proceed, the third parameter must be UV coordinates."),
-              }
-              match inspect_rotate(expr[4]){
-               Ok(val)=>fourth = Some(val),
-               Err(err)=>send_err("To proceed, the fourth parameter must be rotation speed."),
-              }
-              if first != None && second != None && third != None && fourth != None{
-               return Ok(Shape{variant: visual, radius: first.unwrap(), color: second.unwrap(), coords: third, rotation: fourth});
-              } else {return Err(());}
-             } else if expr.len() > 5{ send_err("Too many parameters for the shape."); return Err(());}
-             else {return Err(());}
+               } else if expr.len() > 5{ send_err("Too many parameters for the shape."); return Err(());}
+               else {return Err(());}
+            } else {Err(())}
             } else {return Err(());}
-          } else {return Err(());}
-        }
+          }
+  
       
-      fn prepare_screen(input: &str) -> Result<ClearState, ()>{
+      fn prepare_screen(input: &str) -> Result<Array, ()>{
         let expr:Vec<&str> = input.split_whitespace().collect();
         let range = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
         let rgb = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)").unwrap();
@@ -471,10 +557,22 @@ fn analyze_func(word: &str) -> FnType{
         };
          if expr.len() == 2 {
               match inspect_range(expr[1]){
-                Ok(val)=>Ok(ClearState::color(val,val,val,1.0)),
+                Ok(val)=>{
+                let rgb:Array = Array::new();
+                rgb.push(&JsValue::from(val));
+                rgb.push(&&JsValue::from(val));
+                rgb.push(&JsValue::from(val));
+                Ok(rgb)
+                },
                 Err(err)=>{
                   match inspect_color(expr[2]){
-                   Ok(col)=>Ok(ClearState::color(col[0],col[1],col[2],1.0)),
+                   Ok(col)=>{
+                    let rgb:Array = Array::new();
+                    rgb.push(&JsValue::from(col[0]));
+                    rgb.push(&JsValue::from(col[1]));
+                    rgb.push(&JsValue::from(col[2]));
+                    Ok(rgb)
+                   },
                    Err(err)=>{send_err("Invalid second parameter. Only grayscale or RGB allowed."); Err(())}
                   }
                 },
@@ -485,7 +583,7 @@ fn analyze_func(word: &str) -> FnType{
              else {todo!()}
             }
       
-       pub fn interpret(input: &str, audio: &AudioContext) -> Engine{
+       pub fn interpret(input: &str, audio: &AudioContext) -> js_sys::Object{
         let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
         .dyn_into::<HtmlCanvasElement>().unwrap();
         let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
@@ -493,12 +591,33 @@ fn analyze_func(word: &str) -> FnType{
           canvas: Some(canvas),
          ..Default:: default()
          }).unwrap();
+        /*pub struct Shape {
+          variant: Variant,
+          radius: f32,
+          color: [f32; 3],
+          coords: Option<[f32; 2]>,
+          rotation: Option<f32>
+         }
+         #[derive(PartialEq)]
+         pub struct Oscillator {
+         osc: OscillatorNode,
+         gain: GainNode,
+         pan: StereoPannerNode,
+         freq: f32,
+         gain_val: f32,
+         pan_val: f32
+         }
+         pub struct Engine {
+         pub shapes: Vec<Shape>,
+         pub oscillators: Vec<Oscillator>,
+         pub fft_options: Option<Vec<FftOptions>>,
+         pub screen_color: ClearState
+         }*/
+        const oscillatorsArray:Array = Array::new();
+        const shapesArray:Array = Array::new();
+
         //at first, the error log must be cleaned
         send_err("");
-        let mut oscillatorsArray:Vec<Oscillator> = vec![];
-        let mut shapesArray:Vec<Shape> = vec![];
-        let mut clear_color:ClearState = ClearState{..Default::default()};
-        
         if input.contains(';'){
            if input.chars().last().unwrap() == ';'{
              String::from(input).pop();
@@ -506,9 +625,9 @@ fn analyze_func(word: &str) -> FnType{
         for expr in input.split(';'){
          if get_medium(expr) != Medium::Unknown {
           match get_medium(expr){
-            Medium::Visuals=>shapesArray.push(prepare_visual(&expr).unwrap()),
-            Medium::Background=>clear_color = prepare_screen(&expr).unwrap(),
-            Medium::Audio=>oscillatorsArray.push(prepare_audio(&expr, &audio).unwrap()),
+            Medium::Visuals=>shapesArray.push(&prepare_visual(&expr).unwrap()),
+            Medium::Background=>{},
+            Medium::Audio=>oscillatorsArray.push(&prepare_audio(&expr, &audio).unwrap()),
             Medium::Effect=>prepare_effect(&expr),
             _=>todo!(),
           }
@@ -520,9 +639,9 @@ fn analyze_func(word: &str) -> FnType{
         else {
               if get_medium(input) != Medium::Unknown {
           match get_medium(input){
-            Medium::Visuals=>shapesArray.push(prepare_visual(&input).unwrap()),
-            Medium::Background=>clear_color = prepare_screen(&input).unwrap(),
-            Medium::Audio=>oscillatorsArray.push(prepare_audio(&input, &audio).unwrap()),
+            Medium::Visuals=>shapesArray.push(&prepare_visual(&input).unwrap()),
+            Medium::Background=>{},
+            Medium::Audio=>oscillatorsArray.push(&prepare_audio(&input, &audio).unwrap()),
             Medium::Effect=>prepare_effect(&input),
             _=>todo!(),
           }
@@ -530,14 +649,18 @@ fn analyze_func(word: &str) -> FnType{
           send_err("Unknown media.");
         }
         }
-         Engine{shapes: shapesArray, oscillators: oscillatorsArray, screen_color: clear_color, fft_options: None}
+         let engine = js_sys::Object::new();
+         js_sys::Object::define_property(&engine, &JsValue::from(shapesArray), &js_sys::Object::from(JsValue::from("shapes")));
+         js_sys::Object::define_property(&engine, &JsValue::from(oscillatorsArray), &js_sys::Object::from(JsValue::from("oscs")));
+         js_sys::Object::define_property(&engine, &JsValue::from(Array::new_with_length(3)), &js_sys::Object::from(JsValue::from("clear")));
+         engine
      }
 
-     fn render_to_target(object: &dyn Object, camera: &Camera, light: &dyn Light, target: &RenderTarget){
+     fn render_to_target(object: &dyn three_d::Object, camera: &Camera, light: &dyn Light, target: &RenderTarget){
       target.render(&camera, &[object], &[light]);
      }
 
-     pub fn render(shapes: Vec<Shape>, clear_color: Option<ClearState>, opt: Option<FftOptions>){
+     pub fn render(shapes: Vec<js_sys::Object>, clear_color: Option<ClearState>, opt: Option<FftOptions>){
        let canvas = web_sys::window().unwrap().document().unwrap().get_element_by_id("canvas").unwrap()
        .dyn_into::<HtmlCanvasElement>().unwrap();
        let window = three_d::Window::new(WindowSettings {
@@ -559,7 +682,7 @@ fn analyze_func(word: &str) -> FnType{
        let mut cpu_mesh = CpuMesh{..Default::default()};
        if clear_color != None {clear_state = ClearState::color(1.0,1.0,1.0,1.0);} else {clear_state = clear_color.unwrap();}
            window.render_loop(move |frame_input: FrameInput|{
-            if shapes.len() != 0{
+            /*if shapes.len() != 0{
               for shape in &shapes{
                 match shape.variant{
                 Variant::Cube=>cpu_mesh = CpuMesh::cube(),
@@ -582,14 +705,14 @@ fn analyze_func(word: &str) -> FnType{
                 }
               }
               frame_input.screen().clear(clear_state);
-            }
+            }*/
            FrameOutput::default()
            });
  
      }
 
-     pub fn play_audios(context: &AudioContext, oscs: &Vec<Oscillator>){
-      for osc in oscs{
+     pub fn play_audios(context: &AudioContext, oscs: &Vec<js_sys::Object>){
+      /*for osc in oscs{
         let o = &osc.osc;
         let g = &osc.gain;
         let p = &osc.pan;
@@ -598,11 +721,11 @@ fn analyze_func(word: &str) -> FnType{
         g.connect_with_audio_node(&context.destination());
         p.connect_with_audio_node(&context.destination());
         o.start();
-      }
+      }*/
      }
 
-     pub fn compare_audios(first: &Vec<Oscillator>, second: &Vec<Oscillator>){
-     if first.len() != second.len(){
+     pub fn compare_audios(first: &Vec<js_sys::Object>, second: &Vec<js_sys::Object>){
+     /*if first.len() != second.len(){
       for o in 0..second.len(){
        if second[o] != first[o]{
         if second.len() > first.len(){
@@ -615,5 +738,5 @@ fn analyze_func(word: &str) -> FnType{
         }
        }
       }
-     }
+     }*/
      }

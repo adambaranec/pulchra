@@ -26,6 +26,27 @@ use regex::Regex;
     Multiplication,
     Unknown
   }
+  impl Variant{
+    pub fn str(&self)->&str{
+    match self{
+      Variant::Screen=>"screen",
+      Variant::Cube=>"cube",
+      Variant::Sphere=>"sphere",
+      Variant::Quad=>"quad",
+      Variant::Circle=>"circle",
+      Variant::Line=>"line",
+      Variant::Point=>"point",
+      Variant::Arc=>"arc",
+      Variant::SinOsc=>"sin",
+      Variant::SawOsc=>"saw",
+      Variant::SqrOsc=>"sqr",
+      Variant::TriOsc=>"tri",
+      Variant::NoiseOsc=>"noise",
+      Variant::Multiplication=>"mul",
+      Variant::Unknown=>"unknown"
+    }
+    }
+  }
   #[derive(PartialEq)]
   pub enum Param{
     Quantity,

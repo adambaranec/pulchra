@@ -1,4 +1,4 @@
-import init, {clear, set} from './pkg/pulchra.js';
+import init, {set, draw} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let audio;
@@ -13,7 +13,7 @@ import init, {clear, set} from './pkg/pulchra.js';
       window.onload = (e) =>{
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        init().then(()=>{start(canvas.getContext('webgl2'))});
+        init().then(()=>{/*start(canvas.getContext('webgl2'))*/draw()});
         sessionStorage.setItem('sessions', '-1');
       }
       window.onresize = (e) =>{
@@ -99,7 +99,7 @@ import init, {clear, set} from './pkg/pulchra.js';
             gl = canvas.getContext('webgl2');
           }
           if (string != ''){
-            set(string,audio);
+            //set(string,audio);
           } else {
             document.getElementById('error').innerHTML = '';
             clear(gl);

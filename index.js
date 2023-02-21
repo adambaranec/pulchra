@@ -104,5 +104,7 @@ import init, {set, draw} from './pkg/pulchra.js';
             document.getElementById('error').innerHTML = '';
             clear(gl);
           }
+          } else if (e.metaKey && e.key == 'H'){
+            
           } 
       });

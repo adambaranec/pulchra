@@ -13,8 +13,7 @@
 <script src="index.js" type="module"></script>
 <div id="pulchra">
   <div class="input-area">
-    <textarea id="input" placeholder="Welcome to Pulchra!
-Just write e.g. cube red" autofocus="true" rows="8"></textarea>
+    <textarea id="input" placeholder="Just write e.g. cube red" autofocus="true" rows="8"></textarea>
   </div>
   <div class="background">
     <canvas id="canvas"></canvas>
@@ -35,6 +34,17 @@ Just write e.g. cube red" autofocus="true" rows="8"></textarea>
   <form>
     <input type="text" name="filename" id="filename"></input>
   </form>
+</dialog>
+<dialog id="welcome">
+<h1>Welcome to Pulchra!</h1>
+<h3>Available shortcuts:</h3>
+<ul>
+  <li>Windows Key/Ctrl + Enter: <strong>Rendering</strong></li>
+  <li>Windows Key/Ctrl + H: <strong>Help</strong></li>
+  <li>Windows Key/Ctrl + R: <strong>Recording</strong></li>
+  <h3>Happy coding!</h3>
+  <button>Got it!</button>
+</ul>
 </dialog>
 <footer><p id="error"></p></footer>
 </body>

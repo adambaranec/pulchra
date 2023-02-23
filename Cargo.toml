@@ -39,6 +39,7 @@ features = [
   'OscillatorType',
   'HtmlElement',
   'HtmlCanvasElement',
+  'HtmlParagraphElement',
   'HtmlTextAreaElement',
   'Node',
   'StereoPannerNode',

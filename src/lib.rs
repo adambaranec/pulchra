@@ -116,6 +116,33 @@ fn color(word: &str)->Option<[f32; 3]>{
     }
 }
 
+fn note(word: &str)->Option<f32>{
+let a = 1.059463094359;
+let mut power:u8 = 0;
+let octave = String::from(word.chars().last().unwrap()).parse::<u8>().unwrap();
+if word.contains("is"){power += 1;}
+else if word.contains("es"){power -= 1;}
+else if word.contains("isis"){power += 2;}
+else if word.contains("eses"){power -= 2;}
+match word.chars().nth(0).unwrap(){
+  'c'=>{power -= 9;},
+  'd'=>{power -= 7;},
+  'e'=>{power -= 5;},
+  'f'=>{power -= 4;},
+  'g'=>{power -= 2;},
+  'h'=>{power += 2;},
+}
+if word == "a5"{Some(440.0)}else{
+  if octave > 5{
+    let distance = 5 - octave;
+  }
+  else if octave < 5{
+    let distance = 5 + octave;
+  }
+  None
+}
+}
+
 fn ra(word: &str)->Result<f32,()>{
   match word{
       "small"=>Ok(0.25),

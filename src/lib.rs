@@ -152,48 +152,75 @@ let mut errors:u8 = 0;
 let mut domains:Vec<Domain> = vec![];
 let param_regex = Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))|amp|amp*(0.(\d+)|1|0)").unwrap();
 let float_regex = Regex::new(r"(0.(\d+)|1|0)").unwrap();
-for param in param_regex.find_iter(word){
-  index += 1;
-  if Regex::new(r"amp*(0.(\d+)|1|0)").unwrap().is_match(param.as_str()){
-    let value = float_regex.find(param.as_str()).unwrap().as_str().parse::<f32>().unwrap();
-    match m{
-      Medium::Background=>{
-        match index{
-          0=>domains.push(Domain::RedScr(value)),
-          1=>domains.push(Domain::BlueScr(value)),
-          2=>domains.push(Domain::GreenScr(value)),
-          _=>todo!()
-        }
-      },
-      Medium::Visuals=>{
-        match index{
-          0=>domains.push(Domain::RedMat(value)),
-          1=>domains.push(Domain::BlueMat(value)),
-          2=>domains.push(Domain::GreenMat(value)),
-          _=>todo!()
-        }
-      },
-      _=>todo!()
+let amp_regex = Regex::new(r"amp*(0.(\d+)|1|0)|amp").unwrap();
+let finder = param_regex.find_iter(word);
+if finder.count() > 1{
+  for param in finder{
+    index += 1;
+    if amp_regex.is_match(param.as_str()){
+      let value = float_regex.find(param.as_str()).unwrap().as_str().parse::<f32>().unwrap();
+      match m{
+        Medium::Background=>{
+          match index{
+            0=>domains.push(Domain::RedScr(value)),
+            1=>domains.push(Domain::BlueScr(value)),
+            2=>domains.push(Domain::GreenScr(value)),
+            _=>todo!()
+          }
+        },
+        Medium::Visuals=>{
+          match index{
+            0=>domains.push(Domain::RedMat(value)),
+            1=>domains.push(Domain::BlueMat(value)),
+            2=>domains.push(Domain::GreenMat(value)),
+            _=>todo!()
+          }
+        },
+        _=>todo!()
+      }
+    }
+    else if param.as_str() == "amp"{
+      match m{
+        Medium::Background=>{
+          match index{
+            0=>domains.push(Domain::RedScr(1.0)),
+            1=>domains.push(Domain::BlueScr(1.0)),
+            2=>domains.push(Domain::GreenScr(1.0)),
+            _=>todo!()
+          }
+        },
+        Medium::Visuals=>{
+          match index{
+            0=>domains.push(Domain::RedMat(1.0)),
+            1=>domains.push(Domain::BlueMat(1.0)),
+            2=>domains.push(Domain::GreenMat(1.0)),
+            _=>todo!()
+          }
+        },
+        _=>todo!()
+      }
     }
   }
-  else if param.as_str() == "amp"{
+} else if finder.count() == 1 {
+  if amp_regex.is_match(word){
+    let value = float_regex.find(finder.nth(0).unwrap().as_str()).unwrap().as_str().parse::<f32>().unwrap();
     match m{
       Medium::Background=>{
-        match index{
-          0=>domains.push(Domain::RedScr(1.0)),
-          1=>domains.push(Domain::BlueScr(1.0)),
-          2=>domains.push(Domain::GreenScr(1.0)),
-          _=>todo!()
-        }
+        domains.push(Domain::RedScr(value));
+        domains.push(Domain::GreenScr(value));
+        domains.push(Domain::BlueScr(value));
       },
-      Medium::Visuals=>{
-        match index{
-          0=>domains.push(Domain::RedMat(1.0)),
-          1=>domains.push(Domain::BlueMat(1.0)),
-          2=>domains.push(Domain::GreenMat(1.0)),
-          _=>todo!()
-        }
+      Medium::Visuals=>domains.push(Domain::Scale(value)),
+      _=>todo!()
+    }
+  } else if word == "amp"{
+    match m{
+      Medium::Background=>{
+        domains.push(Domain::RedScr(1.0));
+        domains.push(Domain::GreenScr(1.0));
+        domains.push(Domain::BlueScr(1.0));
       },
+      Medium::Visuals=>domains.push(Domain::Scale(1.0)),
       _=>todo!()
     }
   }
@@ -240,6 +267,7 @@ match word.chars().nth(0).unwrap(){
   'f'=>{power -= 4;},
   'g'=>{power -= 2;},
   'h'=>{power += 2;},
+  _=>todo!()
 }
 if word == "a5"{Some(440.0)}else{
   if octave > 5{
@@ -313,16 +341,13 @@ let window = three_d::Window::new(WindowSettings {
 error_p.set_inner_html("");
 
 if !code.is_empty(){
-  let mut freq:Option<f32> = None;
-  let mut gain:Option<f32> = None;
-  let mut pan:Option<f32> = None;
-  let mut ra:Option<f32> = None;
-  let mut rgb:Option<[f32; 3]> = None;
-  let mut uv:Option<[f32; 2]> = None;
-  let mut rot:Option<f32> = None;
-  let mut domains:Option<Vec<Domain>> = None;
+  let mut time_domains:Vec<(Vec<Domain>,i16)> = vec![];
+  let mut models:Vec<(&dyn Object,i16)> = vec![];
+  let mut rotations:Vec<(f32,i16)> = vec![];
   let comms: Vec<&str> = code.split(';').collect();
+  let mut comm_index = -1;
   for comm in comms{
+    comm_index += 1;
       let expr: Vec<&str> = comm.split_whitespace().collect();
       if medium(expr[0]) == Medium::Unknown{ send_err(&error_p, "Unknown media. Allowed: screen, cube, saw... More in help"); }
         else if medium(expr[0]) == Medium::Background && expr.len() == 1{ send_err(&error_p, "Missing color"); } 
@@ -333,30 +358,33 @@ if !code.is_empty(){
         else if medium(expr[0]) == Medium::Multiplication && expr.len() == 1{ send_err(&error_p, "Number of rows and number of columns is needed"); } 
         else if medium(expr[0]) == Medium::Multiplication && expr.len() > 3{ send_err(&error_p, "Other parameters are not needed for scissoring the canvas"); } 
         else {
-        for word in &expr{
-          if gain_regex.is_match(word){ match String::from(*word).parse::<f32>(){ Ok(g)=>{gain = Some(g);}, Err(e)=>{}} }
-          else if pan_regex.is_match(word){ match String::from(*word).parse::<f32>(){ Ok(p)=>{pan = Some(p);}, Err(e)=>{}} }
-          else if ra_regex.is_match(word){ match String::from(*word).parse::<f32>(){ Ok(r)=>{ra = Some(r);}, Err(e)=>{}} }
-          else if uv_regex.is_match(word){ let arr = floats_from(*word); if arr != None {uv = Some([arr.clone().unwrap()[0], arr.clone().unwrap()[1]]);} else {} }
-          else if rot_regex.is_match(word){ let arr = floats_from(*word); if arr != None {rot = Some(arr.clone().unwrap()[0]);} else {} }
-          else {send_err(&error_p, "Invalid parameters.")}
-         }
           match medium(expr[0]){
               Medium::Background=>{ 
                 if rgb_regex.is_match(expr[1]){ 
                   if Regex::new(r"[a-z]+").unwrap().find(expr[1]) != None && Regex::new(r"(0.(\d+)|1|0))").unwrap().find(expr[1]) == None{
-                    if color(expr[1]) != None {rgb = color(expr[1]); clear(&gl, rgb.unwrap()); }
+                    if color(expr[1]) != None {clear(&gl, color(expr[1]).unwrap()); } else {send_err(&error_p, "Invalid color name");}
                   } else {
                     let arr = floats_from(expr[1]); 
-                    if arr != None {rgb = Some([arr.clone().unwrap()[0], arr.clone().unwrap()[1], arr.clone().unwrap()[2]]); clear(&gl, rgb.unwrap()); }
+                    if arr != None {clear(&gl, color(expr[1]).unwrap()); } else {send_err(&error_p, "Invalid numbers for rgb values");}
                   }
                 } else if "amp".find(expr[1]) != None {
-                 // MANIPULATING SCREEN COLOR WITH TIME DOMAIN
+                  let results = domains(expr[1], Medium::Background);
+                  if results != None{
+                    time_domains.push((results.unwrap(), -1));
+                  } else {
+                   send_err(&error_p, "Not a correct definition for reacting to sound");
+                  }
                 } else {
                   send_err(&error_p, "Invalid parameter, color allowed only");
                 }
                },
               Medium::Visuals=>{
+                let mut ra:Option<f32> = None;
+                let mut rgb:Option<[f32; 3]> = None;
+                let mut uv:Option<[f32; 2]> = None;
+                let mut rot:Option<f32> = None;
+                let mut model = CpuMesh::default();
+                let mut material = ColorMaterial::default();
                 for i in 1..expr.len()- 1{
                   if rgb_regex.is_match(expr[i]){ 
                     if Regex::new(r"[a-z]+").unwrap().find(expr[i]) != None && Regex::new(r"(0.(\d+)|1|0))").unwrap().find(expr[i]) == None{
@@ -388,14 +416,33 @@ if !code.is_empty(){
                       send_err(&error_p, "Could not parse UV coords");
                     } 
                   } else if "amp".find(expr[i]) != None{
-                    // MANIPULATING MODELS WITH TIME DOMAIN
+                    let results = domains(expr[1], Medium::Visuals);
+                    if results != None{
+                      time_domains.push((results.unwrap(), comm_index));
+                    } else {
+                     send_err(&error_p, "Not a correct definition for reacting to sound");
+                    }
                   }
                   else {
                     send_err(&error_p, "Invalid parameter");
                   }
-                }              
+                } 
+                match variant(expr[0]){
+                  Variant::Cube=>{model = CpuMesh::cube();},
+                  Variant::Sphere=>{model = CpuMesh::sphere(40);},
+                  _=>todo!()
+                }
+                let mut object = &Gm::new(Mesh::new(&context, &model), material);
+                if ra != None {object.set_transformation(Mat4::from_scale(ra.unwrap()));} else {object.set_transformation(Mat4::from_scale(1.0));}
+                if rgb != None {material.color = Color::from_rgb_slice(&[rgb.unwrap()[0],rgb.unwrap()[1],rgb.unwrap()[2]]);}
+                if uv != None {object.set_transformation(Mat4::from_translation(Camera::position_at_uv_coordinates(&camera, (uv.unwrap()[0],uv.unwrap()[1]))));} 
+                if rot != None {rotations.push((rot.unwrap(), comm_index));}
+                models.push((object, comm_index));
               },
               Medium::Audio=>{
+                let mut freq:Option<f32> = None;
+                let mut gain:Option<f32> = None;
+                let mut pan:Option<f32> = None;
                 if variant(expr[0]) != Variant::NoiseOsc{
                   if tone_regex.is_match(expr[1]){
                 
@@ -414,24 +461,29 @@ if !code.is_empty(){
                   2=>{
                   if mul_regex.is_match(expr[1]){
                     let division = String::from(expr[1]).parse::<u16>();
+                    let mut d:u16 = 0; 
                     match division{
-                      Ok(d)=>{},
-                      Err(e)=>{}
+                      Ok(v)=>{d = v;},
+                      Err(e)=>send_err(&error_p, "Could not parse rows and columns")
                     }
+                    if d != 0 {mul(&gl, d, d);}
                   }
                   },
                   3=>{
                     if mul_regex.is_match(expr[1]) && mul_regex.is_match(expr[2]){
                       let rows = String::from(expr[1]).parse::<u16>();
                       let columns = String::from(expr[1]).parse::<u16>();
+                      let mut r:u16 = 0;
+                      let mut c:u16 = 0;
                       match rows{
-                        Ok(r)=>{},
-                        Err(e)=>{}
+                        Ok(v)=>{r = v;},
+                        Err(e)=>todo!()
                       }
                       match columns{
-                        Ok(c)=>{},
-                        Err(e)=>{}
+                        Ok(v)=>{c = v;},
+                        Err(e)=>todo!()
                       }
+                      if r != 0 && c != 0 {mul(&gl, r, c);}else{send_err(&error_p, "Could not parse rows and columns");}
                     }
                   },
                   _=>todo!()
@@ -455,11 +507,19 @@ gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 }
 
 fn mul(gl: &WebGl2RenderingContext, rows: u16, columns: u16){
-
-}
-
-fn mul_one(gl: &WebGl2RenderingContext, divs: u16){
-
+  let window = web_sys::window().unwrap();
+  let width = window.inner_width().unwrap().as_f64();
+  let height = window.inner_height().unwrap().as_f64();
+  gl.enable(WebGl2RenderingContext::SCISSOR_TEST);
+  if width != None || height != None{
+      let scissor_width = width.unwrap() as i32 / rows as i32;
+      let scissor_height = height.unwrap() as i32 / columns as i32;
+      for c in 0..columns-1{
+          for r in 0..rows-1{
+          gl.scissor(scissor_width * r as i32, scissor_height * c as i32, scissor_width, scissor_height);
+          }
+      }
+  }
 }
 /*
 OPERATIONS WITH AUDIOCONTEXT

@@ -341,9 +341,17 @@ let window = three_d::Window::new(WindowSettings {
 error_p.set_inner_html("");
 
 if !code.is_empty(){
+  struct Model{
+    radius: f32,
+    material: Box<dyn Material>,
+    coordinates: Option<Vector3<f32>>,
+    rotation: Option<f64>
+  }
+  impl Default for Model{
+     fn default() -> Model { Self{radius: 1.0, material: Box::new(ColorMaterial{color: Color::WHITE, ..Default::default()}), coordinates: None, rotation: None} }
+  }
   let mut time_domains:Vec<(Vec<Domain>,i16)> = vec![];
-  let mut models:Vec<(&dyn Object,i16)> = vec![];
-  let mut rotations:Vec<(f32,i16)> = vec![];
+  let mut models:Vec<(Model,i16)> = vec![];
   let comms: Vec<&str> = code.split(';').collect();
   let mut comm_index = -1;
   for comm in comms{
@@ -382,7 +390,7 @@ if !code.is_empty(){
                 let mut ra:Option<f32> = None;
                 let mut rgb:Option<[f32; 3]> = None;
                 let mut uv:Option<[f32; 2]> = None;
-                let mut rot:Option<f32> = None;
+                let mut rot:Option<f64> = None;
                 let mut model = CpuMesh::default();
                 let mut material = ColorMaterial::default();
                 for i in 1..expr.len()- 1{
@@ -432,12 +440,12 @@ if !code.is_empty(){
                   Variant::Sphere=>{model = CpuMesh::sphere(40);},
                   _=>todo!()
                 }
-                let mut object = &Gm::new(Mesh::new(&context, &model), material);
-                if ra != None {object.set_transformation(Mat4::from_scale(ra.unwrap()));} else {object.set_transformation(Mat4::from_scale(1.0));}
-                if rgb != None {material.color = Color::from_rgb_slice(&[rgb.unwrap()[0],rgb.unwrap()[1],rgb.unwrap()[2]]);}
-                if uv != None {object.set_transformation(Mat4::from_translation(Camera::position_at_uv_coordinates(&camera, (uv.unwrap()[0],uv.unwrap()[1]))));} 
-                if rot != None {rotations.push((rot.unwrap(), comm_index));}
-                models.push((object, comm_index));
+                let mut model = Model::default();
+                if ra != None {model.radius = ra.unwrap();} else {model.radius = 1.0;}
+                if rgb != None {model.material = Box::new(ColorMaterial{color: Color::from_rgb_slice(&[rgb.unwrap()[0],rgb.unwrap()[1],rgb.unwrap()[2]]), ..Default::default()});}
+                if uv != None {model.coordinates = Some(Camera::position_at_uv_coordinates(&camera, (uv.unwrap()[0],uv.unwrap()[1])));} 
+                if rot != None {model.rotation = rot;}
+                models.push((model, comm_index));
               },
               Medium::Audio=>{
                 let mut freq:Option<f32> = None;
@@ -494,21 +502,20 @@ if !code.is_empty(){
          
       }
   }
-  if !models.len() == 0 || !time_domains.len() == 0 || !rotations.len() == 0{
+  if !models.len() == 0 || !time_domains.len() == 0 {
     let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,0.0));
     window.render_loop(|frame_input|{
       for order in 0..comm_index{
-        if models[order as usize].1 == order{       
+        /*if models[order as usize].1 == order{       
           models[order as usize].0.render(&camera, &[&light]);
           if time_domains[order as usize].1 == order{}
           if rotations[order as usize].1 == order{
-            /* FIXING THIS */
-            //models[order as usize].set_transformation(Mat4::from_angle_x(frame_input.elapsed_time * rotations[order as usize].0));
+            models[order as usize].0.set_animation(|time| Mat4::from_angle_x(radians(time * rotations[order as usize].0)));
           }
         } else {
           if time_domains[order as usize].1 == order{}
           if rotations[order as usize].1 == order{}
-        }
+        }*/
       }
       FrameOutput::default()
     });

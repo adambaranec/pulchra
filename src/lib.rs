@@ -494,6 +494,25 @@ if !code.is_empty(){
          
       }
   }
+  if !models.len() == 0 || !time_domains.len() == 0 || !rotations.len() == 0{
+    let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,0.0));
+    window.render_loop(|frame_input|{
+      for order in 0..comm_index{
+        if models[order as usize].1 == order{       
+          models[order as usize].0.render(&camera, &[&light]);
+          if time_domains[order as usize].1 == order{}
+          if rotations[order as usize].1 == order{
+            /* FIXING THIS */
+            //models[order as usize].set_transformation(Mat4::from_angle_x(frame_input.elapsed_time * rotations[order as usize].0));
+          }
+        } else {
+          if time_domains[order as usize].1 == order{}
+          if rotations[order as usize].1 == order{}
+        }
+      }
+      FrameOutput::default()
+    });
+  }
 } else { 
   clear(&gl, [0.0,0.0,0.0]); 
 }

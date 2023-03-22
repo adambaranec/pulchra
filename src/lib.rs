@@ -341,7 +341,9 @@ let window = three_d::Window::new(WindowSettings {
 error_p.set_inner_html("");
 
 if !code.is_empty(){
+  #[derive(Copy, Clone, PartialEq)]
   struct Model{
+    shape: CpuMesh,
     radius: f32,
     material: Box<dyn Material>,
     coordinates: Option<Vector3<f32>>,
@@ -423,7 +425,16 @@ if !code.is_empty(){
                     } else {
                       send_err(&error_p, "Could not parse UV coords");
                     } 
-                  } else if "amp".find(expr[i]) != None{
+                  } 
+                  else if rot_regex.is_match(expr[i]){
+                    let arr = floats_from(expr[i]); 
+                    if arr != None {
+                      if rot == None {rot = Some([arr.clone().unwrap()[0]);} else {send_err(&error_p, "It is free to give whatever parameters, but not to repeat them");}
+                    } else {
+                      send_err(&error_p, "Could not parse UV coords");
+                    } 
+                  }
+                  else if "amp".find(expr[i]) != None{
                     let results = domains(expr[1], Medium::Visuals);
                     if results != None{
                       time_domains.push((results.unwrap(), comm_index));
@@ -435,16 +446,16 @@ if !code.is_empty(){
                     send_err(&error_p, "Invalid parameter");
                   }
                 } 
+                let mut model = Model::default();
                 match variant(expr[0]){
-                  Variant::Cube=>{model = CpuMesh::cube();},
-                  Variant::Sphere=>{model = CpuMesh::sphere(40);},
+                  Variant::Cube=>{model.shape = CpuMesh::cube();},
+                  Variant::Sphere=>{model.shape = CpuMesh::sphere(40);},
                   _=>todo!()
                 }
-                let mut model = Model::default();
                 if ra != None {model.radius = ra.unwrap();} else {model.radius = 1.0;}
                 if rgb != None {model.material = Box::new(ColorMaterial{color: Color::from_rgb_slice(&[rgb.unwrap()[0],rgb.unwrap()[1],rgb.unwrap()[2]]), ..Default::default()});}
                 if uv != None {model.coordinates = Some(Camera::position_at_uv_coordinates(&camera, (uv.unwrap()[0],uv.unwrap()[1])));} 
-                if rot != None {model.rotation = rot;}
+                if rot != None {model.rotation = Some(rot);}
                 models.push((model, comm_index));
               },
               Medium::Audio=>{
@@ -506,16 +517,17 @@ if !code.is_empty(){
     let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,0.0));
     window.render_loop(|frame_input|{
       for order in 0..comm_index{
-        /*if models[order as usize].1 == order{       
-          models[order as usize].0.render(&camera, &[&light]);
-          if time_domains[order as usize].1 == order{}
-          if rotations[order as usize].1 == order{
-            models[order as usize].0.set_animation(|time| Mat4::from_angle_x(radians(time * rotations[order as usize].0)));
-          }
-        } else {
-          if time_domains[order as usize].1 == order{}
-          if rotations[order as usize].1 == order{}
-        }*/
+       if models[order as usize].1 == order{
+        //let model = Gm::new();
+        if time_domains[order as usize].1 == order{
+          //model.set_transformation(Mat4::from_scale());
+        }
+        if models[order as usize].0.rotations != None{
+          //model.set_transformation(Mat::from_angle_y());
+        }
+       } else {
+         if time_domains[order as usize].1 == order{}
+       }
       }
       FrameOutput::default()
     });

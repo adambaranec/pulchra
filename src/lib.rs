@@ -343,7 +343,7 @@ error_p.set_inner_html("");
 if !code.is_empty(){
   #[derive(Copy, Clone, PartialEq)]
   struct Model{
-    shape: CpuMesh,
+    shape: Box<CpuMesh>,
     radius: f32,
     material: Box<dyn Material>,
     coordinates: Option<Vector3<f32>>,
@@ -448,8 +448,8 @@ if !code.is_empty(){
                 } 
                 let mut model = Model::default();
                 match variant(expr[0]){
-                  Variant::Cube=>{model.shape = CpuMesh::cube();},
-                  Variant::Sphere=>{model.shape = CpuMesh::sphere(40);},
+                  Variant::Cube=>{model.shape = Box::new(CpuMesh::cube());},
+                  Variant::Sphere=>{model.shape = Box::new(CpuMesh::sphere(40));},
                   _=>todo!()
                 }
                 if ra != None {model.radius = ra.unwrap();} else {model.radius = 1.0;}
@@ -518,9 +518,10 @@ if !code.is_empty(){
     window.render_loop(|frame_input|{
       for order in 0..comm_index{
        if models[order as usize].1 == order{
-        //let model = Gm::new();
+        //let model = Gm::new(Mesh::new(&context, *&models[order as usize].0.shape),*models[order as usize].0.material);
         if time_domains[order as usize].1 == order{
-          //model.set_transformation(Mat4::from_scale());
+       match time_domains[order as usize].1{
+       }
         }
         if models[order as usize].0.rotations != None{
           //model.set_transformation(Mat::from_angle_y());

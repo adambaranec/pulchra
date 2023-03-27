@@ -350,7 +350,7 @@ if !code.is_empty(){
     rotation: Option<f64>
   }
   impl Default for Model{
-     fn default() -> Model { Self{radius: 1.0, material: Box::new(ColorMaterial{color: Color::WHITE, ..Default::default()}), coordinates: None, rotation: None} }
+     fn default() -> Model { Self{shape: Box::new(CpuMesh::cube()), radius: 1.0, material: Box::new(ColorMaterial{color: Color::WHITE, ..Default::default()}), coordinates: None, rotation: None} }
   }
   let mut time_domains:Vec<(Vec<Domain>,i16)> = vec![];
   let mut models:Vec<(Model,i16)> = vec![];

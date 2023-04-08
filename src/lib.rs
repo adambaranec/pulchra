@@ -18,7 +18,6 @@ start(&gl);
 }*/
 
 use regex::Regex;
-use std::error::Error;
 use three_d::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -341,13 +340,12 @@ let window = three_d::Window::new(WindowSettings {
 error_p.set_inner_html("");
 
 if !code.is_empty(){
-  #[derive(Copy, Clone, PartialEq)]
   struct Model{
     shape: Box<CpuMesh>,
     radius: f32,
     material: Box<dyn Material>,
     coordinates: Option<Vector3<f32>>,
-    rotation: Option<f64>
+    rotation: Option<f32>
   }
   impl Default for Model{
      fn default() -> Model { Self{shape: Box::new(CpuMesh::cube()), radius: 1.0, material: Box::new(ColorMaterial{color: Color::WHITE, ..Default::default()}), coordinates: None, rotation: None} }
@@ -392,7 +390,7 @@ if !code.is_empty(){
                 let mut ra:Option<f32> = None;
                 let mut rgb:Option<[f32; 3]> = None;
                 let mut uv:Option<[f32; 2]> = None;
-                let mut rot:Option<f64> = None;
+                let mut rot:Option<f32> = None;
                 let mut model = CpuMesh::default();
                 let mut material = ColorMaterial::default();
                 for i in 1..expr.len()- 1{
@@ -429,7 +427,7 @@ if !code.is_empty(){
                   else if rot_regex.is_match(expr[i]){
                     let arr = floats_from(expr[i]); 
                     if arr != None {
-                      if rot == None {rot = Some([arr.clone().unwrap()[0]);} else {send_err(&error_p, "It is free to give whatever parameters, but not to repeat them");}
+                      if rot == None {rot = Some(arr.clone().unwrap()[0]);} else {send_err(&error_p, "It is free to give whatever parameters, but not to repeat them");}
                     } else {
                       send_err(&error_p, "Could not parse UV coords");
                     } 
@@ -455,7 +453,7 @@ if !code.is_empty(){
                 if ra != None {model.radius = ra.unwrap();} else {model.radius = 1.0;}
                 if rgb != None {model.material = Box::new(ColorMaterial{color: Color::from_rgb_slice(&[rgb.unwrap()[0],rgb.unwrap()[1],rgb.unwrap()[2]]), ..Default::default()});}
                 if uv != None {model.coordinates = Some(Camera::position_at_uv_coordinates(&camera, (uv.unwrap()[0],uv.unwrap()[1])));} 
-                if rot != None {model.rotation = Some(rot);}
+                if rot != None {model.rotation = Some(rot.unwrap());}
                 models.push((model, comm_index));
               },
               Medium::Audio=>{
@@ -518,16 +516,33 @@ if !code.is_empty(){
     window.render_loop(|frame_input|{
       for order in 0..comm_index{
        if models[order as usize].1 == order{
-        //let model = Gm::new(Mesh::new(&context, *&models[order as usize].0.shape),*models[order as usize].0.material);
+        //models[order as usize].0.material
+        let model = Gm::new(Mesh::new(&context, &models[order as usize].0.shape),&*models[order as usize].0.material);
         if time_domains[order as usize].1 == order{
-       match time_domains[order as usize].1{
-       }
+         for domain in time_domains[order as usize].0{
+           match domain{
+            Domain::RedMat(v)=>{},
+            Domain::GreenMat(v)=>{},
+            Domain::BlueMat(v)=>{},
+            Domain::Scale(v)=>{},
+            _=>todo!()
+           }
+         }
         }
-        if models[order as usize].0.rotations != None{
-          //model.set_transformation(Mat::from_angle_y());
+        if models[order as usize].0.rotation != None{
+          model.set_transformation(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 * models[order as usize].0.rotation.unwrap())));
         }
        } else {
-         if time_domains[order as usize].1 == order{}
+         if time_domains[order as usize].1 == order{
+          for domain in time_domains[order as usize].0{
+            match domain{
+              Domain::RedScr(v)=>{},
+              Domain::BlueScr(v)=>{},
+              Domain::GreenScr(v)=>{},
+              _=>todo!()
+            }
+          }
+         }
        }
       }
       FrameOutput::default()

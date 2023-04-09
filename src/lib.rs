@@ -1,22 +1,4 @@
-/*use js_sys::Object;
-
-use crate::drawing::startup::start;
-use crate::renderer::renderer::render;
-use crate::interpreter::interpreter::{interpret,play_audios,compare_audios};
-
-pub mod canvas;
-pub mod drawing;
-pub mod enums;
-pub mod error;
-pub mod fft;
-pub mod renderer;
-pub mod interpreter;
-
-#[wasm_bindgen]
-pub fn clear(gl: WebGl2RenderingContext){
-start(&gl);
-}*/
-
+use js_sys::{Object,Array,JsString};
 use regex::Regex;
 use three_d::*;
 use wasm_bindgen::prelude::*;
@@ -99,6 +81,20 @@ fn z(self)->f32{
   _=>todo!()
 }
 }
+fn str(self)->JsString{
+match self{
+  Domain::RedMat(v)=>JsString::from("surfaceRed"),
+  Domain::GreenMat(v)=>JsString::from("surfaceGreen"),
+  Domain::BlueMat(v)=>JsString::from("surfaceBlue"),
+  Domain::RedScr(v)=>JsString::from("screenRed"),
+  Domain::GreenScr(v)=>JsString::from("screenGreen"),
+  Domain::BlueScr(v)=>JsString::from("screenBlue"),
+  Domain::Scale(v)=>JsString::from("scale"),
+  Domain::Rotation(v)=>JsString::from("rotationSpeed"),
+  Domain::Transform(x,y,z)=>JsString::from("transformCoords"),
+  _=>todo!()
+}
+}
 }
 
 fn medium(word: &str)->Medium{
@@ -153,8 +149,8 @@ let param_regex = Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))|amp|amp*(0.(\d+
 let float_regex = Regex::new(r"(0.(\d+)|1|0)").unwrap();
 let amp_regex = Regex::new(r"amp*(0.(\d+)|1|0)|amp").unwrap();
 let finder = param_regex.find_iter(word);
-if finder.count() > 1{
-  for param in finder{
+if param_regex.find_iter(word).count() > 1{
+  for param in finder.into_iter(){
     index += 1;
     if amp_regex.is_match(param.as_str()){
       let value = float_regex.find(param.as_str()).unwrap().as_str().parse::<f32>().unwrap();
@@ -202,7 +198,7 @@ if finder.count() > 1{
   }
 } else if finder.count() == 1 {
   if amp_regex.is_match(word){
-    let value = float_regex.find(finder.nth(0).unwrap().as_str()).unwrap().as_str().parse::<f32>().unwrap();
+    let value = float_regex.find(param_regex.find_iter(word).nth(0).unwrap().as_str()).unwrap().as_str().parse::<f32>().unwrap();
     match m{
       Medium::Background=>{
         domains.push(Domain::RedScr(value));
@@ -306,7 +302,229 @@ fn send_err(p: &HtmlParagraphElement, error: &str){
     p.set_inner_html(&content);
 }
 
-fn interpret(){
+#[wasm_bindgen]
+pub fn interpret() -> js_sys::Object{
+  // the object with its arrays to be returned - 3D models and audio oscillators.
+  let result_obj = Object::new();
+  let models = Array::new();
+  let oscillators = Array::new();
+  // the end
+  let document = web_sys::window().unwrap().document().unwrap();
+  let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
+  let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
+  let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
+  let code = document.get_element_by_id("input").unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value();
+  let comms: Vec<&str> = code.split(';').collect();
+  let tone_regex = Regex::new(r"([\d]+\.[\d]+|[\d]+)|((c|d|e|f|g|a|b)(\d)|(c|d|e|f|g|a|b)(is|isis|es|eses)(\d))").unwrap();
+  let gain_regex = Regex::new(r"((0.(\d+)|1|0)").unwrap();
+  let pan_regex = Regex::new(r"\[(((0.(\d+)|1|0))|(l)|(c)|(r))\]").unwrap();
+  let ra_regex = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
+  let rgb_regex = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)|[a-z]+").unwrap();
+  let uv_regex = Regex::new(r"\[(((0.(\d+)|1|0))|\-(0.(\d+)|1|0)),(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\]|[a-z]+").unwrap();
+  let rot_regex = Regex::new(r"ro\((((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\)").unwrap();
+  let mul_regex = Regex::new(r"([0-9]+)").unwrap();
+  let domain_regex = Regex::new(r"(amp)|(amp*(0.(\d+)|1|0))").unwrap();
+  let window = three_d::Window::new(WindowSettings {
+    canvas: Some(canvas),
+   ..Default:: default()
+   }).unwrap();
+   let context = window.gl();
+   let camera:Camera = Camera::new_perspective(
+      window.viewport(),
+      vec3(1.0, 1.0, 3.0),
+      vec3(0.0, 0.0, 0.0),
+      vec3(0.0, 3.0, 0.0),
+      degrees(45.0),
+      0.1,
+      1000.0
+  );
+  let mut comm_index = -1;
+  for comm in comms{
+    comm_index += 1;
+    let expr: Vec<&str> = comm.split_whitespace().collect();
+    if medium(expr[0]) == Medium::Unknown{ send_err(&error_p, "Unknown media. Allowed: screen, cube, saw... More in help"); }
+      else if medium(expr[0]) == Medium::Background && expr.len() == 1{ send_err(&error_p, "Missing color"); } 
+      else if medium(expr[0]) == Medium::Background && expr.len() > 2{ send_err(&error_p, "Too many parameters, color is enough"); } 
+      else if medium(expr[0]) == Medium::Visuals && expr.len() > 5{ send_err(&error_p, "More than 4 parameters are not provided for models"); } 
+      else if medium(expr[0]) == Medium::Audio && expr.len() == 1{ send_err(&error_p, "Missing frequency for the oscillator."); } 
+      else if medium(expr[0]) == Medium::Audio && expr.len() > 3{ send_err(&error_p, "More than 3 parameters are not provided for oscillators"); } 
+      else if medium(expr[0]) == Medium::Multiplication && expr.len() == 1{ send_err(&error_p, "Number of rows and number of columns is needed"); } 
+      else if medium(expr[0]) == Medium::Multiplication && expr.len() > 3{ send_err(&error_p, "Other parameters are not needed for scissoring the canvas"); } 
+      else {
+        match medium(expr[0]){
+          Medium::Background=>{ 
+            if rgb_regex.is_match(expr[1]){ 
+              if Regex::new(r"[a-z]+").unwrap().find(expr[1]) != None && Regex::new(r"(0.(\d+)|1|0))").unwrap().find(expr[1]) == None{
+                if color(expr[1]) != None {clear(&gl, color(expr[1]).unwrap()); } else {send_err(&error_p, "Invalid color name");}
+              } else {
+                let arr = floats_from(expr[1]); 
+                if arr != None {clear(&gl, color(expr[1]).unwrap()); } else {send_err(&error_p, "Invalid numbers for rgb values");}
+              }
+            } else if "amp".find(expr[1]) != None {
+              let results = domains(expr[1], Medium::Background);
+              if results != None{
+                //time_domains.push((results.unwrap(), -1));
+              } else {
+               send_err(&error_p, "Not a correct definition for reacting to sound");
+              }
+            } else {
+              send_err(&error_p, "Invalid parameter, color allowed only");
+            }
+           },
+          Medium::Visuals=>{
+            let mut ra:Option<f32> = None;
+            let mut rgb:Option<[f32; 3]> = None;
+            let mut uv:Option<[f32; 2]> = None;
+            let mut rot:Option<f32> = None;
+            for i in 1..expr.len()- 1{
+              if rgb_regex.is_match(expr[i]){ 
+                if Regex::new(r"[a-z]+").unwrap().find(expr[i]) != None && Regex::new(r"(0.(\d+)|1|0))").unwrap().find(expr[i]) == None{
+                  if color(expr[i]) != None {
+                    if rgb == None {rgb = color(expr[i]);} else {send_err(&error_p, "It is free to give whatever parameters, but not to repeat them");}
+                  } else {
+                    send_err(&error_p, "Could not parse color from text");
+                  }
+                } else {
+                  let arr = floats_from(expr[i]); 
+                  if arr != None {
+                    if rgb == None {rgb = Some([arr.clone().unwrap()[0], arr.clone().unwrap()[1], arr.clone().unwrap()[2]]);} else {send_err(&error_p, "It is free to give whatever parameters, but not to repeat them");}
+                  } else {
+                    send_err(&error_p, "Could not parse color from function");
+                  }
+                }
+              }
+              else if ra_regex.is_match(expr[i]){ 
+                match String::from(expr[i]).parse::<f32>(){ 
+                  Ok(r)=>{ra = Some(r);}, 
+                  Err(e)=>send_err(&error_p, "Could not parse radius")
+                } 
+              }
+              else if uv_regex.is_match(expr[i]){ 
+                let arr = floats_from(expr[i]); 
+                if arr != None {
+                  if uv == None {uv = Some([arr.clone().unwrap()[0], arr.clone().unwrap()[1]]);} else {send_err(&error_p, "It is free to give whatever parameters, but not to repeat them");}
+                } else {
+                  send_err(&error_p, "Could not parse UV coords");
+                } 
+              } 
+              else if rot_regex.is_match(expr[i]){
+                let arr = floats_from(expr[i]); 
+                if arr != None {
+                  if rot == None {rot = Some(arr.clone().unwrap()[0]);} else {send_err(&error_p, "It is free to give whatever parameters, but not to repeat them");}
+                } else {
+                  send_err(&error_p, "Could not parse UV coords");
+                } 
+              }
+              else if "amp".find(expr[i]) != None{
+                let results = domains(expr[1], Medium::Visuals);
+                if results != None{
+                  //time_domains.push((results.unwrap(), comm_index));
+                } else {
+                 send_err(&error_p, "Not a correct definition for reacting to sound");
+                }
+              }
+              else {
+                send_err(&error_p, "Invalid parameter");
+              }
+            } 
+            match variant(expr[0]){
+              Variant::Cube=>{},
+              Variant::Sphere=>{},
+              _=>todo!()
+            }
+            if ra != None {} else {}
+            if rgb != None {}
+            if uv != None {} 
+            if rot != None {}
+          },
+          Medium::Audio=>{
+            let mut freq:Option<f32> = None;
+            let mut gain:Option<f32> = None;
+            let mut pan:Option<f32> = None;
+            if variant(expr[0]) != Variant::NoiseOsc{
+              if tone_regex.is_match(expr[1]){
+            
+              } else {
+                send_err(&error_p, "Frequency must always be given at first");
+              }
+              for i in 2..expr.len()- 1{
+                
+              }
+            } else {
+
+            }
+          },
+          Medium::Multiplication=>{
+            match expr.len(){
+              2=>{
+              if mul_regex.is_match(expr[1]){
+                let division = String::from(expr[1]).parse::<u16>();
+                let mut d:u16 = 0; 
+                match division{
+                  Ok(v)=>{d = v;},
+                  Err(e)=>send_err(&error_p, "Could not parse rows and columns")
+                }
+                if d != 0 {mul(&gl, d, d);}
+              }
+              },
+              3=>{
+                if mul_regex.is_match(expr[1]) && mul_regex.is_match(expr[2]){
+                  let rows = String::from(expr[1]).parse::<u16>();
+                  let columns = String::from(expr[1]).parse::<u16>();
+                  let mut r:u16 = 0;
+                  let mut c:u16 = 0;
+                  match rows{
+                    Ok(v)=>{r = v;},
+                    Err(e)=>todo!()
+                  }
+                  match columns{
+                    Ok(v)=>{c = v;},
+                    Err(e)=>todo!()
+                  }
+                  if r != 0 && c != 0 {mul(&gl, r, c);}else{send_err(&error_p, "Could not parse rows and columns");}
+                }
+              },
+              _=>todo!()
+            }
+          },
+          _=>todo!()
+      }
+      }
+  }
+  result_obj
+}
+
+#[wasm_bindgen]
+pub fn draw(objects: &Array){
+  let document = web_sys::window().unwrap().document().unwrap();
+  let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
+  let window = three_d::Window::new(WindowSettings {
+    canvas: Some(canvas),
+   ..Default:: default()
+   }).unwrap();
+   let context = window.gl();
+   let camera:Camera = Camera::new_perspective(
+      window.viewport(),
+      vec3(1.0, 1.0, 3.0),
+      vec3(0.0, 0.0, 0.0),
+      vec3(0.0, 3.0, 0.0),
+      degrees(45.0),
+      0.1,
+      1000.0
+  );
+  window.render_loop(move |frame_input|{
+    FrameOutput::default()
+  });
+}
+
+#[wasm_bindgen]
+pub fn play(oscillators: &Array){
+for oscillator in oscillators.iter() {
+
+}
+}
+
+/*fn interpret(){
 let tone_regex = Regex::new(r"([\d]+\.[\d]+|[\d]+)|((c|d|e|f|g|a|b)(\d)|(c|d|e|f|g|a|b)(is|isis|es|eses)(\d))").unwrap();
 let gain_regex = Regex::new(r"((0.(\d+)|1|0)").unwrap();
 let pan_regex = Regex::new(r"\[(((0.(\d+)|1|0))|(l)|(c)|(r))\]").unwrap();
@@ -551,7 +769,7 @@ if !code.is_empty(){
 } else { 
   clear(&gl, [0.0,0.0,0.0]); 
 }
-}
+}*/
 /*
 OPERATIONS WITH WEBGL
  */
@@ -574,25 +792,5 @@ fn mul(gl: &WebGl2RenderingContext, rows: u16, columns: u16){
           }
       }
   }
-}
-/*
-OPERATIONS WITH AUDIOCONTEXT
- */
-fn play(sound: Variant, ac: &AudioContext){
-let gain = GainNode::new(&ac).unwrap();
-let stereo = StereoPannerNode::new(&ac).unwrap();
-if sound != Variant::NoiseOsc{
-  let osc = OscillatorNode::new(&ac).unwrap();
-  osc.start();
-} else {
-  let osc = AudioBufferSourceNode::new(&ac).unwrap();
-  osc.start();
-}
-}
-/*
-MAIN FUNCTIONS FOR WASM
- */
-#[wasm_bindgen]
-pub fn set(mut code: String, audio: AudioContext){
 }
   

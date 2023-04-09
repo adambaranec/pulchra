@@ -1,6 +1,7 @@
+      import {init, interpret, draw, play} from '/pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
-      let audio;
+      let audio = undefined;
       let canvasRecDialog = document.getElementById('canvas-rec');
       let recSaveDialog = document.getElementById('record-save');
       let welcomeDialog = document.getElementById('welcome');
@@ -10,6 +11,10 @@
       let saveFile = document.getElementById('save-file');
       let gotIt = document.getElementById('got-it');
       let fileNameInput = document.getElementById('file-name');
+
+      let previousResults = Object.create();
+      let currentResults = Object.create();
+      let oscillators = new Array();
   
       window.onload = (e) =>{
         welcomeDialog.showModal();
@@ -51,17 +56,46 @@
           }
         });
       }
+
+      const start = () => {
+       let results = interpret();
+       let oscs = results.oscillators;
+       let objects = results.models;
+       if (Object.keys(currentResults).length() > 0){
+        previousResults = Object.assign(previousResults, currentResults);
+        currentResults.models = objects;
+        currentResults.oscillators = oscs;
+        if (oscs.length() != 0){
+        //comparing oscillators from previous and current sessions
+        if (currentResults.oscillators.length() > previousResults.oscillators.length()){
+
+        } else if (currentResults.oscillators.length() < previousResults.oscillators.length()){
+
+        }
+        }
+       } else {
+        if (oscs.length() != 0){
+          if (typeof audio === undefined){audio = new AudioContext();}
+          for (osc in oscs){
+  
+          }
+         }
+         if (objects.length() != 0){
+          draw(objects);
+         }
+         currentResults.models = objects;
+         currentResults.oscillators = oscs;
+       }
+      };
      
 
       input.addEventListener('keydown', (e)=>{
-        if (e.metaKey && e.key == 'Enter'){
-          console.clear();
-          if (typeof audio === 'undefined'){
-            audio = new AudioContext();
-           }
-          } else if (e.metaKey && e.key == 'H'){
-            // directing to docs in pulchra repo
-          } else if (e.metaKey && e.key == 'R'){
+       if (e.ctrlKey && e.key == 'Enter'){
+       console.clear();
+       start();
+       } else if (e.ctrlKey && e.key == 'H'){
+        window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
+       } else if (e.ctrlKey && e.key == 'R'){
             canvasRecDialog.showModal();
-          }
+       }
       });

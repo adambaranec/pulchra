@@ -15,6 +15,7 @@
       let previousResults = Object.create();
       let currentResults = Object.create();
       let oscillators = new Array();
+      let models = new Array();
   
       window.onload = (e) =>{
         welcomeDialog.showModal();

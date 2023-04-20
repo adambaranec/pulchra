@@ -58,7 +58,7 @@
         });
       }
 
-      const start = () => {
+      const run = () => {
        let results = interpret();
        let oscs = results.oscillators;
        let objects = results.models;
@@ -74,14 +74,25 @@
 
         }
         }
+        if (objects.length() != 0){
+        //comparing models from previous and current sessions
+          if (currentResults.models.length() > previousResults.models.length()){
+
+          } else if (currentResults.models.length() < previousResults.models.length()){
+  
+          }
+        }
        } else {
         if (oscs.length() != 0){
           if (typeof audio === undefined){audio = new AudioContext();}
           for (osc in oscs){
-  
+            oscillators.push(osc);
           }
          }
          if (objects.length() != 0){
+          for (obj in objects){
+            models.push(obj);
+          }
           draw(objects);
          }
          currentResults.models = objects;
@@ -93,7 +104,7 @@
       input.addEventListener('keydown', (e)=>{
        if (e.ctrlKey && e.key == 'Enter'){
        console.clear();
-       start();
+       run();
        } else if (e.ctrlKey && e.key == 'H'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
        } else if (e.ctrlKey && e.key == 'R'){

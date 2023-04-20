@@ -376,6 +376,7 @@ pub fn interpret() -> js_sys::Object{
             let mut rgb:Option<[f32; 3]> = None;
             let mut uv:Option<[f32; 2]> = None;
             let mut rot:Option<f32> = None;
+            let mut visual_obj:js_sys::Object = Object::new();
             for i in 1..expr.len()- 1{
               if rgb_regex.is_match(expr[i]){ 
                 if Regex::new(r"[a-z]+").unwrap().find(expr[i]) != None && Regex::new(r"(0.(\d+)|1|0))").unwrap().find(expr[i]) == None{
@@ -441,6 +442,7 @@ pub fn interpret() -> js_sys::Object{
             let mut freq:Option<f32> = None;
             let mut gain:Option<f32> = None;
             let mut pan:Option<f32> = None;
+            let mut audio_obj:js_sys::Object = Object::new();
             if variant(expr[0]) != Variant::NoiseOsc{
               if tone_regex.is_match(expr[1]){
             

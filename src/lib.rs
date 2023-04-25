@@ -429,31 +429,49 @@ pub fn interpret() -> js_sys::Object{
               }
             } 
             match variant(expr[0]){
-              Variant::Cube=>{},
-              Variant::Sphere=>{},
+              Variant::Cube=>{Object::define_property(&visual_obj, &JsValue::from("cube"), &Object::from(JsString::from("type")));},
+              Variant::Sphere=>{Object::define_property(&visual_obj, &JsValue::from("sphere"), &Object::from(JsString::from("type")));},
               _=>todo!()
             }
-            if ra != None {} else {}
-            if rgb != None {}
-            if uv != None {} 
-            if rot != None {}
+            if ra != None {
+              Object::define_property(&visual_obj, &JsValue::from(ra.unwrap()), &Object::from(JsString::from("radius")));
+            } else {
+              Object::define_property(&visual_obj, &JsValue::from(1.0), &Object::from(JsString::from("radius")));
+            }
+            if rgb != None {
+              Object::define_property(&visual_obj, &JsValue::from(&rgb.unwrap()), &Object::from(JsString::from("color")));
+            }
+            if uv != None {
+              Object::define_property(&visual_obj, &JsValue::from(&uv.unwrap()), &Object::from(JsString::from("coords")));
+            } 
+            if rot != None {
+              Object::define_property(&visual_obj, &JsValue::from(rot.unwrap()), &Object::from(JsString::from("rotation")));
+            }
+            models.push(&JsValue::from(visual_obj));
           },
           Medium::Audio=>{
-            let mut freq:Option<f32> = None;
-            let mut gain:Option<f32> = None;
-            let mut pan:Option<f32> = None;
             let mut audio_obj:js_sys::Object = Object::new();
             if variant(expr[0]) != Variant::NoiseOsc{
               if tone_regex.is_match(expr[1]){
-            
+              Object::define_property(&audio_obj, &JsValue::from());
               } else {
                 send_err(&error_p, "Frequency must always be given at first");
               }
-              for i in 2..expr.len()- 1{
-                
+              if gain_regex.is_match(expr[2]){
+                Object::define_property(&audio_obj, &JsValue::from());
+              } else {
+                send_err(&error_p, "Frequency must always be given at first");
+              }
+              if expr.len() == 4{
+                if pan_regex.is_match(expr[3]){
+                  Object::define_property(&audio_obj, &JsValue::from());
+
+                } else {
+  
+                }
               }
             } else {
-
+             
             }
           },
           Medium::Multiplication=>{

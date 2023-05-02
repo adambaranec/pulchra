@@ -1,4 +1,4 @@
-      import {init, interpret} from '/pkg/pulchra.js';
+      import init, {interpret} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let canvasRecDialog = document.getElementById('canvas-rec');
@@ -56,6 +56,7 @@
       input.addEventListener('keydown', (e)=>{
        if (e.ctrlKey && e.key == 'Enter'){
        console.clear();
+       interpret();
        } else if (e.ctrlKey && e.key == 'H'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
        } else if (e.ctrlKey && e.key == 'R'){

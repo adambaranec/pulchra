@@ -1,3 +1,12 @@
+
+  /*
+  CASE 1: PROBLEMS WITH THREE_D::WINDOW, THEREFORE CAMERA AND OTHERS TIED TO IT CANNOT BE BUILT
+  CASE 2: CTRL P, CTRL H, CRTL R DON'T OPEN WINDOWS OR DIALOGS
+  CASE 3: PROBLEMS WITH REGEXES
+  CASE 4: RADIUS FOR OBJECTS - DOES NOT DISTINGUISH 0 - 1, ACCEPTS HIGHER VALUES - SOLVED!
+  CASE 5: INTERPRETER RECOGNIZES WHITESPACE TO ANOTHER LINE WHICH SHOULDN'T
+   */
+
 use js_sys::{JsString};
 use regex::Regex;
 use three_d::*;
@@ -132,7 +141,7 @@ INTERPRETING
 fn floats_from(word: &str)->Option<Vec<f32>>{
     let mut floats:Vec<f32> = vec![];
     let mut errors:u8 = 0;
-    for float in Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))").unwrap().find_iter(word){
+    for float in Regex::new(r"(((0.(\d+)|1|0))|\-(0.(\d+)|1|1.0|0))").unwrap().find_iter(word){
       match String::from(float.as_str()).parse::<f32>(){
         Ok(val)=>floats.push(val),
         Err(err)=>errors += 1,
@@ -233,6 +242,7 @@ fn color(word: &str)->Option<[f32; 3]>{
     match word{
         "red"=>Some([1.0,0.0,0.0]),
         "green"=>Some([0.0,1.0,0.0]),
+        "blue"=>Some([0.0,0.0,1.0]),
         "yellow"=>Some([1.0,1.0,0.0]),
         "magenta"=>Some([1.0,0.0,1.0]),
         "cyan"=>Some([0.0,1.0,1.0]),
@@ -289,6 +299,8 @@ fn send_err(p: &HtmlParagraphElement, error: &str){
 
 #[wasm_bindgen]
 pub fn interpret(){
+  let document = web_sys::window().unwrap().document().unwrap();
+  let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
   struct Model {
     mesh: Box<CpuMesh>,
     material: Box<dyn Material>,
@@ -302,22 +314,125 @@ pub fn interpret(){
     }
   }
   let mut models:Vec<Model> = vec![];
-  let document = web_sys::window().unwrap().document().unwrap();
-  let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
   let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
+  error_p.set_inner_html("");
   let code = document.get_element_by_id("input").unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value();
-  let comms: Vec<&str> = code.split(';').collect();
-  let tone_regex = Regex::new(r"([\d]+\.[\d]+|[\d]+)|((c|d|e|f|g|a|b)(\d)|(c|d|e|f|g|a|b)(is|isis|es|eses)(\d))").unwrap();
-  let gain_regex = Regex::new(r"((0.(\d+)|1|0)").unwrap();
-  let pan_regex = Regex::new(r"\[(((0.(\d+)|1|0))|(l)|(c)|(r))\]").unwrap();
-  let ra_regex = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
-  let rgb_regex = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)|[a-z]+").unwrap();
-  let uv_regex = Regex::new(r"\[(((0.(\d+)|1|0))|\-(0.(\d+)|1|0)),(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\]|[a-z]+").unwrap();
-  let rot_regex = Regex::new(r"ro\((((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\)").unwrap();
-  let tex_regex = Regex::new(r"tex\('([a-z|0-9]+)'\)").unwrap();
-  let mul_regex = Regex::new(r"([0-9]+)").unwrap();
-  let domain_regex = Regex::new(r"(amp)|(amp*(0.(\d+)|1|0))").unwrap();
+  if code != ""{
+    let comms: Vec<&str> = code.split(';').collect();
+    for comm in comms{
+      let expr: Vec<&str> = comm.split_whitespace().collect();
+      if medium(expr[0]) == Medium::Unknown{ send_err(&error_p, "Unknown media. Allowed: screen, cube, saw... More in help"); }
+        else if medium(expr[0]) == Medium::Background && expr.len() == 1{ send_err(&error_p, "Missing color"); } 
+        else if medium(expr[0]) == Medium::Background && expr.len() > 2{ send_err(&error_p, "Too many parameters, color is enough"); } 
+        else if medium(expr[0]) == Medium::Visuals && expr.len() > 5{ send_err(&error_p, "More than 4 parameters are not provided for models"); } 
+        else if medium(expr[0]) == Medium::Audio && expr.len() == 1{ send_err(&error_p, "Missing frequency for the oscillator."); } 
+        else if medium(expr[0]) == Medium::Audio && expr.len() > 3{ send_err(&error_p, "More than 3 parameters are not provided for oscillators"); } 
+        else if medium(expr[0]) == Medium::Multiplication && expr.len() == 1{ send_err(&error_p, "Number of rows and number of columns is needed"); } 
+        else if medium(expr[0]) == Medium::Multiplication && expr.len() > 3{ send_err(&error_p, "Other parameters are not needed for scissoring the canvas"); } 
+        else {
+          match medium(expr[0]){
+            Medium::Background=>{
+              if color(expr[1]) != None {
+                clear(&gl, color(expr[1]).unwrap());                
+              } else if expr[1].starts_with("rgb(") && expr[1].ends_with(")") {
+                let array = floats_from(expr[1]);
+                if array != None {
+                  let a = array.unwrap();
+                  if (a.len() == 3) {
+                    if (a[0]+a[1]+a[2]) < 3.0 { clear(&gl, [a[0],a[1],a[2]]); }
+                    else { send_err(&error_p, "Allowed range is 0 - 1"); }
+                  } else {
+                    send_err(&error_p, "RGB must always be given with three parameters");
+                  } 
+                } else {
+                  send_err(&error_p, "An error occurred within the RGB parameter");
+                }       
+              }
+            },
+            Medium::Visuals=>{
+              let mut ra:Option<f32> = None;
+              let mut rgb:Option<[f32; 3]> = None;
+              let mut uv:Option<(f32,f32)> = None;
+              let mut rot:Option<f32> = None;
+              let mut model = Model::new(); 
+              if variant(expr[0]) != Variant::Unknown {
+                match variant(expr[0]){
+                  Variant::Cube=>model.mesh = Box::new(CpuMesh::cube()),
+                  Variant::Sphere=>model.mesh = Box::new(CpuMesh::sphere(40)),
+                  _=>todo!()
+                }   
+                for i in 1..expr.len(){
+                  if String::from(expr[i]).parse::<f32>().is_ok(){
+                    if ra == None {
+                      let radius = String::from(expr[i]).parse::<f32>().unwrap();
+                      if radius > 1.0 || radius < 0.0 { send_err(&error_p, "Allowed range is 0 - 1"); }
+                    } else {
+                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
+                    }
+                  } else if expr[i].starts_with("rgb(") && expr[i].ends_with(")") {
+                    if rgb == None {
+                      let array = floats_from(expr[i]);
+                      if array != None {
+                        let a = array.unwrap();
+                        if a.len() == 3 {
+                          if (a[0]+a[1]+a[2]) <= 3.0 { 
+                            model.material = Box::new( ColorMaterial {color: Color::from_rgb_slice(&[a[0],a[1],a[2]]), ..Default::default()} );
+                           }
+                          else { 
+                            send_err(&error_p, "Allowed range is 0 - 1");
+                           }
+                        } else {
+                          send_err(&error_p, "RGB must always be given with three parameters");
+                        }                         
+                      } else {
+                        send_err(&error_p, "An error occurred within the RGB parameter");
+                      }
+                    } else {
+                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
+                    }
+                  } else if expr[i].starts_with("rot(") && expr[i].ends_with(")") {
+                    if rot == None {
+                      
+                    } else {
+                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
+                    }
+                  } else if expr[i].starts_with("[") && expr[i].ends_with("]"){
+                    if uv == None {
+                      let coords = floats_from(expr[i]);
+                      if coords != None {
+                        let c = coords.unwrap();
+                        if c.len() == 2 {
+                          if (c[0]+c[1]) <= 2.0{
+                            //model.coords = Some(Camera::position_at_uv_coordinates(&self, coords));
+                          } else {
+                            send_err(&error_p, "Allowed range is 0 - 1");
+                          }
+                        } else {
+                          send_err(&error_p, "UV coordinates are given only with two numbers");
+                        }
+                      } else {
+                        send_err(&error_p, "An error occurred within the UV parameter");
+                      }
+                    } else {
+                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
+                    }
+                  } else {
+                    send_err(&error_p, "Unknown parameter. Allowed: range (0 - 1), color (either names or rgb(0-1,0-1,0-1)) etc.");
+                  }
+                }
+              } else {
+                send_err(&error_p, "Unknown shape");
+              }   
+              models.push(model);      
+            },
+            Medium::Multiplication=>{},
+            _=>todo!()
+          }
+        }
+    }
+  }
+  /*
   let window = three_d::Window::new(WindowSettings {
     canvas: Some(canvas),
    ..Default:: default()
@@ -332,18 +447,17 @@ pub fn interpret(){
       0.1,
       1000.0
   );
-  for comm in comms{
-    let expr: Vec<&str> = comm.split_whitespace().collect();
-    if medium(expr[0]) == Medium::Unknown{ send_err(&error_p, "Unknown media. Allowed: screen, cube, saw... More in help"); }
-      else if medium(expr[0]) == Medium::Background && expr.len() == 1{ send_err(&error_p, "Missing color"); } 
-      else if medium(expr[0]) == Medium::Background && expr.len() > 2{ send_err(&error_p, "Too many parameters, color is enough"); } 
-      else if medium(expr[0]) == Medium::Visuals && expr.len() > 5{ send_err(&error_p, "More than 4 parameters are not provided for models"); } 
-      else if medium(expr[0]) == Medium::Audio && expr.len() == 1{ send_err(&error_p, "Missing frequency for the oscillator."); } 
-      else if medium(expr[0]) == Medium::Audio && expr.len() > 3{ send_err(&error_p, "More than 3 parameters are not provided for oscillators"); } 
-      else if medium(expr[0]) == Medium::Multiplication && expr.len() == 1{ send_err(&error_p, "Number of rows and number of columns is needed"); } 
-      else if medium(expr[0]) == Medium::Multiplication && expr.len() > 3{ send_err(&error_p, "Other parameters are not needed for scissoring the canvas"); } 
-      else {
-        match medium(expr[0]){
+  let tone_regex = Regex::new(r"([\d]+\.[\d]+|[\d]+)|((c|d|e|f|g|a|b)(\d)|(c|d|e|f|g|a|b)(is|isis|es|eses)(\d))").unwrap();
+  let gain_regex = Regex::new(r"((0.(\d+)|1|0)").unwrap();
+  let pan_regex = Regex::new(r"\[(((0.(\d+)|1|0))|(l)|(c)|(r))\]").unwrap();
+  let ra_regex = Regex::new(r"(0\.[\d]*$)|(1*$)|(0*$)").unwrap();
+  let rgb_regex = Regex::new(r"rgb\((0.(\d+)|1|0),(0.(\d+)|1|0),(0.(\d+)|1|0)\)|[a-z]+").unwrap();
+  let uv_regex = Regex::new(r"\[(((0.(\d+)|1|0))|\-(0.(\d+)|1|0)),(((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\]|[a-z]+").unwrap();
+  let rot_regex = Regex::new(r"ro\((((0.(\d+)|1|0))|\-(0.(\d+)|1|0))\)").unwrap();
+  let tex_regex = Regex::new(r"tex\('([a-z|0-9]+)'\)").unwrap();
+  let mul_regex = Regex::new(r"([0-9]+)").unwrap();
+  let domain_regex = Regex::new(r"(amp)|(amp*(0.(\d+)|1|0))").unwrap();
+
           Medium::Background=>{ 
             if rgb_regex.is_match(expr[1]){ 
               if Regex::new(r"[a-z]+").unwrap().find(expr[1]) != None && Regex::new(r"(0.(\d+)|1|0))").unwrap().find(expr[1]) == None{
@@ -532,7 +646,7 @@ pub fn interpret(){
      object.render(&camera, &[&light]);
     }
     FrameOutput::default()
-  });
+  });*/
 }
 /*
 OPERATIONS WITH WEBGL

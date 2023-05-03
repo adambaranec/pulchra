@@ -53,24 +53,26 @@
         });
       }
 
+
       input.addEventListener('keydown', (e)=>{
        if (e.ctrlKey && e.key == 'Enter'){
        console.clear();
        interpret();
-       } else if (e.ctrlKey && e.key == 'H'){
+       } else if (e.ctrlKey && e.key == 'h'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
-       } else if (e.ctrlKey && e.key == 'R'){
-            canvasRecDialog.showModal();
+        console.log('H');
+       } else if (e.ctrlKey && e.key == 'r'){
+        canvasRecDialog.showModal();
        }
-       else if (e.ctrlKey && e.key == 'P'){
+       else if (e.ctrlKey && e.key == 'p'){
          let image = canvas.toDataURL('image/jpeg');
          recSaveDialog.showModal();
          saveFile.onclick = (c)=>{
           let downloadElem = document.getElementById('file');
           downloadElem.href = image;
           let name = fileNameInput.value;
-          name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.mp4` :
-          downloadElem.download = `${name}.mp4`;
+          name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.jpg` :
+          downloadElem.download = `${name}.jpg`;
          }
        }
       });

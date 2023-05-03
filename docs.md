@@ -22,17 +22,6 @@ cube 0.5 pink
 sphere rgb(1,0.2,0.2) [0,1]
 sphere 0.3 magenta [-0.5,1] rotate(1) 
 ```
-## Audio oscillators
-Types available: sine, saw, square, triangle.
-Parameters: frequency, gain, pan.
-
-Examples:
-```
-sin 330
-sqr 120 0.5
-saw 10 0.9
-tri 1000 [l]
-```
 
 ## Effects
 `mul` divides the current scene in rows and columns

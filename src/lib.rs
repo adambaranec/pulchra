@@ -314,6 +314,8 @@ pub fn interpret(){
   let document = web_sys::window().unwrap().document().unwrap();
   let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
   let mut models:Vec<Model> = vec![];
+  let mut background = ClearState::color(0.0,0.0,0.0,1.0);
+  let mut mul:Option<ScissorBox> = None;
   let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
   error_p.set_inner_html("");
@@ -332,10 +334,11 @@ pub fn interpret(){
           match medium(expr[0]){
             Medium::Background=>{
               if color(expr[1]) != None {
-                clear(&gl, color(expr[1]).unwrap());                
+                let values = color(expr[1]).unwrap();
+                background = ClearState::color(values[0],values[1],values[2],1.0);            
               } else if String::from(expr[1]).parse::<f32>().is_ok(){
                 let scale = String::from(expr[1]).parse::<f32>().unwrap();
-                 clear(&gl, [scale,scale,scale]);
+                 background = ClearState::color(scale,scale,scale,1.0);
               } else if expr[1].starts_with("rgb(") && expr[1].ends_with(")") {
                 let array = floats_from(expr[1]);
                 if array != None {
@@ -344,7 +347,7 @@ pub fn interpret(){
                     if a[0] >= 0.0 && a[0] <= 1.0 &&
                     a[1] >= 0.0 && a[1] <= 1.0 &&
                     a[2] >= 0.0 && a[2] <= 1.0 
-                    { clear(&gl, [a[0],a[1],a[2]]); }
+                    {  background = ClearState::color(a[0],a[1],a[2],1.0); }
                     else { send_err(&error_p, "Allowed range is 0 - 1"); }
                   } else {
                     send_err(&error_p, "RGB must always be given with three parameters");
@@ -370,7 +373,9 @@ pub fn interpret(){
                   if String::from(expr[i]).parse::<f32>().is_ok(){
                     if ra == None {
                       let radius = String::from(expr[i]).parse::<f32>().unwrap();
-                      if radius > 1.0 || radius < 0.0 { send_err(&error_p, "Allowed range is 0 - 1"); }
+                      if radius > 1.0 || radius < 0.0 { send_err(&error_p, "Allowed range is 0 - 1"); } else {
+                        model.radius = radius;
+                      }
                     } else {
                       send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
                     }
@@ -412,6 +417,28 @@ pub fn interpret(){
                     } else {
                       send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
                     }
+                  } else if expr[i].starts_with("mat(") && expr[i].ends_with(")") {
+                    let mut colors_group:Vec<Color> = vec![];
+                    let mut colors:Vec<Color> = vec![];
+                    let range = (expr[i].find('(').unwrap()+1 as usize)..(expr[i].find(')').unwrap()-1 as usize);
+                    let slice = &expr[i][range];
+                    if slice.len() != 0{
+                      for name in slice.split(','){
+                        if color(name) != None {
+                          colors_group.push(Color::from_rgb_slice(&color(name).unwrap()));
+                        }
+                      }
+                      let mut index = 0;
+                      for pos in 0..model.mesh.positions.len(){
+                        colors.push(colors_group[index]);
+                        index += 1;
+                        if index == colors_group.len(){ index = 0; }
+                      }
+                      model.mesh.colors = Some(colors);
+                      model.material = Box::new(ColorMaterial::default());
+                    } else {
+                      send_err(&error_p, "Give at least one color (not RGB!), or better, three colors.");
+                    }
                   } else if expr[i].starts_with("[") && expr[i].ends_with("]"){
                     if uv == None {
                       let coords = floats_from(expr[i]);
@@ -446,18 +473,20 @@ pub fn interpret(){
                 match expr.len(){
                   1=>send_err(&error_p, "Give at least a number"),
                   2=>{
-                    let division = String::from(expr[1]).parse::<u16>();
+                    let division = String::from(expr[1]).parse::<u32>();
                     if division.is_ok(){
-                      mul(&gl, division.clone().unwrap(), division.clone().unwrap());
+                      mul = Some(ScissorBox::new_at_origo(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / division.unwrap(), 
+                      window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / division.unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integer like 10");
                     }
                   },
                   3=>{
-                    let rows = String::from(expr[1]).parse::<u16>();
-                    let columns = String::from(expr[2]).parse::<u16>();
+                    let rows = String::from(expr[1]).parse::<u32>();
+                    let columns = String::from(expr[2]).parse::<u32>();
                     if rows.is_ok() && columns.is_ok(){
-                       mul(&gl, rows.clone().unwrap(), columns.clone().unwrap());
+                       mul = Some(ScissorBox::new_at_origo(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / rows.unwrap(), 
+                       window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / columns.unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integers like 10, 13");
                     }
@@ -469,11 +498,11 @@ pub fn interpret(){
           }
         }
     }
-    render(Box::new(models), &canvas);
+    render(Box::new(models), background, mul, &canvas);
   }
 }
 
-fn render(models: Box<Vec<Model>>, canvas: &HtmlCanvasElement){
+fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Option<ScissorBox>, canvas: &HtmlCanvasElement){
   let window = three_d::Window::new(WindowSettings {
     canvas: Some(canvas.clone()),
    ..Default:: default()
@@ -490,26 +519,27 @@ fn render(models: Box<Vec<Model>>, canvas: &HtmlCanvasElement){
   );
   let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,1.0));
   window.render_loop(move |frame_input|{
-    frame_input.screen().clear(ClearState::color(0.0,0.0,0.0,1.0));
+    frame_input.screen().clear(background);
     for model in models.iter(){
-      let mut geom = Mesh::new(&context, &model.mesh);
-      if model.radius != 1.0 {
-        geom.set_transformation(Mat4::from_scale(model.radius));
-      }
-      if model.coords != None {
-        geom.set_transformation(Mat4::from_translation(Camera::position_at_uv_coordinates(&camera, model.coords.unwrap())));
-      }
+      let mut object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
       if model.rotation != None {
-        geom.set_transformation(Mat4::from_angle_y(radians((360.0/60.0) * model.rotation.unwrap())));
+      //object.set_transformation(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / model.rotation.unwrap()))));
       }
-      geom.render_with_material(&*model.material, &camera, &[&light]);
+      //object.set_transformation(Mat4::from_scale(model.radius));
+      if model.coords != None {
+      //object.set_transformation(Mat4::from_translation(vec3(model.coords.unwrap().0,model.coords.unwrap().1,0.0)));
+      }
+      object.render(&camera, &[&light]);
+      if multiplication != None {
+
+      }
     }
     FrameOutput::default()
   });
 }
 /*
 OPERATIONS WITH WEBGL
- */
+ 
 fn clear(gl: &WebGl2RenderingContext, color: [f32; 3]){
 gl.clear_color(color[0], color[1], color[2], 1.0);
 gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -529,5 +559,4 @@ fn mul(gl: &WebGl2RenderingContext, rows: u16, columns: u16){
           }
       }
   }
-}
-  
+}*/

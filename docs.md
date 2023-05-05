@@ -9,7 +9,6 @@ screen 0.5
 screen rgb(1,0.5,0)
 screen yellow
 ```
-
 ## 3D shapes
 Default shapes are cube and sphere.
 Parameters: radius, color, UV coordinates, rotation.
@@ -22,18 +21,13 @@ cube 0.5 pink
 sphere rgb(1,0.2,0.2) [0,1]
 sphere 0.3 magenta [-0.5,1] rotate(1) 
 ```
-## Audio oscillators
-Types available: sine, saw, square, triangle.
-Parameters: frequency, gain, pan.
-
-Examples:
+Bored of one color?
+Try mat() function. The effect should be seen when giving at least three colors.
+RGB is not allowed.
 ```
-sin 330
-sqr 120 0.5
-saw 10 0.9
-tri 1000 [l]
+sphere mat(yellow,blue,yellow,green)
+cube mat(brown,blue,green)
 ```
-
 ## Effects
 `mul` divides the current scene in rows and columns
 

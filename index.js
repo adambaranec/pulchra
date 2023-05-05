@@ -16,7 +16,6 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         sessionStorage.setItem('sessions', '-1');
-        init();
       }
       window.onresize = (e) =>{
       canvas.width = window.innerWidth;
@@ -37,17 +36,29 @@
           file.push(e.data);
         }
         input.addEventListener('keydown', (e) =>{
-          if (e.metaKey && e.key == 'S'){
+          if (e.ctrlKey && e.key == 's'){
            recorder.stop();
-           let video = new Blob(file, { 'type' : 'video/mp4' });
+           let video;
+           if (navigator.userAgent.search('Mac') != -1){
+            video = new Blob(file, { 'type' : 'video/m4a' });
+           }
+           else if (navigator.userAgent.search('Windows') != -1){
+            video = new Blob(file, { 'type' : 'video/mp4' });
+           }
            let videoURL = URL.createObjectURL(video);  
            recSaveDialog.showModal();
            saveFile.onclick = (c)=>{
             let downloadElem = document.getElementById('file');
             downloadElem.href = videoURL;
             let name = fileNameInput.value;
-            name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.mp4` :
-            downloadElem.download = `${name}.mp4`;
+            if (navigator.userAgent.search('Mac') != -1){
+              name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.m4a` :
+              downloadElem.download = `${name}.m4a`;
+            }
+            else if (navigator.userAgent.search('Windows') != -1){
+              name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.mp4` :
+              downloadElem.download = `${name}.mp4`;
+            }
            }
           }
         });
@@ -57,7 +68,7 @@
       input.addEventListener('keydown', (e)=>{
        if (e.ctrlKey && e.key == 'Enter'){
        console.clear();
-       interpret();
+       init().then(()=>interpret());
        } else if (e.ctrlKey && e.key == 'h'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
         console.log('H');

@@ -1,15 +1,6 @@
-
-  /*
-  CASE 1: PROBLEMS WITH THREE_D::WINDOW, THEREFORE CAMERA AND OTHERS TIED TO IT CANNOT BE BUILT - SOLVED (W/ SOME EXCEPTIONS)
-  CASE 2: CTRL P, CTRL H, CRTL R DON'T OPEN WINDOWS OR DIALOGS - SOLVED!
-  CASE 3: PROBLEMS WITH REGEXES - SOLVED!
-  CASE 4: RADIUS FOR OBJECTS - DOES NOT DISTINGUISH 0 - 1, ACCEPTS HIGHER VALUES - SOLVED!
-  CASE 5: INTERPRETER RECOGNIZES WHITESPACE TO ANOTHER LINE WHICH SHOULDN'T
-  CASE 6: RENDERER WORKS ONLY FOR THE FIRST TIME, AFTER THAT IT SAYS "UNREACHABLE"
-   */
-
 use js_sys::{JsString};
 use regex::Regex;
+use std::ops::Mul;
 use three_d::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -420,20 +411,23 @@ pub fn interpret(){
                   } else if expr[i].starts_with("mat(") && expr[i].ends_with(")") {
                     let mut colors_group:Vec<Color> = vec![];
                     let mut colors:Vec<Color> = vec![];
-                    let range = (expr[i].find('(').unwrap()+1 as usize)..(expr[i].find(')').unwrap()-1 as usize);
-                    let slice = &expr[i][range];
+                    let slice = &expr[i][4..expr[i].find(')').unwrap()];
                     if slice.len() != 0{
-                      for name in slice.split(','){
-                        if color(name) != None {
-                          colors_group.push(Color::from_rgb_slice(&color(name).unwrap()));
+                      if slice.contains(','){
+                        for name in slice.split(','){
+                          if color(name) != None {
+                            colors_group.push(Color::from_rgb_slice(&color(name).unwrap()));
+                          }
                         }
+                      } else {
+                        colors_group.push(Color::from_rgb_slice(&color(slice).unwrap()));
                       }
                       let mut index = 0;
-                      for pos in 0..model.mesh.positions.len(){
+                      for i in 0..model.mesh.positions.len(){
                         colors.push(colors_group[index]);
                         index += 1;
-                        if index == colors_group.len(){ index = 0; }
-                      }
+                        if index == colors_group.len(){index = 0;}
+                      }                      
                       model.mesh.colors = Some(colors);
                       model.material = Box::new(ColorMaterial::default());
                     } else {
@@ -447,7 +441,7 @@ pub fn interpret(){
                         if c.len() == 2 {
                           if c[0] >= -1.0 && c[0] <= 1.0 &&
                           c[1] >= -1.0 && c[1] <= 1.0{
-                            model.coords = Some((c[0]/2.0+0.5,c[1]/2.0+0.5));
+                            model.coords = Some((c[0],c[1]));
                           } else {
                             send_err(&error_p, "Allowed range is (-1) - 1");
                           }
@@ -475,8 +469,12 @@ pub fn interpret(){
                   2=>{
                     let division = String::from(expr[1]).parse::<u32>();
                     if division.is_ok(){
-                      mul = Some(ScissorBox::new_at_origo(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / division.unwrap(), 
-                      window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / division.unwrap()));
+                      mul = Some(ScissorBox {
+                      x: 0,
+                      y: window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32,
+                      width: window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / division.as_ref().unwrap(),
+                      height: window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / division.as_ref().unwrap()
+                      });
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integer like 10");
                     }
@@ -485,8 +483,12 @@ pub fn interpret(){
                     let rows = String::from(expr[1]).parse::<u32>();
                     let columns = String::from(expr[2]).parse::<u32>();
                     if rows.is_ok() && columns.is_ok(){
-                       mul = Some(ScissorBox::new_at_origo(window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / rows.unwrap(), 
-                       window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / columns.unwrap()));
+                      mul = Some(ScissorBox {
+                        x: 0,
+                        y: window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32,
+                        width: window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / columns.as_ref().unwrap(),
+                        height: window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / rows.as_ref().unwrap()
+                        });
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integers like 10, 13");
                     }
@@ -519,19 +521,24 @@ fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Optio
   );
   let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,1.0));
   window.render_loop(move |frame_input|{
-    frame_input.screen().clear(background);
+    let screen = frame_input.screen();
+    screen.clear(background);
     for model in models.iter(){
       let mut object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
+      let mut matrix = object.transformation();
+      matrix = matrix.mul(Mat4::from_scale(model.radius));
       if model.rotation != None {
-      //object.set_transformation(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / model.rotation.unwrap()))));
+        matrix = matrix.mul(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap()))));
       }
-      //object.set_transformation(Mat4::from_scale(model.radius));
       if model.coords != None {
-      //object.set_transformation(Mat4::from_translation(vec3(model.coords.unwrap().0,model.coords.unwrap().1,0.0)));
+        matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
       }
-      object.render(&camera, &[&light]);
-      if multiplication != None {
-
+      object.set_transformation(matrix);
+      if multiplication == None {
+        object.render(&camera, &[&light]);
+      } else {
+        screen.render_partially(multiplication.unwrap(), &camera, &[object], &[&light]);
+        frame_input.context.set_viewport(Viewport::from(multiplication.unwrap()));
       }
     }
     FrameOutput::default()

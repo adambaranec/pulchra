@@ -19,10 +19,10 @@ cube
 sphere 0.5
 cube 0.5 pink
 sphere rgb(1,0.2,0.2) [0,1]
-sphere 0.3 magenta [-0.5,1] rotate(1) 
+sphere 0.3 magenta [-0.5,1] rot(1) 
 ```
 Bored of one color?
-Try mat() function. The effect should be seen when giving at least three colors.
+Try mat() function. The effect should be seen when giving at least two colors.
 RGB is not allowed.
 ```
 sphere mat(yellow,blue,yellow,green)

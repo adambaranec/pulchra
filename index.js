@@ -26,6 +26,7 @@
       closeRecSaveD.onclick = (e) => {recSaveDialog.close();}
       gotIt.onclick = (e) => {welcomeDialog.close();}
       approveRecord.onclick = (e) => {
+        canvasRecDialog.close();
         let sessions = parseInt(sessionStorage.getItem('sessions'));
         sessions += 1;
         sessionStorage.setItem('sessions', sessions.toString());
@@ -38,26 +39,17 @@
         input.addEventListener('keydown', (e) =>{
           if (e.ctrlKey && e.key == 's'){
            recorder.stop();
-           let video;
-           if (navigator.userAgent.search('Mac') != -1){
-            video = new Blob(file, { 'type' : 'video/m4a' });
-           }
-           else if (navigator.userAgent.search('Windows') != -1){
-            video = new Blob(file, { 'type' : 'video/mp4' });
-           }
+           let video = new Blob(file, { 'type' : 'video/mp4' }); 
            let videoURL = URL.createObjectURL(video);  
            recSaveDialog.showModal();
            saveFile.onclick = (c)=>{
             let downloadElem = document.getElementById('file');
             downloadElem.href = videoURL;
             let name = fileNameInput.value;
-            if (navigator.userAgent.search('Mac') != -1){
-              name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.m4a` :
-              downloadElem.download = `${name}.m4a`;
-            }
-            else if (navigator.userAgent.search('Windows') != -1){
-              name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.mp4` :
-              downloadElem.download = `${name}.mp4`;
+              name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.m4v` :
+              downloadElem.download = `${name}.m4v`; 
+            downloadElem.onclick = (e) => {
+              recSaveDialog.close();
             }
            }
           }
@@ -76,14 +68,18 @@
         canvasRecDialog.showModal();
        }
        else if (e.ctrlKey && e.key == 'p'){
-         let image = canvas.toDataURL('image/jpeg');
          recSaveDialog.showModal();
          saveFile.onclick = (c)=>{
-          let downloadElem = document.getElementById('file');
-          downloadElem.href = image;
-          let name = fileNameInput.value;
-          name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.jpg` :
-          downloadElem.download = `${name}.jpg`;
+         canvas.toBlob((img)=>{
+            let downloadElem = document.getElementById('file');
+            downloadElem.href = URL.createObjectURL(img);
+            let name = fileNameInput.value;
+            name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.jpg` :
+            downloadElem.download = `${name}.jpg`;
+          }, 'image/jpg');
          }
+         downloadElem.onclick = (e) => {
+          recSaveDialog.close();
+        }
        }
       });

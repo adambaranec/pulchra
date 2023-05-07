@@ -10,7 +10,7 @@ screen rgb(1,0.5,0)
 screen yellow
 ```
 ## 3D shapes
-Default shapes are cube and sphere.
+Default shapes are cube, sphere, circle and square.
 Parameters: radius, color, UV coordinates, rotation.
 
 Examples:
@@ -18,8 +18,8 @@ Examples:
 cube
 sphere 0.5
 cube 0.5 pink
-sphere rgb(1,0.2,0.2) [0,1]
-sphere 0.3 magenta [-0.5,1] rot(1) 
+square rgb(1,0.2,0.2) [0,1]
+circle 0.3 magenta [-0.5,1] rot(1) 
 ```
 Bored of one color?
 Try mat() function. The effect should be seen when giving at least two colors.

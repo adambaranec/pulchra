@@ -27,9 +27,13 @@ ENUMS
     Sphere,
     Quad,
     Circle,
+    Square,
     Line,
     Point,
     Arc,
+    Cylinder,
+    Cone,
+    Particles,
     SinOsc,
     SawOsc,
     SqrOsc,
@@ -37,6 +41,7 @@ ENUMS
     NoiseOsc,
     Multiplication,
     ProcMat,
+    Custom,
     Unknown
   }
   #[derive(PartialEq)]
@@ -103,6 +108,10 @@ fn medium(word: &str)->Medium{
     if Regex::new("screen").unwrap().is_match(word){Medium::Background}
     else if Regex::new("cube").unwrap().is_match(word){Medium::Visuals}
     else if Regex::new("sphere").unwrap().is_match(word){Medium::Visuals}
+    else if Regex::new("circle").unwrap().is_match(word){Medium::Visuals}
+    else if Regex::new("square").unwrap().is_match(word){Medium::Visuals}
+    else if Regex::new("cone").unwrap().is_match(word){Medium::Visuals}
+    else if Regex::new("cylinder").unwrap().is_match(word){Medium::Visuals}
     else if Regex::new("sin").unwrap().is_match(word){Medium::Audio}
     else if Regex::new("saw").unwrap().is_match(word){Medium::Audio}
     else if Regex::new("sqr").unwrap().is_match(word){Medium::Audio}
@@ -117,6 +126,10 @@ fn variant(word: &str)->Variant{
   "screen"=>Variant::Screen,
   "cube"=>Variant::Cube,
   "sphere"=>Variant::Sphere,
+  "circle"=>Variant::Circle,
+  "square"=>Variant::Square,
+  "line"=>Variant::Line,
+  "particles"=>Variant::Particles,
   "sin"=>Variant::SinOsc,
   "saw"=>Variant::SawOsc,
   "sqr"=>Variant::SqrOsc,
@@ -293,7 +306,7 @@ struct Model {
   material: Box<dyn Material>,
   radius: f32,
   coords: Option<(f32,f32)>,
-  rotation: Option<f32>
+  rotation: Option<(f32,char)>
 }
 impl Model {
   fn new()->Model{
@@ -306,7 +319,7 @@ pub fn interpret(){
   let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
   let mut models:Vec<Model> = vec![];
   let mut background = ClearState::color(0.0,0.0,0.0,1.0);
-  let mut mul:Option<ScissorBox> = None;
+  let mut mul:Option<(u32,u32)> = None;
   let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
   error_p.set_inner_html("");
@@ -358,6 +371,8 @@ pub fn interpret(){
                 match variant(expr[0]){
                   Variant::Cube=>model.mesh = Box::new(CpuMesh::cube()),
                   Variant::Sphere=>model.mesh = Box::new(CpuMesh::sphere(40)),
+                  Variant::Circle=>model.mesh = Box::new(CpuMesh::circle(40)),
+                  Variant::Square=>model.mesh = Box::new(CpuMesh::square()),
                   _=>todo!()
                 }   
                 for i in 1..expr.len(){
@@ -396,14 +411,19 @@ pub fn interpret(){
                     } else {
                       send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
                     }
-                  } else if expr[i].starts_with("rot(") && expr[i].ends_with(")") {
+                  } else if expr[i].starts_with("rot") && expr[i].find('(').unwrap() == 4 && expr[i].ends_with(")") {
                     if rot == None {
                       let value = floats_from(expr[i]);
                       if value != None {
-                        if value.clone().unwrap()[0] > 1.0 || value.clone().unwrap()[0] < -1.0{
-                          send_err(&error_p, "Allowed range is (-1) - 1");
+                        if expr[i].chars().nth(3) == Some('X'){
+                          model.rotation = Some((value.clone().unwrap()[0],'X'));
+                        } else if expr[i].chars().nth(3) == Some('Y'){
+                          model.rotation = Some((value.clone().unwrap()[0],'Y'));
+                        } else if expr[i].chars().nth(3) == Some('Z'){
+                          model.rotation = Some((value.clone().unwrap()[0],'Z'));
+                        } else {
+                          send_err(&error_p, "Please specify the axis to rotate around");
                         }
-                        model.rotation = Some(value.clone().unwrap()[0]);
                       }
                     } else {
                       send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
@@ -469,12 +489,7 @@ pub fn interpret(){
                   2=>{
                     let division = String::from(expr[1]).parse::<u32>();
                     if division.is_ok(){
-                      mul = Some(ScissorBox {
-                      x: 0,
-                      y: window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32,
-                      width: window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / division.as_ref().unwrap(),
-                      height: window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / division.as_ref().unwrap()
-                      });
+                      mul = Some((division.clone().unwrap(),division.clone().unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integer like 10");
                     }
@@ -483,12 +498,7 @@ pub fn interpret(){
                     let rows = String::from(expr[1]).parse::<u32>();
                     let columns = String::from(expr[2]).parse::<u32>();
                     if rows.is_ok() && columns.is_ok(){
-                      mul = Some(ScissorBox {
-                        x: 0,
-                        y: window().unwrap().inner_height().unwrap().as_f64().unwrap() as i32,
-                        width: window().unwrap().inner_width().unwrap().as_f64().unwrap() as u32 / columns.as_ref().unwrap(),
-                        height: window().unwrap().inner_height().unwrap().as_f64().unwrap() as u32 / rows.as_ref().unwrap()
-                        });
+                      mul = Some((columns.clone().unwrap(),rows.clone().unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integers like 10, 13");
                     }
@@ -504,15 +514,15 @@ pub fn interpret(){
   }
 }
 
-fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Option<ScissorBox>, canvas: &HtmlCanvasElement){
+fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Option<(u32,u32)>, canvas: &HtmlCanvasElement){
   let window = three_d::Window::new(WindowSettings {
     canvas: Some(canvas.clone()),
    ..Default:: default()
    }).unwrap();
    let context = window.gl();
-   let camera:Camera = Camera::new_perspective(
+   let mut camera:Camera = Camera::new_perspective(
     window.viewport(),
-    vec3(1.0, 1.0, 3.0),
+    vec3(0.0, 0.0, 4.0),
     vec3(0.0, 0.0, 0.0),
     vec3(0.0, 3.0, 0.0),
     degrees(45.0),
@@ -523,22 +533,61 @@ fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Optio
   window.render_loop(move |frame_input|{
     let screen = frame_input.screen();
     screen.clear(background);
-    for model in models.iter(){
-      let mut object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
-      let mut matrix = object.transformation();
-      matrix = matrix.mul(Mat4::from_scale(model.radius));
-      if model.rotation != None {
-        matrix = matrix.mul(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap()))));
-      }
-      if model.coords != None {
-        matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
-      }
-      object.set_transformation(matrix);
-      if multiplication == None {
-        object.render(&camera, &[&light]);
+    if models.len() != 0 {
+      if multiplication != None {
+        let width = frame_input.window_width as f64 * frame_input.device_pixel_ratio;
+        let height = frame_input.window_height as f64 * frame_input.device_pixel_ratio;
+        let columns = multiplication.unwrap().0;
+        let rows = multiplication.unwrap().1;
+        for c in 0..columns{
+          for r in 0..rows{
+            let viewport = Viewport {
+              x: ((width as u32 / columns) * c) as i32,
+              y: ((height as u32 / rows) * r) as i32,
+              width: width as u32 / columns,
+              height: height as u32 / rows,
+             };
+             frame_input.context.set_viewport(viewport);
+             camera.set_viewport(viewport);
+             for model in models.iter(){
+              let mut object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
+              let mut matrix = object.transformation();
+              matrix = matrix.mul(Mat4::from_scale(model.radius));
+              if model.rotation != None {
+                match model.rotation.unwrap().1{
+                  'X'=>matrix = matrix.mul(Mat4::from_angle_x(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+                  'Y'=>matrix = matrix.mul(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+                  'Z'=>matrix = matrix.mul(Mat4::from_angle_z(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+                  _=>todo!()
+                }
+              }
+              if model.coords != None {
+                matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
+              }
+              object.set_transformation(matrix);
+              object.render(&camera, &[&light]);
+            }
+          }
+        }
       } else {
-        screen.render_partially(multiplication.unwrap(), &camera, &[object], &[&light]);
-        frame_input.context.set_viewport(Viewport::from(multiplication.unwrap()));
+        for model in models.iter(){
+          let mut object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
+          let mut matrix = object.transformation();
+          matrix = matrix.mul(Mat4::from_scale(model.radius));
+          if model.rotation != None {
+            match model.rotation.unwrap().1{
+              'X'=>matrix = matrix.mul(Mat4::from_angle_x(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+              'Y'=>matrix = matrix.mul(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+              'Z'=>matrix = matrix.mul(Mat4::from_angle_z(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+              _=>todo!()
+            }
+          }
+          if model.coords != None {
+            matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
+          }
+          object.set_transformation(matrix);
+          object.render(&camera, &[&light]);
+        }
       }
     }
     FrameOutput::default()

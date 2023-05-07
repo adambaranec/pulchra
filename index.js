@@ -30,26 +30,30 @@
         let sessions = parseInt(sessionStorage.getItem('sessions'));
         sessions += 1;
         sessionStorage.setItem('sessions', sessions.toString());
-        let recorder = new MediaRecorder(canvas.captureStream(60));
-        let file = [];
+        let canvasCaptureStream = canvas.captureStream(60);
+        let recorder = new MediaRecorder(canvasCaptureStream, {mimeType: 'video/webm'});
         recorder.start();
-        recorder.ondataavailable = (e) =>{
+        let file = [];
+        recorder.ondataavailable = (e)=>{
           file.push(e.data);
         }
         input.addEventListener('keydown', (e) =>{
           if (e.ctrlKey && e.key == 's'){
            recorder.stop();
-           let video = new Blob(file, { 'type' : 'video/mp4' }); 
-           let videoURL = URL.createObjectURL(video);  
-           recSaveDialog.showModal();
-           saveFile.onclick = (c)=>{
-            let downloadElem = document.getElementById('file');
-            downloadElem.href = videoURL;
-            let name = fileNameInput.value;
-              name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.m4v` :
-              downloadElem.download = `${name}.m4v`; 
-            downloadElem.onclick = (e) => {
-              recSaveDialog.close();
+           recorder.onstop = (e)=>{
+            let video = new Blob(file, {'type': 'video/webm'}); 
+            let videoURL = URL.createObjectURL(video);  
+            recSaveDialog.showModal();
+            saveFile.onclick = (c)=>{
+             let downloadElem = document.getElementById('file');
+             downloadElem.href = videoURL;
+             let name = fileNameInput.value;
+               name = '.webm' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.webm` :
+               downloadElem.download = `${name}.webm`; 
+             downloadElem.onclick = (e) => {
+               recSaveDialog.close();
+               console.log(name);
+             }
             }
            }
           }
@@ -63,7 +67,6 @@
        init().then(()=>interpret());
        } else if (e.ctrlKey && e.key == 'h'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
-        console.log('H');
        } else if (e.ctrlKey && e.key == 'r'){
         canvasRecDialog.showModal();
        }
@@ -71,10 +74,13 @@
          recSaveDialog.showModal();
          saveFile.onclick = (c)=>{
          canvas.toBlob((img)=>{
+          let sessions = parseInt(sessionStorage.getItem('sessions'));
+          sessions += 1;
+          sessionStorage.setItem('sessions', sessions.toString());
             let downloadElem = document.getElementById('file');
             downloadElem.href = URL.createObjectURL(img);
             let name = fileNameInput.value;
-            name = '' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.jpg` :
+            name = '.jpg' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.jpg` :
             downloadElem.download = `${name}.jpg`;
           }, 'image/jpg');
          }

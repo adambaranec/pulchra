@@ -1,6 +1,5 @@
 use js_sys::{JsString};
 use noise::*;
-use noise::*;
 use regex::Regex;
 use std::ops::Mul;
 use three_d::*;
@@ -121,6 +120,7 @@ fn medium(word: &str)->Medium{
     else if Regex::new("rnd").unwrap().is_match(word){Medium::Audio}
     else if Regex::new("mul").unwrap().is_match(word){Medium::Multiplication}
     else if Regex::new("(lo|mi|hi)/g").unwrap().is_match(word){Medium::Mixed}
+    else if word == "particles" {Medium::Effect}
     else {Medium::Unknown}
 }
 fn variant(word: &str)->Variant{
@@ -327,7 +327,6 @@ pub fn interpret(){
   let mut effects:Vec<ParticleSettings> = vec![];
   let mut background = ClearState::color(0.0,0.0,0.0,1.0);
   let mut mul:Option<(u32,u32)> = None;
-  let mut back_img:Option<Texture2D> = None;
   let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
   error_p.set_inner_html("");
@@ -493,6 +492,7 @@ pub fn interpret(){
               } 
               models.push(model);   
             },
+            Medium::Effect=>{},
             Medium::Multiplication=>{
                 match expr.len(){
                   1=>send_err(&error_p, "Give at least a number"),
@@ -520,11 +520,11 @@ pub fn interpret(){
           }
         }
     }
-    render(Box::new(models), background, mul, &canvas);
+    render(&canvas, background, mul, Box::new(models), particles);
   }
 }
 
-fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Option<(u32,u32)>, canvas: &HtmlCanvasElement){
+fn render(canvas: &HtmlCanvasElement, background: ClearState, multiplication: Option<(u32,u32)>, models: Box<Vec<Model>>, particles: Option<ParticleSystem>){
   let window = three_d::Window::new(WindowSettings {
     canvas: Some(canvas.clone()),
    ..Default:: default()
@@ -543,6 +543,7 @@ fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Optio
   window.render_loop(move |frame_input|{
     let screen = frame_input.screen();
     screen.clear(background);
+    screen.read_color::<Color>()[2] = Color::RED;
     if models.len() != 0 {
       if multiplication != None {
         let width = frame_input.window_width as f64 * frame_input.device_pixel_ratio;
@@ -560,28 +561,30 @@ fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Optio
              frame_input.context.set_viewport(viewport);
              camera.set_viewport(viewport);
              for model in models.iter(){
-              let mut object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
-              let mut matrix = object.transformation();
-              matrix = matrix.mul(Mat4::from_scale(model.radius));
-              if model.rotation != None {
-                match model.rotation.unwrap().1{
-                  'X'=>matrix = matrix.mul(Mat4::from_angle_x(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
-                  'Y'=>matrix = matrix.mul(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
-                  'Z'=>matrix = matrix.mul(Mat4::from_angle_z(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
-                  _=>todo!()
+              let mut object;
+                object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
+                let mut matrix = object.transformation();
+                matrix = matrix.mul(Mat4::from_scale(model.radius));
+                if model.rotation != None {
+                  match model.rotation.unwrap().1{
+                    'X'=>matrix = matrix.mul(Mat4::from_angle_x(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+                    'Y'=>matrix = matrix.mul(Mat4::from_angle_y(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+                    'Z'=>matrix = matrix.mul(Mat4::from_angle_z(radians(frame_input.accumulated_time as f32 / (360.0 / -model.rotation.unwrap().0)))),
+                    _=>todo!()
+                  }
                 }
-              }
-              if model.coords != None {
-                matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
-              }
-              object.set_transformation(matrix);
-              object.render(&camera, &[&light]);
+                if model.coords != None {
+                  matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
+                }
+                object.set_transformation(matrix);
+                object.render(&camera, &[&light]);
             }
           }
         }
       } else {
         for model in models.iter(){
-          let mut object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
+          let mut object;
+          object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
           let mut matrix = object.transformation();
           matrix = matrix.mul(Mat4::from_scale(model.radius));
           if model.rotation != None {

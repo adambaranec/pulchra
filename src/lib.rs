@@ -1,4 +1,6 @@
 use js_sys::{JsString};
+use noise::*;
+use noise::*;
 use regex::Regex;
 use std::ops::Mul;
 use three_d::*;
@@ -313,13 +315,19 @@ impl Model {
     Model {mesh: Box::new(CpuMesh::default()), material: Box::new(ColorMaterial { color: Color::WHITE, ..Default::default() }), radius: 1.0, coords: None, rotation: None}
   }
 }
+struct ParticleSettings {
+pos: Vec<Vector3<f32>>,
+colors: Vec<Color>
+}
 #[wasm_bindgen]
 pub fn interpret(){
   let document = web_sys::window().unwrap().document().unwrap();
   let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
   let mut models:Vec<Model> = vec![];
+  let mut effects:Vec<ParticleSettings> = vec![];
   let mut background = ClearState::color(0.0,0.0,0.0,1.0);
   let mut mul:Option<(u32,u32)> = None;
+  let mut back_img:Option<Texture2D> = None;
   let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
   error_p.set_inner_html("");
@@ -359,6 +367,8 @@ pub fn interpret(){
                 } else {
                   send_err(&error_p, "An error occurred within the RGB parameter");
                 }       
+              } else if expr[1].starts_with("grad(") && expr[1].ends_with(")"){
+
               }
             },
             Medium::Visuals=>{
@@ -593,26 +603,21 @@ fn render(models: Box<Vec<Model>>, background: ClearState, multiplication: Optio
     FrameOutput::default()
   });
 }
-/*
-OPERATIONS WITH WEBGL
- 
-fn clear(gl: &WebGl2RenderingContext, color: [f32; 3]){
-gl.clear_color(color[0], color[1], color[2], 1.0);
-gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
-}
 
-fn mul(gl: &WebGl2RenderingContext, rows: u16, columns: u16){
-  let window = web_sys::window().unwrap();
-  let width = window.inner_width().unwrap().as_f64();
-  let height = window.inner_height().unwrap().as_f64();
-  gl.enable(WebGl2RenderingContext::SCISSOR_TEST);
-  if width != None || height != None{
-      let scissor_width = width.unwrap() as i32 / rows as i32;
-      let scissor_height = height.unwrap() as i32 / columns as i32;
-      for c in 0..columns-1{
-          for r in 0..rows-1{
-          gl.scissor(scissor_width * r as i32, scissor_height * c as i32, scissor_width, scissor_height);
-          }
-      }
+fn texture(context: &Context, first: Color, second: Color, width: u32, height: u32) -> Texture2D{
+  let mut texture = Texture2D::new_empty::<Color>(context, width, height, Interpolation::Linear, Interpolation::Linear, Some(Interpolation::Linear), Wrapping::Repeat, Wrapping::Repeat);
+  let noise = Simplex::new(100);
+  let mut data:Vec<Color> = vec![];
+  for h in 0..height {
+    for w in 0..width{
+      let value = (noise.get([w as f64, h as f64]) + 1.0 / 2.0) as f32;
+      let mut color = Color::default();
+      color.r = (((first.r - second.r) as f32).abs() * value) as u8;
+      color.g = (((first.g - second.g) as f32).abs() * value) as u8;
+      color.g = (((first.b - second.b) as f32).abs() * value) as u8;
+      data.push(color);
+    }
   }
-}*/
+  texture.fill(&data[ .. ]);
+  texture
+}

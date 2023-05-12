@@ -1,4 +1,4 @@
-      import init, {interpret} from './pkg/pulchra.js';
+      import init from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let canvasRecDialog = document.getElementById('canvas-rec');
@@ -16,6 +16,7 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         sessionStorage.setItem('sessions', '-1');
+        //init().then(()=>interpret());
       }
       window.onresize = (e) =>{
       canvas.width = window.innerWidth;
@@ -64,7 +65,6 @@
       input.addEventListener('keydown', (e)=>{
        if (e.ctrlKey && e.key == 'Enter'){
        console.clear();
-       init().then(()=>interpret());
        } else if (e.ctrlKey && e.key == 'h'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
        } else if (e.ctrlKey && e.key == 'r'){

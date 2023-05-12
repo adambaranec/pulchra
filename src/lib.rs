@@ -2,6 +2,7 @@ use js_sys::{JsString};
 use noise::*;
 use regex::Regex;
 use std::ops::Mul;
+use std::sync::Arc;
 use three_d::*;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -303,34 +304,41 @@ fn send_err(p: &HtmlParagraphElement, error: &str){
     p.set_inner_html(&content);
 }
 
-struct Model {
-  mesh: Box<CpuMesh>,
-  material: Box<dyn Material>,
-  radius: f32,
-  coords: Option<(f32,f32)>,
-  rotation: Option<(f32,char)>
+pub struct Model {
+  pub geometry: Box<dyn Geometry>,
+  pub material: Box<dyn Material>,
+  pub radius: f32,
+  pub coords: Option<(f32,f32)>,
+  pub rotation: Option<(f32,char)>
 }
 impl Model {
-  fn new()->Model{
-    Model {mesh: Box::new(CpuMesh::default()), material: Box::new(ColorMaterial { color: Color::WHITE, ..Default::default() }), radius: 1.0, coords: None, rotation: None}
+  fn new(context: &Context) -> Self {
+      Model { geometry: Box::new(Mesh::new(context, &CpuMesh::default())), material: Box::new(ColorMaterial {color: Color::WHITE, ..Default::default()}),
+      radius: 1.0, coords: None, rotation: None }
   }
 }
-struct ParticleSettings {
-pos: Vec<Vector3<f32>>,
-colors: Vec<Color>
+pub struct ParticleSettings {
+pub pos: Vec<Vector3<f32>>,
+pub colors: Vec<Color>
 }
-#[wasm_bindgen]
-pub fn interpret(){
+pub struct Environment {
+  pub background: ClearState,
+  pub back_texture: Option<Vec<Color>>,
+  pub models: Vec<Model>,
+  pub particles: Vec<ParticleSettings>,
+  pub multiplication: Option<(u32,u32)>
+}
+impl Environment {
+  fn empty() -> Self{
+Environment { background: ClearState::color(0.0, 0.0, 0.0, 1.0), back_texture: None, models: vec![], particles: vec![], multiplication: None }
+  }
+}
+pub fn interpret(code: &String, context: &Context) -> Environment{
+  let mut envi = Environment::empty();
   let document = web_sys::window().unwrap().document().unwrap();
-  let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
-  let mut models:Vec<Model> = vec![];
-  let mut effects:Vec<ParticleSettings> = vec![];
-  let mut background = ClearState::color(0.0,0.0,0.0,1.0);
-  let mut mul:Option<(u32,u32)> = None;
-  let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();
+  //let ctx = Context::from_gl_context(Arc::new(three_d::context::Context::from_webgl2_context(gl))).unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
   error_p.set_inner_html("");
-  let code = document.get_element_by_id("input").unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value();
   if code != ""{
     let comms: Vec<&str> = code.split(';').collect();
     for comm in comms{
@@ -346,10 +354,10 @@ pub fn interpret(){
             Medium::Background=>{
               if color(expr[1]) != None {
                 let values = color(expr[1]).unwrap();
-                background = ClearState::color(values[0],values[1],values[2],1.0);            
+                envi.background = ClearState::color(values[0],values[1],values[2],1.0);            
               } else if String::from(expr[1]).parse::<f32>().is_ok(){
                 let scale = String::from(expr[1]).parse::<f32>().unwrap();
-                 background = ClearState::color(scale,scale,scale,1.0);
+                 envi.background = ClearState::color(scale,scale,scale,1.0);
               } else if expr[1].starts_with("rgb(") && expr[1].ends_with(")") {
                 let array = floats_from(expr[1]);
                 if array != None {
@@ -358,7 +366,8 @@ pub fn interpret(){
                     if a[0] >= 0.0 && a[0] <= 1.0 &&
                     a[1] >= 0.0 && a[1] <= 1.0 &&
                     a[2] >= 0.0 && a[2] <= 1.0 
-                    {  background = ClearState::color(a[0],a[1],a[2],1.0); }
+                    {  envi.background = ClearState::color(a[0],a[1],a[2],1.0); 
+                    }
                     else { send_err(&error_p, "Allowed range is 0 - 1"); }
                   } else {
                     send_err(&error_p, "RGB must always be given with three parameters");
@@ -366,8 +375,17 @@ pub fn interpret(){
                 } else {
                   send_err(&error_p, "An error occurred within the RGB parameter");
                 }       
-              } else if expr[1].starts_with("grad(") && expr[1].ends_with(")"){
-
+              } else if expr[1].starts_with("noise(") && expr[1].ends_with(")"){
+                let colors = &expr[1][5..expr[1].find(')').unwrap()];
+                let mut array:Vec<Color> = vec![];
+                if colors.contains(',') && colors.split(',').count() == 2{
+                  for name in colors.split(','){
+                    if color(name) != None {
+                      array.push(Color::from_rgb_slice(&color(name).unwrap()));
+                    }
+                  }
+                }
+                envi.back_texture = Some(texture(array[0], array[1], 50, 50));
               }
             },
             Medium::Visuals=>{
@@ -375,122 +393,140 @@ pub fn interpret(){
               let mut rgb:Option<[f32; 3]> = None;
               let mut uv:Option<(f32,f32)> = None;
               let mut rot:Option<f32> = None;
-              let mut model = Model::new(); 
+              let mut model = Model::new(context); 
               if variant(expr[0]) != Variant::Unknown {
                 match variant(expr[0]){
-                  Variant::Cube=>model.mesh = Box::new(CpuMesh::cube()),
-                  Variant::Sphere=>model.mesh = Box::new(CpuMesh::sphere(40)),
-                  Variant::Circle=>model.mesh = Box::new(CpuMesh::circle(40)),
-                  Variant::Square=>model.mesh = Box::new(CpuMesh::square()),
+                  Variant::Cube=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::cube())),
+                  Variant::Sphere=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::sphere(40))),
+                  Variant::Circle=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::circle(40))),
+                  Variant::Square=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::square())),
+                  Variant::Cylinder=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::cylinder(40))),
+                  Variant::Line=>model.geometry = Box::new(Line::new(context, vec2(0.0,0.0), vec2(0.0,0.0), 1.0)),
                   _=>todo!()
-                }   
-                for i in 1..expr.len(){
-                  if String::from(expr[i]).parse::<f32>().is_ok(){
-                    if ra == None {
-                      let radius = String::from(expr[i]).parse::<f32>().unwrap();
-                      if radius > 1.0 || radius < 0.0 { send_err(&error_p, "Allowed range is 0 - 1"); } else {
-                        model.radius = radius;
-                      }
-                    } else {
-                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
-                    }
-                  } else if color(expr[i]) != None {
-                    let a = color(expr[i]).unwrap();
-                    model.material = Box::new(ColorMaterial {color: Color::from_rgb_slice(&[a[0],a[1],a[2]]), ..Default::default()});
-                  } else if expr[i].starts_with("rgb(") && expr[i].ends_with(")") {
-                    if rgb == None {
-                      let array = floats_from(expr[i]);
-                      if array != None {
-                        let a = array.unwrap();
-                        if a.len() == 3 {
-                          if a[0] >= 0.0 && a[0] <= 1.0 &&
-                          a[1] >= 0.0 && a[1] <= 1.0 &&
-                          a[2] >= 0.0 && a[2] <= 1.0 { 
-                            model.material = Box::new( ColorMaterial {color: Color::from_rgb_slice(&[a[0],a[1],a[2]]), ..Default::default()} );
-                           }
-                          else { 
-                            send_err(&error_p, "Allowed range is 0 - 1");
-                           }
-                        } else {
-                          send_err(&error_p, "RGB must always be given with three parameters");
-                        }                         
-                      } else {
-                        send_err(&error_p, "An error occurred within the RGB parameter");
-                      }
-                    } else {
-                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
-                    }
-                  } else if expr[i].starts_with("rot") && expr[i].find('(').unwrap() == 4 && expr[i].ends_with(")") {
-                    if rot == None {
-                      let value = floats_from(expr[i]);
-                      if value != None {
-                        if expr[i].chars().nth(3) == Some('X'){
-                          model.rotation = Some((value.clone().unwrap()[0],'X'));
-                        } else if expr[i].chars().nth(3) == Some('Y'){
-                          model.rotation = Some((value.clone().unwrap()[0],'Y'));
-                        } else if expr[i].chars().nth(3) == Some('Z'){
-                          model.rotation = Some((value.clone().unwrap()[0],'Z'));
-                        } else {
-                          send_err(&error_p, "Please specify the axis to rotate around");
-                        }
-                      }
-                    } else {
-                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
-                    }
-                  } else if expr[i].starts_with("mat(") && expr[i].ends_with(")") {
-                    let mut colors_group:Vec<Color> = vec![];
-                    let mut colors:Vec<Color> = vec![];
-                    let slice = &expr[i][4..expr[i].find(')').unwrap()];
-                    if slice.len() != 0{
-                      if slice.contains(','){
-                        for name in slice.split(','){
-                          if color(name) != None {
-                            colors_group.push(Color::from_rgb_slice(&color(name).unwrap()));
-                          }
+                }
+                if variant(expr[0]) != Variant::Line{
+                  for i in 1..expr.len(){
+                    if String::from(expr[i]).parse::<f32>().is_ok(){
+                      if ra == None {
+                        let radius = String::from(expr[i]).parse::<f32>().unwrap();
+                        if radius > 1.0 || radius < 0.0 { send_err(&error_p, "Allowed range is 0 - 1"); } else {
+                          model.radius = radius;
                         }
                       } else {
-                        colors_group.push(Color::from_rgb_slice(&color(slice).unwrap()));
+                        send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
                       }
-                      let mut index = 0;
-                      for i in 0..model.mesh.positions.len(){
-                        colors.push(colors_group[index]);
-                        index += 1;
-                        if index == colors_group.len(){index = 0;}
-                      }                      
-                      model.mesh.colors = Some(colors);
-                      model.material = Box::new(ColorMaterial::default());
-                    } else {
-                      send_err(&error_p, "Give at least one color (not RGB!), or better, three colors.");
-                    }
-                  } else if expr[i].starts_with("[") && expr[i].ends_with("]"){
-                    if uv == None {
-                      let coords = floats_from(expr[i]);
-                      if coords != None {
-                        let c = coords.unwrap();
-                        if c.len() == 2 {
-                          if c[0] >= -1.0 && c[0] <= 1.0 &&
-                          c[1] >= -1.0 && c[1] <= 1.0{
-                            model.coords = Some((c[0],c[1]));
+                    } else if color(expr[i]) != None {
+                      let a = color(expr[i]).unwrap();
+                      model.material = Box::new(ColorMaterial {color: Color::from_rgb_slice(&[a[0],a[1],a[2]]), ..Default::default()});
+                    } else if expr[i].starts_with("rgb(") && expr[i].ends_with(")") {
+                      if rgb == None {
+                        let array = floats_from(expr[i]);
+                        if array != None {
+                          let a = array.unwrap();
+                          if a.len() == 3 {
+                            if a[0] >= 0.0 && a[0] <= 1.0 &&
+                            a[1] >= 0.0 && a[1] <= 1.0 &&
+                            a[2] >= 0.0 && a[2] <= 1.0 { 
+                              model.material = Box::new( ColorMaterial {color: Color::from_rgb_slice(&[a[0],a[1],a[2]]), ..Default::default()} );
+                             }
+                            else { 
+                              send_err(&error_p, "Allowed range is 0 - 1");
+                             }
                           } else {
-                            send_err(&error_p, "Allowed range is (-1) - 1");
-                          }
+                            send_err(&error_p, "RGB must always be given with three parameters");
+                          }                         
                         } else {
-                          send_err(&error_p, "UV coordinates are given only with two numbers");
+                          send_err(&error_p, "An error occurred within the RGB parameter");
                         }
                       } else {
-                        send_err(&error_p, "An error occurred within the UV parameter");
+                        send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
                       }
+                    } else if expr[i].starts_with("rot") && expr[i].find('(').unwrap() == 4 && expr[i].ends_with(")") {
+                      if rot == None {
+                        let value = floats_from(expr[i]);
+                        if value != None {
+                          if expr[i].chars().nth(3) == Some('X'){
+                            model.rotation = Some((value.clone().unwrap()[0],'X'));
+                          } else if expr[i].chars().nth(3) == Some('Y'){
+                            model.rotation = Some((value.clone().unwrap()[0],'Y'));
+                          } else if expr[i].chars().nth(3) == Some('Z'){
+                            model.rotation = Some((value.clone().unwrap()[0],'Z'));
+                          } else {
+                            send_err(&error_p, "Please specify the axis to rotate around");
+                          }
+                        }
+                      } else {
+                        send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
+                      }
+                    } else if expr[i].starts_with("mat(") && expr[i].ends_with(")") {
+                      /*let mut colors_group:Vec<Color> = vec![];
+                      let mut colors:Vec<Color> = vec![];
+                      let slice = &expr[i][4..expr[i].find(')').unwrap()];
+                      if slice.len() != 0{
+                        if slice.contains(','){
+                          for name in slice.split(','){
+                            if color(name) != None {
+                              colors_group.push(Color::from_rgb_slice(&color(name).unwrap()));
+                            }
+                          }
+                        } else {
+                          colors_group.push(Color::from_rgb_slice(&color(slice).unwrap()));
+                        }
+                        let mut index = 0;
+                        for i in 0..model.mesh.positions.len(){
+                          colors.push(colors_group[index]);
+                          index += 1;
+                          if index == colors_group.len(){index = 0;}
+                        }                      
+                        model.mesh.colors = Some(colors);
+                        model.material = Box::new(ColorMaterial::default());
+                      } else {
+                        send_err(&error_p, "Give at least one color (not RGB!), or better, three colors.");
+                      }*/
+                    } else if expr[i].starts_with("[") && expr[i].ends_with("]"){
+                      if uv == None {
+                        let coords = floats_from(expr[i]);
+                        if coords != None {
+                          let c = coords.unwrap();
+                          if c.len() == 2 {
+                            if c[0] >= -1.0 && c[0] <= 1.0 &&
+                            c[1] >= -1.0 && c[1] <= 1.0{
+                              model.coords = Some((c[0],c[1]));
+                            } else {
+                              send_err(&error_p, "Allowed range is (-1) - 1");
+                            }
+                          } else {
+                            send_err(&error_p, "UV coordinates are given only with two numbers");
+                          }
+                        } else {
+                          send_err(&error_p, "An error occurred within the UV parameter");
+                        }
+                      } else {
+                        send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
+                      }
+                    } else if expr[i].starts_with("noise(") && expr[1].ends_with(")"){
+                      let colors = &expr[i][5..expr[1].find(')').unwrap()];
+                      let mut array:Vec<Color> = vec![];
+                      if colors.contains(',') && colors.split(',').count() == 2{
+                        for name in colors.split(','){
+                          if color(name) != None {
+                            array.push(Color::from_rgb_slice(&color(name).unwrap()));
+                          }
+                        }
+                      }
+                      //model.material = Box::new(ColorMaterial {texture: Some(texture(&context, array[0], array[1], 50, 50)), ..Default::default()});
                     } else {
-                      send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
+                      send_err(&error_p, "Unknown parameter. Allowed: range ((-1) - 1), color (either names or rgb(0-1,0-1,0-1)) etc.");
                     }
-                  } else {
-                    send_err(&error_p, "Unknown parameter. Allowed: range ((-1) - 1), color (either names or rgb(0-1,0-1,0-1)) etc.");
+                  }
+                } else {
+                  for i in 1..expr.len(){
                   }
                 }
               } else {
                 send_err(&error_p, "Unknown shape");
               } 
-              models.push(model);   
+              envi.models.push(model);   
             },
             Medium::Effect=>{},
             Medium::Multiplication=>{
@@ -499,7 +535,7 @@ pub fn interpret(){
                   2=>{
                     let division = String::from(expr[1]).parse::<u32>();
                     if division.is_ok(){
-                      mul = Some((division.clone().unwrap(),division.clone().unwrap()));
+                      envi.multiplication = Some((division.clone().unwrap(),division.clone().unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integer like 10");
                     }
@@ -508,7 +544,7 @@ pub fn interpret(){
                     let rows = String::from(expr[1]).parse::<u32>();
                     let columns = String::from(expr[2]).parse::<u32>();
                     if rows.is_ok() && columns.is_ok(){
-                      mul = Some((columns.clone().unwrap(),rows.clone().unwrap()));
+                      envi.multiplication = Some((columns.clone().unwrap(),rows.clone().unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integers like 10, 13");
                     }
@@ -520,13 +556,17 @@ pub fn interpret(){
           }
         }
     }
-    render(&canvas, background, mul, Box::new(models), particles);
   }
+  envi
 }
 
-fn render(canvas: &HtmlCanvasElement, background: ClearState, multiplication: Option<(u32,u32)>, models: Box<Vec<Model>>, particles: Option<ParticleSystem>){
+fn render(){
+  let document = web_sys::window().unwrap().document().unwrap();
+  let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
+  let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
+  let code = document.get_element_by_id("input").unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value();
   let window = three_d::Window::new(WindowSettings {
-    canvas: Some(canvas.clone()),
+     canvas: Some(canvas.clone()),
    ..Default:: default()
    }).unwrap();
    let context = window.gl();
@@ -537,14 +577,23 @@ fn render(canvas: &HtmlCanvasElement, background: ClearState, multiplication: Op
     vec3(0.0, 3.0, 0.0),
     degrees(45.0),
     0.1,
-    1000.0
-  );
+    1000.0);
   let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,1.0));
-  window.render_loop(move |frame_input|{
-    let screen = frame_input.screen();
-    screen.clear(background);
-    screen.read_color::<Color>()[2] = Color::RED;
-    if models.len() != 0 {
+  let mut environment = Environment::empty();
+  window.render_loop( move |frame_input|{  
+    if environment.back_texture.clone().unwrap().len() == 0{
+      frame_input.screen().clear(environment.background);
+    }
+    if environment.multiplication != None {
+
+    }
+    match frame_input.events[0]{
+      three_d::renderer::control::Event::KeyPress {kind: Key::Enter, modifiers: Modifiers {alt: false, ctrl: true, shift: false, command: false}, handled: false}=>{
+        environment = interpret(&code, &context);
+      },
+      _=>todo!()
+    }
+    /*if models.len() != 0 {
       if multiplication != None {
         let width = frame_input.window_width as f64 * frame_input.device_pixel_ratio;
         let height = frame_input.window_height as f64 * frame_input.device_pixel_ratio;
@@ -561,8 +610,7 @@ fn render(canvas: &HtmlCanvasElement, background: ClearState, multiplication: Op
              frame_input.context.set_viewport(viewport);
              camera.set_viewport(viewport);
              for model in models.iter(){
-              let mut object;
-                object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
+              let mut object = Gm::new(Mesh::new(&context, &*model.mesh), &*model.material);
                 let mut matrix = object.transformation();
                 matrix = matrix.mul(Mat4::from_scale(model.radius));
                 if model.rotation != None {
@@ -576,15 +624,14 @@ fn render(canvas: &HtmlCanvasElement, background: ClearState, multiplication: Op
                 if model.coords != None {
                   matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
                 }
-                object.set_transformation(matrix);
+                object.geometry.set_transformation(matrix);
                 object.render(&camera, &[&light]);
             }
           }
         }
       } else {
         for model in models.iter(){
-          let mut object;
-          object = Gm::new(Mesh::new(&context, &model.mesh), &*model.material);
+          let mut object = Gm::new(Mesh::new(&context, &CpuMesh::default()), &*model.material);
           let mut matrix = object.transformation();
           matrix = matrix.mul(Mat4::from_scale(model.radius));
           if model.rotation != None {
@@ -598,17 +645,21 @@ fn render(canvas: &HtmlCanvasElement, background: ClearState, multiplication: Op
           if model.coords != None {
             matrix = matrix.mul(Mat4::from_translation(vec3(model.coords.unwrap().0 * 4.0,model.coords.unwrap().1 * 4.0,0.0)));
           }
-          object.set_transformation(matrix);
+          object.geometry.set_transformation(matrix);
           object.render(&camera, &[&light]);
         }
       }
     }
+*/
     FrameOutput::default()
   });
 }
 
-fn texture(context: &Context, first: Color, second: Color, width: u32, height: u32) -> Texture2D{
-  let mut texture = Texture2D::new_empty::<Color>(context, width, height, Interpolation::Linear, Interpolation::Linear, Some(Interpolation::Linear), Wrapping::Repeat, Wrapping::Repeat);
+fn draw(e: &Environment){
+
+}
+
+fn texture(first: Color, second: Color, width: u32, height: u32) -> Vec<Color>{
   let noise = Simplex::new(100);
   let mut data:Vec<Color> = vec![];
   for h in 0..height {
@@ -621,6 +672,5 @@ fn texture(context: &Context, first: Color, second: Color, width: u32, height: u
       data.push(color);
     }
   }
-  texture.fill(&data[ .. ]);
-  texture
+  data
 }

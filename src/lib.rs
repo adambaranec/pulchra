@@ -559,8 +559,8 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
   }
   envi
 }
-
-fn render(){
+#[wasm_bindgen]
+pub fn render(){
   let document = web_sys::window().unwrap().document().unwrap();
   let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
@@ -579,19 +579,13 @@ fn render(){
     0.1,
     1000.0);
   let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,1.0));
-  let mut environment = Environment::empty();
+  let e = interpret(&code, &context);
   window.render_loop( move |frame_input|{  
-    if environment.back_texture.clone().unwrap().len() == 0{
-      frame_input.screen().clear(environment.background);
-    }
-    if environment.multiplication != None {
+    frame_input.screen().clear(ClearState::color(0.0,0.0,0.0,1.0));
+    if e.models.len() != 0{
+      for model in &e.models{
 
-    }
-    match frame_input.events[0]{
-      three_d::renderer::control::Event::KeyPress {kind: Key::Enter, modifiers: Modifiers {alt: false, ctrl: true, shift: false, command: false}, handled: false}=>{
-        environment = interpret(&code, &context);
-      },
-      _=>todo!()
+      }
     }
     /*if models.len() != 0 {
       if multiplication != None {

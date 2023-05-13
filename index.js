@@ -1,4 +1,4 @@
-      import init from './pkg/pulchra.js';
+      import init, {render} from './pkg/pulchra.js';
       let canvas = document.getElementById('canvas');
       let input = document.getElementById('input');
       let canvasRecDialog = document.getElementById('canvas-rec');
@@ -16,7 +16,7 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
         sessionStorage.setItem('sessions', '-1');
-        //init().then(()=>interpret());
+        init().then(()=>render());
       }
       window.onresize = (e) =>{
       canvas.width = window.innerWidth;
@@ -39,7 +39,10 @@
           file.push(e.data);
         }
         input.addEventListener('keydown', (e) =>{
-          if (e.ctrlKey && e.key == 's'){
+          if (e.ctrlkey && e.key == 'Enter'){
+            render();
+          }
+          else if (e.ctrlKey && e.key == 's'){
            recorder.stop();
            recorder.onstop = (e)=>{
             let video = new Blob(file, {'type': 'video/webm'}); 

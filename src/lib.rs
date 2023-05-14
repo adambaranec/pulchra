@@ -20,6 +20,8 @@ ENUMS
     Mixed,
     Effect,
     Multiplication,
+    Light,
+    Camera,
     Unknown
   }
   #[derive(PartialEq)]
@@ -307,14 +309,12 @@ fn send_err(p: &HtmlParagraphElement, error: &str){
 pub struct Model {
   pub geometry: Box<dyn Geometry>,
   pub material: Box<dyn Material>,
-  pub radius: f32,
-  pub coords: Option<(f32,f32)>,
-  pub rotation: Option<(f32,char)>
+  pub rotation: Option<(f32,char)>,
 }
 impl Model {
   fn new(context: &Context) -> Self {
       Model { geometry: Box::new(Mesh::new(context, &CpuMesh::default())), material: Box::new(ColorMaterial {color: Color::WHITE, ..Default::default()}),
-      radius: 1.0, coords: None, rotation: None }
+    rotation: None}
   }
 }
 pub struct ParticleSettings {
@@ -333,11 +333,32 @@ impl Environment {
 Environment { background: ClearState::color(0.0, 0.0, 0.0, 1.0), back_texture: None, models: vec![], particles: vec![], multiplication: None }
   }
 }
-pub fn interpret(code: &String, context: &Context) -> Environment{
-  let mut envi = Environment::empty();
+
+#[wasm_bindgen]
+pub fn interpret(){
   let document = web_sys::window().unwrap().document().unwrap();
-  //let ctx = Context::from_gl_context(Arc::new(three_d::context::Context::from_webgl2_context(gl))).unwrap();
+  let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
+  let gl = canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>().unwrap();;
+  let code = document.get_element_by_id("input").unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value();
+  let context = Context::from_gl_context(Arc::new(three_d::context::Context::from_webgl2_context(gl))).unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
+  let mut background = ClearState::color(0.0,0.0,0.0,1.0);
+  let mut back_texture:Option<Texture2DRef> = None;
+  let mut models:Vec<Box<Model>> = vec![];
+  let mut multiplication:Option<(u32,u32)> = None;
+  /*let window = three_d::Window::new(WindowSettings {
+    canvas: Some(canvas.clone()),
+  ..Default:: default()
+  }).unwrap();
+  let context = window.gl();
+  let mut camera:Camera = Camera::new_perspective(
+   window.viewport(),
+   vec3(0.0, 0.0, 4.0),
+   vec3(0.0, 0.0, 0.0),
+   vec3(0.0, 3.0, 0.0),
+   degrees(45.0),
+   0.1,
+   1000.0);*/
   error_p.set_inner_html("");
   if code != ""{
     let comms: Vec<&str> = code.split(';').collect();
@@ -354,10 +375,10 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
             Medium::Background=>{
               if color(expr[1]) != None {
                 let values = color(expr[1]).unwrap();
-                envi.background = ClearState::color(values[0],values[1],values[2],1.0);            
+                background = ClearState::color(values[0],values[1],values[2],1.0);            
               } else if String::from(expr[1]).parse::<f32>().is_ok(){
                 let scale = String::from(expr[1]).parse::<f32>().unwrap();
-                 envi.background = ClearState::color(scale,scale,scale,1.0);
+                 background = ClearState::color(scale,scale,scale,1.0);
               } else if expr[1].starts_with("rgb(") && expr[1].ends_with(")") {
                 let array = floats_from(expr[1]);
                 if array != None {
@@ -366,7 +387,7 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                     if a[0] >= 0.0 && a[0] <= 1.0 &&
                     a[1] >= 0.0 && a[1] <= 1.0 &&
                     a[2] >= 0.0 && a[2] <= 1.0 
-                    {  envi.background = ClearState::color(a[0],a[1],a[2],1.0); 
+                    {  background = ClearState::color(a[0],a[1],a[2],1.0); 
                     }
                     else { send_err(&error_p, "Allowed range is 0 - 1"); }
                   } else {
@@ -385,7 +406,26 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                     }
                   }
                 }
-                envi.back_texture = Some(texture(array[0], array[1], 50, 50));
+                /*let width = window.size().0;
+                let height = window.size().1;
+                let mut texture = Texture2D::new_empty::<Color>(&context, width, height, Interpolation::Linear, Interpolation::Linear, 
+                  Some(Interpolation::Linear), Wrapping::Repeat, Wrapping::Repeat);
+                let noise = Simplex::new(100);
+                let mut data:Vec<Color> = vec![];
+                let first = array[0];
+                let second = array[1];
+                for h in 0..height {
+                 for w in 0..width{
+                 let value = (noise.get([w as f64, h as f64]) + 1.0 / 2.0) as f32;
+                 let mut color = Color::default();
+                 color.r = (((first.r - second.r) as f32).abs() * value) as u8;
+                 color.g = (((first.g - second.g) as f32).abs() * value) as u8;
+                 color.b = (((first.b - second.b) as f32).abs() * value) as u8;
+                 data.push(color);
+                 }
+                 }
+                texture.fill(&data);
+                back_texture = Some(Texture2DRef::from(Arc::new(texture)));*/
               }
             },
             Medium::Visuals=>{
@@ -393,24 +433,25 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
               let mut rgb:Option<[f32; 3]> = None;
               let mut uv:Option<(f32,f32)> = None;
               let mut rot:Option<f32> = None;
-              let mut model = Model::new(context); 
+              let mut model = Model::new(&context); 
               if variant(expr[0]) != Variant::Unknown {
-                match variant(expr[0]){
-                  Variant::Cube=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::cube())),
-                  Variant::Sphere=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::sphere(40))),
-                  Variant::Circle=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::circle(40))),
-                  Variant::Square=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::square())),
-                  Variant::Cylinder=>model.geometry = Box::new(Mesh::new(context, &CpuMesh::cylinder(40))),
-                  Variant::Line=>model.geometry = Box::new(Line::new(context, vec2(0.0,0.0), vec2(0.0,0.0), 1.0)),
-                  _=>todo!()
-                }
                 if variant(expr[0]) != Variant::Line{
+                  let mut cpuMesh = CpuMesh::default();
+                  let mut mesh = Mesh::new(&context, &cpuMesh);
+                  match variant(expr[0]){
+                    Variant::Cube=>cpuMesh = CpuMesh::cube(),
+                    Variant::Sphere=>cpuMesh = CpuMesh::sphere(40),
+                    Variant::Circle=>cpuMesh = CpuMesh::circle(40),
+                    Variant::Square=>cpuMesh = CpuMesh::square(),
+                    Variant::Cylinder=>cpuMesh = CpuMesh::cylinder(40),
+                    _=>todo!()  
+                  }
                   for i in 1..expr.len(){
                     if String::from(expr[i]).parse::<f32>().is_ok(){
                       if ra == None {
                         let radius = String::from(expr[i]).parse::<f32>().unwrap();
                         if radius > 1.0 || radius < 0.0 { send_err(&error_p, "Allowed range is 0 - 1"); } else {
-                          model.radius = radius;
+                          cpuMesh.transform(&Mat4::from_scale(radius));
                         }
                       } else {
                         send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
@@ -445,12 +486,16 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                       if rot == None {
                         let value = floats_from(expr[i]);
                         if value != None {
+                          let speed = value.clone().unwrap()[0];
                           if expr[i].chars().nth(3) == Some('X'){
                             model.rotation = Some((value.clone().unwrap()[0],'X'));
+                            mesh.set_animation(move |time|Mat4::from_angle_x(radians(time * 360.0 / speed)));
                           } else if expr[i].chars().nth(3) == Some('Y'){
                             model.rotation = Some((value.clone().unwrap()[0],'Y'));
+                            mesh.set_animation(move |time|Mat4::from_angle_y(radians(time * 360.0 / speed)));
                           } else if expr[i].chars().nth(3) == Some('Z'){
                             model.rotation = Some((value.clone().unwrap()[0],'Z'));
+                            mesh.set_animation(move |time|Mat4::from_angle_z(radians(time * 360.0 / speed)));
                           } else {
                             send_err(&error_p, "Please specify the axis to rotate around");
                           }
@@ -459,7 +504,7 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                         send_err(&error_p, "You are free to give whatever parameters, but not to repeat them");
                       }
                     } else if expr[i].starts_with("mat(") && expr[i].ends_with(")") {
-                      /*let mut colors_group:Vec<Color> = vec![];
+                      let mut colors_group:Vec<Color> = vec![];
                       let mut colors:Vec<Color> = vec![];
                       let slice = &expr[i][4..expr[i].find(')').unwrap()];
                       if slice.len() != 0{
@@ -473,16 +518,16 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                           colors_group.push(Color::from_rgb_slice(&color(slice).unwrap()));
                         }
                         let mut index = 0;
-                        for i in 0..model.mesh.positions.len(){
+                        for i in 0..cpuMesh.positions.len(){
                           colors.push(colors_group[index]);
                           index += 1;
                           if index == colors_group.len(){index = 0;}
                         }                      
-                        model.mesh.colors = Some(colors);
+                        cpuMesh.colors = Some(colors);
                         model.material = Box::new(ColorMaterial::default());
                       } else {
                         send_err(&error_p, "Give at least one color (not RGB!), or better, three colors.");
-                      }*/
+                      }
                     } else if expr[i].starts_with("[") && expr[i].ends_with("]"){
                       if uv == None {
                         let coords = floats_from(expr[i]);
@@ -491,7 +536,7 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                           if c.len() == 2 {
                             if c[0] >= -1.0 && c[0] <= 1.0 &&
                             c[1] >= -1.0 && c[1] <= 1.0{
-                              model.coords = Some((c[0],c[1]));
+                              cpuMesh.transform(&Mat4::from_translation(vec3(c[0] * 4.0,c[1] * 4.0, 0.0)));
                             } else {
                               send_err(&error_p, "Allowed range is (-1) - 1");
                             }
@@ -514,11 +559,33 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                           }
                         }
                       }
-                      //model.material = Box::new(ColorMaterial {texture: Some(texture(&context, array[0], array[1], 50, 50)), ..Default::default()});
+                      /*let width = window.size().0;
+                      let height = window.size().1;
+                      let mut texture = Texture2D::new_empty::<Color>(&context, width, height, Interpolation::Linear, Interpolation::Linear, 
+                        Some(Interpolation::Linear), Wrapping::Repeat, Wrapping::Repeat);
+                      let noise = Simplex::new(100);
+                      let mut data:Vec<Color> = vec![];
+                      let first = array[0];
+                      let second = array[1];
+                      for h in 0..height {
+                       for w in 0..width{
+                       let value = (noise.get([w as f64, h as f64]) + 1.0 / 2.0) as f32;
+                       let mut color = Color::default();
+                       color.r = (((first.r - second.r) as f32).abs() * value) as u8;
+                       color.g = (((first.g - second.g) as f32).abs() * value) as u8;
+                       color.b = (((first.b - second.b) as f32).abs() * value) as u8;
+                       data.push(color);
+                       }
+                       }
+                      texture.fill(&data);
+                      model.material = Box::new(ColorMaterial {texture: Some(Texture2DRef::from(Arc::new(texture))), ..Default::default()});*/
                     } else {
                       send_err(&error_p, "Unknown parameter. Allowed: range ((-1) - 1), color (either names or rgb(0-1,0-1,0-1)) etc.");
                     }
                   }
+                  model.geometry = Box::new(mesh);
+                } else if variant(expr[0]) == Variant::Line {
+                  let mut line = Line::new(&context, vec2(0.0,window.size().1 as f32 / 2.0),vec2(window.size().0 as f32, window.size().1 as f32 / 2.0), 10.0);
                 } else {
                   for i in 1..expr.len(){
                   }
@@ -526,16 +593,20 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
               } else {
                 send_err(&error_p, "Unknown shape");
               } 
-              envi.models.push(model);   
+              models.push(Box::new(model));   
             },
-            Medium::Effect=>{},
+            Medium::Effect=>{
+              if variant(expr[0]) == Variant::Particles{
+
+              }
+            },
             Medium::Multiplication=>{
                 match expr.len(){
                   1=>send_err(&error_p, "Give at least a number"),
                   2=>{
                     let division = String::from(expr[1]).parse::<u32>();
                     if division.is_ok(){
-                      envi.multiplication = Some((division.clone().unwrap(),division.clone().unwrap()));
+                      multiplication = Some((division.clone().unwrap(),division.clone().unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integer like 10");
                     }
@@ -544,7 +615,7 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                     let rows = String::from(expr[1]).parse::<u32>();
                     let columns = String::from(expr[2]).parse::<u32>();
                     if rows.is_ok() && columns.is_ok(){
-                      envi.multiplication = Some((columns.clone().unwrap(),rows.clone().unwrap()));
+                      multiplication = Some((columns.clone().unwrap(),rows.clone().unwrap()));
                     } else {
                       send_err(&error_p, "Could not parse rows/columns. Try positive integers like 10, 13");
                     }
@@ -552,16 +623,17 @@ pub fn interpret(code: &String, context: &Context) -> Environment{
                   _=>send_err(&error_p, "It is enough to give only two numbers")
                 }
             },
+            Medium::Light=>{},
+            Medium::Camera=>{},
             _=>todo!()
           }
         }
     }
   }
-  envi
 }
-#[wasm_bindgen]
-pub fn render(){
-  let document = web_sys::window().unwrap().document().unwrap();
+
+fn render(){
+  /*let document = web_sys::window().unwrap().document().unwrap();
   let canvas = document.get_element_by_id("canvas").unwrap().dyn_into::<HtmlCanvasElement>().unwrap();
   let error_p = document.get_element_by_id("error").unwrap().dyn_into::<HtmlParagraphElement>().unwrap();
   let code = document.get_element_by_id("input").unwrap().dyn_into::<HtmlTextAreaElement>().unwrap().value();
@@ -581,13 +653,7 @@ pub fn render(){
   let light = DirectionalLight::new(&context, 1.0, Color::WHITE, &vec3(0.0,0.0,1.0));
   let e = interpret(&code, &context);
   window.render_loop( move |frame_input|{  
-    frame_input.screen().clear(ClearState::color(0.0,0.0,0.0,1.0));
-    if e.models.len() != 0{
-      for model in &e.models{
-
-      }
-    }
-    /*if models.len() != 0 {
+  models.len() != 0 {
       if multiplication != None {
         let width = frame_input.window_width as f64 * frame_input.device_pixel_ratio;
         let height = frame_input.window_height as f64 * frame_input.device_pixel_ratio;
@@ -644,16 +710,15 @@ pub fn render(){
         }
       }
     }
-*/
+
     FrameOutput::default()
-  });
+  });*/
 }
 
 fn draw(e: &Environment){
 
 }
-
-fn texture(first: Color, second: Color, width: u32, height: u32) -> Vec<Color>{
+fn texture_data(first: Color, second: Color, width: u32, height: u32) -> Vec<Color>{
   let noise = Simplex::new(100);
   let mut data:Vec<Color> = vec![];
   for h in 0..height {

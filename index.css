@@ -25,6 +25,10 @@ position: absolute;
 height: 100%;
 width: 100%;
 }
+#canvas{
+    display: block;
+    position: absolute;
+}
 /*
 .up{}
 .question{}

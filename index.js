@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import {createNoise2D} from "simplex-noise";
+import { randFloat, randInt } from 'three/src/math/MathUtils';
 const noise = createNoise2D();
 let canvas = document.getElementById('canvas');
 let input = document.getElementById('input');
@@ -15,6 +16,8 @@ let fileNameInput = document.getElementById('file-name');
 let errorP = document.getElementById('error');
 
 sessionStorage.setItem('sessions', '-1');
+const width = window.innerWidth;
+const height = window.innerHeight;
 
 /* RENDERER */
 /* MUST-HAVE CODE*/
@@ -22,19 +25,51 @@ sessionStorage.setItem('sessions', '-1');
 let environment = {
   background: new THREE.Color(0,0,0),
   models: new Array(),
+  globalMul: null,
   oscillators: new Array()
 };
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera( 25, window.innerWidth / window.innerHeight, 0.1, 1000 );
+const camera = new THREE.PerspectiveCamera( 45, width / height, 0.1, 1000 );
 camera.position.x = 0;
 camera.position.y = 0;
 camera.position.z = 4;
 const renderer = new THREE.WebGLRenderer();
-renderer.setSize( window.innerWidth, window.innerHeight );
+renderer.setSize( width, height);
 document.body.appendChild( renderer.domElement );
-function animate() {
+
+/* MAIN FUNCTION FOR ANIMATION */ 
+const animate = () => {
 	requestAnimationFrame( animate );
-	renderer.render( scene, camera );
+  if (environment.globalMul != null){
+    for (let c=0; c<=environment.globalMul.columns; c++){
+      for (let r=0; r<=environment.globalMul.rows; r++){
+        let x = ((width / environment.globalMul.columns) * c);
+        let y = ((height / environment.globalMul.rows) * r);
+        let w = (width / environment.globalMul.columns);
+        let h = (height / environment.globalMul.rows);
+        renderer.setViewport(x,y,w,h);
+        renderer.setScissor(x,y,w,h);
+        renderer.setScissorTest( true );
+        renderer.render(scene,camera);
+      }
+    }
+  } else {
+    renderer.setScissorTest(false);
+    renderer.setViewport(0,0,width,height); 
+    renderer.render(scene,camera);
+  }
+  if (environment.models.length != 0){
+     for (let m in environment.models){
+      if (environment.models[m].rotation){
+        switch (environment.models[m].rotation.axis){
+          case "X": environment.models[m].mesh.rotation.x -= environment.models[m].rotation.speed / 10.0; break;
+          case "Y": environment.models[m].mesh.rotation.y -= environment.models[m].rotation.speed / 10.0; break;
+          case "Z": environment.models[m].mesh.rotation.z -= environment.models[m].rotation.speed / 10.0; break;
+          default: break;
+        }
+      }
+     }
+  }
 }
 animate();
 
@@ -100,6 +135,7 @@ const medium = (word) =>{
     case "torus": return {medium: "shape",variant: "torus"};
     case "torusKnot": return {medium: "shape",variant: "torusKnot"};
     case "screen": return {medium: "background"};
+    case "mul": return {medium: "multiplication"};
     case "camera": return {medium: "camera"};
     case "light": return {medium: "light"};
     default: return null;
@@ -125,11 +161,16 @@ if (typeof c === 'string'){
       default: break;
     }
     if (command.length == 1){
-      geometry.scale = 1.0;
+      geometry.scale(1.0,1.0,1.0);
     } else {
       for (let i= 1; i<command.length; i++){
         if (!isNaN(parseFloat(command[i]))){
-          geometry.scale = parseFloat(command[i]);
+          let value = parseFloat(command[i]);
+          if (value >= 0.0 && value <= 1.0){
+            geometry.scale(parseFloat(command[i]),parseFloat(command[i]),parseFloat(command[i]));
+          } else {
+            sendErr("Allowed range is 0 - 1");
+          }
         } else if (color(command[i]) != null){
           material.color = color(command[i]);
         } else if (command[i].startsWith("rgb(") && command[i].endsWith(")")){
@@ -152,12 +193,33 @@ if (typeof c === 'string'){
         } else if (command[i].startsWith('[') && command[i].endsWith(']')){
           const coords = floats(command[i]);
           if (coords.length == 2){
-            geometry.translate(coords[0],coords[1],0.0);
+            if (coords[0] >= -1.0 && coords[0] <= 1.0 && coords[1] >= -1.0 && coords[1] <= 1.0){
+              geometry.translate(coords[0] * 4.0,coords[1] * 4.0,0.0);
+            } else {
+              sendErr("Allowed range 0 - 1");
+            }
           } else {
-            sendErr("Expected only two coordinates to translate");
+            sendErr("Expected two coordinates to translate");
           }
-        } else if (command[i] == "mat"){
-          material.vertexColors = true;
+        } else if (command[i].startsWith("mat(") && command[i].endsWith(")")){
+          const slice = command[i].slice(4,command[i].length - 1);
+          let colors = new Array();
+          if (slice.includes(',')){
+            const colorNames = slice.split(',');
+            for (let c in colorNames){
+              color(colorNames[c]) != null ? colors.push(color(colorNames[c])) : sendErr("Invalid name for color - e.g. RGB is not allowed");
+            }
+            const count = geometry.attributes.position.count;
+            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * count), 3));
+            let colorAttrib = geometry.attributes.color;
+            for (let i=0; i<count; i++){
+              let index = randInt(0,colors.length - 1);
+              colorAttrib.setXYZ(i, colors[index].r,colors[index].g,colors[index].b);
+            }
+            material.vertexColors = true;
+          } else {
+            sendErr("Just a color name would be enough - use at least two colors for this");
+          }
         } else if (command[i].startsWith("noise(") && command[i].endsWith(")")){
           const colors = command[i].slice(6,command[i].length - 1).split(',');
           const first = color(colors[0]);
@@ -262,8 +324,38 @@ const screen = (c) => {
   }
 }
 
+const mul = (c) => {
+  if (typeof c === 'string'){
+   const command = c.split(' ');
+   if (command.length == 1){
+     sendErr("Give at least one number");
+     return null;
+   } else if (command.length == 2){
+    let value = parseInt(command[1]);
+    if (!isNaN(value)){ return {rows: value, columns: value}; }else{
+      sendErr("Could not parse the number");
+      return null;
+    }
+   } else if (command.length == 3){
+    let rows = parseInt(command[1]);
+    let columns = parseInt(command[2]);
+    if (!isNaN(rows) && !isNaN(columns)){ return {rows: rows, columns: columns}; }else{
+      sendErr("Could not parse neither rows nor columns");
+      return null;
+    }
+   } else {
+    sendErr("Too many parameters");
+    return null;
+   }
+  } else {
+    return null;
+  }
+}
+
 const interpret = () => {
+  scene.clear();
   environment.models = new Array();
+  environment.globalMul = null;
   const code = String(input.value);
   errorP.innerHTML = '';
   if (code != ""){
@@ -275,16 +367,20 @@ const interpret = () => {
         commands.pop();
       }
       for (let c in commands){
-        let words = commands[c].trimStart().split(' ');
+        let words = commands[c].trim().split(' ');
         if (medium(words[0]) != null){
           switch (medium(words[0]).medium){
             case "shape": {
-              let shape = model(commands[c]);
+              let shape = model(commands[c].trimStart());
               if (shape != null){environment.models.push(shape)}
             }; break;
             case "background": {
-              let back = screen(commands[c]);
+              let back = screen(commands[c].trimStart());
               if (back != null){environment.background = back}              
+            }; break;
+            case "multiplication": {
+              let m = mul(commands[c].trimStart());
+              if (m != null){environment.globalMul = m}
             }; break;
             case "camera": {}; break;
             case "light": {}; break;
@@ -295,18 +391,22 @@ const interpret = () => {
          }
       }
      } else {
-      let words = lines[l].split(' ');
+      let words = lines[l].trim().split(' ');
       if (words[0][0] === undefined){words.shift()}      
       if (medium(words[0]) != null){
         switch (medium(words[0]).medium){
           case "shape": {
-            let shape = model(lines[l]);
+            let shape = model(lines[l].trimStart());
             if (shape != null){environment.models.push(shape)}
             }; break;
             case "background": {
-            let back = screen(lines[l]);
+            let back = screen(lines[l].trimStart());
             if (back != null){environment.background = back}
             }; break;
+          case "multiplication": {
+            let m = mul(lines[l].trimStart());
+            if (m != null){environment.globalMul = m}
+          }; break;
           case "camera": {}; break;
           case "light": {}; break;
           default: sendErr("What to set?"); break;
@@ -320,12 +420,15 @@ const interpret = () => {
     environment.background = new THREE.Color(0,0,0);
   }
   scene.background = environment.background;
+  if (environment.models.length != 0){
+    for (let m in environment.models){
+      scene.add(environment.models[m].mesh);
+    }
+  }
 }
 /* ALL JS THINGS */
       window.onresize = (e) =>{
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      canvas.getContext('webgl2').viewport(0,0,canvas.width,canvas.height);
+      renderer.setSize(window.innerWidth, window.innerHeight );
       }
       closeCanvasRecD.onclick = (e) => {canvasRecDialog.close();}
       closeRecSaveD.onclick = (e) => {recSaveDialog.close();}

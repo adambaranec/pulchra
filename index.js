@@ -34,6 +34,7 @@ const camera = new THREE.PerspectiveCamera( 45, aspect, 0.1, 1000 );
 camera.position.x = 0;
 camera.position.y = 0;
 camera.position.z = 4;
+camera.lookAt(new THREE.Vector3(0,0,0));
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( width, height);
 document.body.appendChild( renderer.domElement );
@@ -91,7 +92,7 @@ if (typeof word === 'string'){
        case  "yellow":return new THREE.Color(1.0,1.0,0.0); 
         case "magenta":return new THREE.Color(1.0,0.0,1.0); 
      case    "cyan":return new THREE.Color(0.0,1.0,1.0); 
-       case  "orange":return new THREE.Color(1.0,0.45,0.0); 
+       case  "orange":return new THREE.Color(1.0,0.4,0.0); 
      case    "pink":return new THREE.Color(1.0,0.6,0.8); 
        case  "purple":return new THREE.Color(0.2,0.0,0.5); 
       case   "brown":return new THREE.Color(0.3,0.2,0.1); 
@@ -151,7 +152,7 @@ if (typeof c === 'string'){
     let modelObj = {};
     let geometry = undefined;
     let material = new THREE.MeshPhongMaterial();
-    let scale = 1.0;
+    modelObj.transform = new THREE.Matrix4();
     switch (medium(command[0]).variant){
       case "cube": geometry = new THREE.BoxGeometry(1,1,1); break;
       case "sphere": geometry = new THREE.SphereGeometry(1,60,60); break;
@@ -170,14 +171,9 @@ if (typeof c === 'string'){
         if (!isNaN(parseFloat(command[i]))){
           let value = parseFloat(command[i]);
           if (value >= 0.0 && value <= 1.0){
-            if (medium(command[0]).variant != "torusKnot"){
-              geometry.scale(parseFloat(command[i]),parseFloat(command[i]),parseFloat(command[i]));
-              scale = parseFloat(command[i]);
-            } else {
-              geometry.scale(parseFloat(command[i])*0.65,parseFloat(command[i])*0.65,parseFloat(command[i])*0.65);
-              scale = parseFloat(command[i]);
-            }
-            console.log(scale);
+              let matrix = modelObj.transform;
+              matrix.multiply(new THREE.Matrix4().makeScale(parseFloat(command[i]),parseFloat(command[i]),parseFloat(command[i])));
+              modelObj.transform = matrix;
           } else {
             sendErr("Allowed range is 0 - 1");
           }
@@ -193,23 +189,31 @@ if (typeof c === 'string'){
         } else if (command[i].startsWith("rot") && command[i].includes('(') && command[i].endsWith(")")){
           if (command[i][3] == "X" || command[i][3] == "Y" || command[i][3] == "Z"){
             modelObj.rotation = {speed: floats(command[i])[0], axis: command[i][3]};
-          } else {
-            if (command[i][3] == "("){
+          } /*else if (command[i][5] == "X" || command[i][5] == "Y" || command[i][5] == "Z" && command[i].slice(3,4) == "Ar"){
+            modelObj.rotation = {speed: floats(command[i])[0], axis: command[i][5]};
+            if (modelObj.transform.elements[13] != 1 || modelObj.transform.elements[14] != 1){
+              geometry.translate(modelObj.transform.elements[13],modelObj.transform.elements[14],0);
+            }
+          }*/ else {
+            if (command[i][3] == "(" /*|| command[i][5] == "("*/){
               sendErr("Provide an axis to rotate around - either X, Y or Z.");
-            } else if (command[i][4] == "("){
+            } else if (command[i][4] == "("/*|| command[i][6] == "("*/){
               sendErr("Such axis does not exist - choose from X, Y or Z.");     
             }    
           }
         } else if (command[i].startsWith('[') && command[i].endsWith(']')){
           const coords = floats(command[i]);
           if (coords.length == 2){
-            /*if (coords[0] >= -1.0 && coords[0] <= 1.0 && coords[1] >= -1.0 && coords[1] <= 1.0){
-              console.log(scale); 
-              geometry.translate(coords[0] * 1.75 / (scale * 5), coords[1] * 0.5 / (scale), 0.0);
+            if (coords[0] >= -1.0 && coords[0] <= 1.0 && coords[1] >= -1.0 && coords[1] <= 1.0){
+              let boundingBoxSize = new THREE.Vector3();
+              geometry.computeBoundingBox();
+              geometry.boundingBox.getSize(boundingBoxSize);
+              let matrix = modelObj.transform;
+              matrix.multiply(new THREE.Matrix4().makeTranslation(coords[0]*2.85/*/(boundingBoxSize.x/2)*/,coords[1]*1.5/*/(boundingBoxSize.y/2)*/,0));
+              modelObj.transform = matrix;
             } else {
-              sendErr("Allowed range 0 - 1");
-            }*/
-            geometry.translate(coords[0],coords[1],0.0);
+              sendErr("Allowed range -1 - 1");
+            }
           } else {
             sendErr("Expected two coordinates to translate");
           }
@@ -241,12 +245,12 @@ if (typeof c === 'string'){
           let x = 0;
           let y = 0;
           const compSize = 4;
-          const data = new Uint8Array(4 * width * height);
+          const data = new Uint8Array(compSize * width * height);
           for ( let i = 0; i < width * height; i ++ ) {
             x = i;
-            if (i % compSize == 0){y += 1;}
+            if (i % width == 0 && i != 0){y += 1;}
             const noiseValue = noise(x,y) + 1.0 / 2.0;
-            const stride = i * 4;
+            const stride = i * compSize;
             data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
             data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;;
             data[ stride + 2 ] = new THREE.Color().lerpColors(first,second,255).b * noiseValue; 
@@ -262,7 +266,9 @@ if (typeof c === 'string'){
       }
     }
     if (typeof geometry !== 'undefined'){
-      modelObj.mesh = new THREE.Mesh(geometry, material);
+      let mesh = new THREE.Mesh(geometry, material);
+      mesh.applyMatrix4(modelObj.transform);
+      modelObj.mesh = mesh;
       return modelObj;
     } else {
       sendErr("Unknown shape. Allowed: cube, sphere, circle, torus...");
@@ -312,21 +318,24 @@ const screen = (c) => {
         const colors = command[1].slice(6,command[1].length - 1).split(',');
         const first = color(colors[0]);
         const second = color(colors[1]);
-        const width = window.innerWidth;
-        const height = window.innerHeight;
-        const data = new Uint8Array(4 * width * height);
+        const w = width;
+        const h = height;
+        let x = 0;
+        let y = 0;
+        const compSize = 4;
+        const data = new Uint8Array(compSize * width * height);
         for ( let i = 0; i < width * height; i ++ ) {
-          let x = i;
-          let y = 0;
-          if (width % x == 0 && x != 0){y += 1;}
+          x = i;
+          if (i % width == 0 && i != 0){y += 1;}
           const noiseValue = noise(x,y) + 1.0 / 2.0;
           const stride = i * 4;
-          data[ stride ] = parseInt(first.lerp(second, noiseValue).r * 255.0);
-          data[ stride + 1 ] = parseInt(first.lerp(second, noiseValue).g * 255.0);
-          data[ stride + 2 ] = parseInt(first.lerp(second, noiseValue).b * 255.0);
+          data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
+          data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;;
+          data[ stride + 2 ] = new THREE.Color().lerpColors(first,second,255).b * noiseValue; 
           data[ stride + 3 ] = 255;
         }
-        const texture = new THREE.DataTexture(data, width, height);
+        const texture = new THREE.DataTexture(data, w, h);
+        texture.needsUpdate = true;
         texture.generateMipmaps = true;
         return texture;
       } else {

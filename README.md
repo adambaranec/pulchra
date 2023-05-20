@@ -1,3 +1,4 @@
+[![Netlify Status](https://api.netlify.com/api/v1/badges/c69cab50-feb9-42a2-ad5b-701eed639d5a/deploy-status)](https://app.netlify.com/sites/pulchra/deploys)
 # Pulchra
 Hello everyone! 
 Let's introduce Pulchra, a live coding environment for 3D graphics on the web. You may have heard of its predecessor, Fluxus - but let me tell you, Pulchra inspired from Fluxus' legacy with adding some new functionalities, mainly in 3D rendering.

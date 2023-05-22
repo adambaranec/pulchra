@@ -12,10 +12,10 @@ Let's go!
 Background color or texture.
 ### Functions
 
-screen **scale** - grayscale (0 - 1)
-screen rgb(**red**,**green**,**blue**) - RGB (all numbers 0 - 1)
-screen **name** - color from English color name
-screen noise(**name**,**name**) - procedural texture made with Simplex noise
+- screen **scale** - grayscale (range from 0 - 1)
+- screen rgb(**red**,**green**,**blue**) - RGB (all numbers range from 0 - 1)
+- screen **name of color** - color from English name of the color 
+- screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
 
 Examples:
 ```
@@ -38,12 +38,12 @@ Available shapes:
 Possible parameters (optional, in whatever order):
 - radius (floating-point number from 0 - 1)
 - color: 
-  - rgb(**red**,**green**,**blue**)  (all numbers 0 - 1)
+  - rgb(**red**,**green**,**blue**)  (all numbers range from 0 - 1)
   - English color name
   - mat(*at least two color names separated by comma*) - randomly puts a color from the array into the mesh
-  - noise(**first**,**second**) - procedural texture made with Simplex noise
+  - noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
 - coordinates ([**x**,**y**] from -1 to 1)
-- rotation (word parts: rot + X/Y/Z + (**speed** - can also be a negative number))
+- rotation (samples: rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
 
 Examples:
 ```
@@ -57,5 +57,5 @@ circle 0.3 magenta [-0.5,1] rotZ(1)
 `mul` divides the current scene in rows and columns
 ### Functions
 *All parameters must not be floating-point numbers.*
-mul **integer** - number of rows and columns is the same
-mul **rows** **columns**
+- mul **integer** - number of rows and columns is the same
+- mul **rows** **columns**

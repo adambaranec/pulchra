@@ -9,5 +9,5 @@ This happened at a course of algorave music (music made with code), where we wer
 After a while, it came out! The idea was literally a live-coding language primarily focused on 3D graphics! Lying on the beach in Croatia, I started to write first lines of code for the environment. By the way, it would not be possible to work on this language without the amazing library Three-js. This library is a total game-changer, providing all the essential functionality for 3D graphics programming, including support for meshes, materials, lighting, and many more!
 
 I am excited to announce Pulchra is working! This is seriously a huge moment - who knows, what all you brilliant coders out there create with it. So go ahead, play and drop a line about what you think. Peace!
-[Try it there! (on computer, of course)](https://pulchra.netlify.app)
+[Try it there! (on computer, of course)](https://pulchra.netlify.app)<br>
 [See the docs](docs.md)

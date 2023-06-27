@@ -6,7 +6,7 @@ Shortcuts (executed only when the textarea is on focus):
 - Ctrl + R: Record a video of the canvas (in progress)
 - Ctrl + P: Take a photo of the canvas (in progress)
 # Language
-Individual functions are always separated by semicolon.
+Individual functions are written into the textarea and are always separated by semicolon.
 Let's go!
 ## Screen
 Background color or texture.

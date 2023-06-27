@@ -26,7 +26,8 @@ let environment = {
   background: new THREE.Color(0,0,0),
   models: new Array(),
   globalMul: null,
-  oscillators: new Array()
+  oscillators: new Array(),
+  recording: false
 };
 const scene = new THREE.Scene();
 const aspect = width / height;
@@ -39,8 +40,78 @@ const renderer = new THREE.WebGLRenderer();
 renderer.setSize( width, height);
 document.body.appendChild( renderer.domElement );
 
+const isValidUrl = (url) => {
+  try {
+      new URL(url);
+      return true;
+  } catch (e) {
+      return false;
+  }
+}
+/*SOME BASIC MATHS */
+const posFromPixels = (x,y) => {
+  let vector = new THREE.Vector3();
+  vector.set(
+    ( x / width ) * 2 - 1,
+    - ( y / height ) * 2 + 1,
+    0.5 );
+  vector.unproject( camera );
+  let dir = vector.sub( camera.position ).normalize();
+  let distance = - camera.position.z / dir.z;
+  let pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
+  return pos;
+}
+const pixelsFromPos = (pos) => {
+  let vector = new THREE.Vector3();
+  vector.set(pos.x,pos.y,pos.z);
+  vector.project(camera);
+  vector.x = Math.round((vector.x + 1) * width / 2);
+  vector.y = Math.round((-vector.y + 1) * height / 2);
+  return vector;
+}
+const posFromUV = (u,v) => {
+  let vector = new THREE.Vector3();
+  vector.set(
+    ( u ) * 2 - 1,
+    - ( v ) * 2 + 1,
+    0.5 );
+  vector.unproject( camera );
+  let dir = vector.sub( camera.position ).normalize();
+  let distance = - camera.position.z / dir.z;
+  let pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
+  return pos;
+}
+const uvFromPixels = (x,y) => {
+  let vector = new THREE.Vector3();
+  vector.set(
+    ( x / width ) * 2 - 1,
+    - ( y / height ) * 2 + 1,
+    0.5 );
+  vector.unproject( camera );
+  let dir = vector.sub( camera.position ).normalize();
+  let distance = - camera.position.z / dir.z;
+  let pos = camera.position.clone().add( dir.multiplyScalar( distance ) );
+  let uv = new THREE.Vector2();
+  uv.x = (pos.x + 1) / 2;
+  uv.y = (pos.y + 1) / 2;
+  return uv;
+}
+
+const getNormalizedScale = (geometry, targetSize) => {
+  geometry.computeBoundingBox();
+  const boundingBox = geometry.boundingBox;
+  const width = boundingBox.max.x - boundingBox.min.x;
+  const height = boundingBox.max.y - boundingBox.min.y;
+  const depth = boundingBox.max.z - boundingBox.min.z;
+  const maxDimension = Math.max(width, height, depth);
+  const scaleFactor = targetSize / maxDimension;
+  return new THREE.Matrix4().makeScale(scaleFactor, scaleFactor, scaleFactor);
+}
 
 /* MAIN FUNCTION FOR ANIMATION */ 
+let stream = canvas.captureStream();
+let recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+let chunks = [];
 const animate = () => {
 	requestAnimationFrame( animate );
   if (environment.globalMul != null){
@@ -73,8 +144,33 @@ const animate = () => {
       }
      }
   }
+  if (environment.recording == true){
+    if (recorder.state == 'inactive'){
+      recorder.start();
+    }
+    //canvas.captureStream().getVideoTracks()[0].requestFrame();
+  } else {
+    if (recorder.state == 'recording'){
+      recorder.stop();
+    }
+  }
 }
 animate();
+recorder.ondataavailable = (event) =>{
+  chunks.push(event.data);
+};
+recorder.onstop = () => {
+  let video = new Blob(chunks, {'type': 'video/webm'});
+  let videoURL = URL.createObjectURL(video);
+  let downloadElem = document.getElementById('file');
+  downloadElem.href = videoURL;
+  let name = fileNameInput.value;
+  name = '.webm' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.webm` :
+  downloadElem.download = `${name}.webm`;
+  downloadElem.onclick = (e) => {
+    recSaveDialog.close();
+  }
+};
 
 /* INTERPRETING */
 const sendErr = (err) => {
@@ -205,11 +301,24 @@ if (typeof c === 'string'){
           const coords = floats(command[i]);
           if (coords.length == 2){
             if (coords[0] >= -1.0 && coords[0] <= 1.0 && coords[1] >= -1.0 && coords[1] <= 1.0){
-              let boundingBoxSize = new THREE.Vector3();
-              geometry.computeBoundingBox();
-              geometry.boundingBox.getSize(boundingBoxSize);
               let matrix = modelObj.transform;
-              matrix.multiply(new THREE.Matrix4().makeTranslation(coords[0]*2.85/*/(boundingBoxSize.x/2)*/,coords[1]*1.5/*/(boundingBoxSize.y/2)*/,0));
+              if (geometry.boundingBox === null){
+                geometry.computeBoundingBox();
+              }
+              let meshWidth = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
+              let meshHeight = geometry.boundingBox.max.y - geometry.boundingBox.min.y;
+              let x  = (coords[0] + 1.0) / 2.0;
+              let y  = (coords[1] + 1.0) / 2.0;
+              let realX = posFromPixels(width * x,height * y).x * modelObj.transform.elements[0];
+              let realY = posFromPixels(width * x,height * y).y * -1.0 * modelObj.transform.elements[0];
+              /*if (realX!=0){
+                //realX -= (meshWidth * modelObj.transform.elements[0]);
+                realX *= modelObj.transform.elements[0];
+              } else if (realY!=0){
+                //realY -= (meshHeight * modelObj.transform.elements[0]);
+                realY *= modelObj.transform.elements[1];
+              }*/
+              matrix.multiply(new THREE.Matrix4().makeTranslation(realX,realY,0));
               modelObj.transform = matrix;
             } else {
               sendErr("Allowed range -1 - 1");
@@ -260,7 +369,19 @@ if (typeof c === 'string'){
           texture.needsUpdate = true;
           texture.generateMipmaps = true;
           material = new THREE.MeshPhongMaterial({ map: texture});
-        } else {
+        } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
+          let url = command[i].slice(5,command[i].length - 2);
+          if (isValidUrl(url)){
+            const textureLoader = new THREE.TextureLoader();
+            textureLoader.load(url, function(texture){
+              material = new THREE.MeshPhongMaterial({ color: new THREE.Color(0,0,0), map: texture});
+            }, undefined, function(err){
+              sendErr("An error occured while loading the texture");
+            });
+          } else {
+            sendErr("Invalid URL");
+          }
+        }else {
           sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
         }
       }
@@ -454,58 +575,62 @@ const interpret = () => {
   }
 }
 /* ALL JS THINGS */
+      window.onload = () => {
+      welcomeDialog.showModal();
+      }
       window.onresize = (e) =>{
       renderer.setSize(window.innerWidth, window.innerHeight );
+      renderer.setViewport(0,0,window.innerWidth,window.innerHeight);
       }
       closeCanvasRecD.onclick = (e) => {canvasRecDialog.close();}
       closeRecSaveD.onclick = (e) => {recSaveDialog.close();}
       gotIt.onclick = (e) => {welcomeDialog.close();}
       approveRecord.onclick = (e) => {
+        environment.recording = true;
         canvasRecDialog.close();
         let sessions = parseInt(sessionStorage.getItem('sessions'));
         sessions += 1;
         sessionStorage.setItem('sessions', sessions.toString());
-        let canvasCaptureStream = canvas.captureStream(60);
-        let recorder = new MediaRecorder(canvasCaptureStream, {mimeType: 'video/webm'});
+        /*let stream = canvas.captureStream();
+        let recorder = new MediaRecorder(stream, {mimeType: 'video/webm;codecs=vp9'});
         recorder.start();
-        recorder.requestData();
-        let file = [];
+        let file = new Array();
         recorder.ondataavailable = (e)=>{
           file.push(e.data);
+        }
+        recorder.onstop = (e)=>{
+          let video = new Blob(file, {'type': 'video/webm'});
+          let videoURL = URL.createObjectURL(video);
+          recSaveDialog.showModal();
+          saveFile.onclick = (c)=>{
+            let downloadElem = document.getElementById('file');
+            downloadElem.href = videoURL;
+            let name = fileNameInput.value;
+            name = '.webm' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.webm` :
+            downloadElem.download = `${name}.webm`;
+            downloadElem.onclick = (e) => {
+              recSaveDialog.close();
+            }
+          }
         }
         input.addEventListener('keydown', (e) =>{
          if (e.ctrlKey && e.key == 's'){
            recorder.stop();
-           recorder.onstop = (e)=>{
-            let video = new Blob(file, {'type': 'video/webm'}); 
-            let videoURL = URL.createObjectURL(video);  
-            recSaveDialog.showModal();
-            saveFile.onclick = (c)=>{
-             let downloadElem = document.getElementById('file');
-             downloadElem.href = videoURL;
-             let name = fileNameInput.value;
-               name = '.webm' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.webm` :
-               downloadElem.download = `${name}.webm`; 
-             downloadElem.onclick = (e) => {
-               recSaveDialog.close();
-               console.log(name);
-             }
-            }
-           }
           }
-        });
+        });*/
       }
 
 
       input.addEventListener('keydown', (e)=>{
        if (e.ctrlKey && e.key == 'Enter'){
         interpret();
-       } else if (e.ctrlKey && e.key == 'h'){
-        window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener');
+       } else if (e.ctrlKey && e.key == 'd'){
+        window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener,noreferrer');
        } else if (e.ctrlKey && e.key == 'r'){
         canvasRecDialog.showModal();
        }
        else if (e.ctrlKey && e.key == 'p'){
+        /*
          recSaveDialog.showModal();
          saveFile.onclick = (c)=>{
          canvas.toBlob((img)=>{
@@ -521,6 +646,7 @@ const interpret = () => {
          }
          downloadElem.onclick = (e) => {
           recSaveDialog.close();
-        }
+        }*/
        }
-      });
+      }); 
+

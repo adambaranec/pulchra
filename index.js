@@ -373,6 +373,7 @@ if (typeof c === 'string'){
           let url = command[i].slice(5,command[i].length - 2);
           if (isValidUrl(url)){
             const textureLoader = new THREE.TextureLoader();
+            textureLoader.setCrossOrigin('anonymous');
             textureLoader.load(url, function(texture){
               material = new THREE.MeshPhongMaterial({map: texture});
             }, undefined, function(err){

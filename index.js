@@ -374,7 +374,7 @@ if (typeof c === 'string'){
           if (isValidUrl(url)){
             const textureLoader = new THREE.TextureLoader();
             textureLoader.load(url, function(texture){
-              material = new THREE.MeshPhongMaterial({ color: new THREE.Color(0,0,0), map: texture});
+              material = new THREE.MeshPhongMaterial({map: texture});
             }, undefined, function(err){
               sendErr("An error occured while loading the texture");
             });

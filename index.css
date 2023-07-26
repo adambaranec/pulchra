@@ -1,0 +1,35 @@
+body{
+    margin: 0;
+}
+#input,#error{
+    font-size: 1.5em;
+    font-family:'Courier New', Courier, monospace; 
+}
+#input{
+    border-style:none;
+    color: gray;
+    width: 100%;
+    background: none;
+}
+#error{
+    color: red;
+    text-align: center;
+}
+footer{
+position: fixed;
+bottom: 0;
+width: 100%;
+}
+.input-area{
+position: absolute;
+height: 100%;
+width: 100%;
+}
+#canvas{
+    display: block;
+    position: absolute;
+}
+/*
+.up{}
+.question{}
+*/

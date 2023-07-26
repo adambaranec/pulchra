@@ -375,6 +375,7 @@ if (typeof c === 'string'){
             const textureLoader = new THREE.TextureLoader();
             textureLoader.setCrossOrigin('anonymous');
             textureLoader.load(url, function(texture){
+              sendErr("Successfully loaded");
               texture.needsUpdate = true;
               texture.generateMipmaps = true;
               material = new THREE.MeshPhongMaterial({map: texture});

@@ -361,7 +361,7 @@ if (typeof c === 'string'){
             const noiseValue = noise(x,y) + 1.0 / 2.0;
             const stride = i * compSize;
             data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
-            data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;;
+            data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;
             data[ stride + 2 ] = new THREE.Color().lerpColors(first,second,255).b * noiseValue; 
             data[ stride + 3 ] = 255;
           }
@@ -376,12 +376,11 @@ if (typeof c === 'string'){
             image.src = url;
             const texture = new THREE.Texture(image);
             image.onload = () => {
-              sendErr("Loaded");
               texture.needsUpdate = true;
               texture.generateMipmaps = true;
               material = new THREE.MeshPhongMaterial({ map: texture});
+              image.remove();
             }
-            image.remove();
           } else {
             sendErr("Invalid URL");
           }

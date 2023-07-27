@@ -369,22 +369,23 @@ if (typeof c === 'string'){
           texture.needsUpdate = true;
           texture.generateMipmaps = true;
           material = new THREE.MeshPhongMaterial({ map: texture});
-        } /*else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
+        } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
           let url = command[i].slice(5,command[i].length - 2);
           if (isValidUrl(url)){
-            const textureLoader = new THREE.TextureLoader();
-            textureLoader.setCrossOrigin('anonymous');
-            const texture = textureLoader.load(url, (texture) => {
+            const image = document.createElement('img');
+            image.src = url;
+            const texture = new THREE.Texture(image);
+            image.onload = () => {
+              sendErr("Loaded");
               texture.needsUpdate = true;
               texture.generateMipmaps = true;
               material = new THREE.MeshPhongMaterial({ map: texture});
-            }, undefined, (err) => {
-              sendErr(err);
-            });
+            }
+            image.remove();
           } else {
             sendErr("Invalid URL");
           }
-        }*/ else {
+        }else {
           sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
         }
       }
@@ -652,4 +653,3 @@ const interpret = () => {
         }*/
        }
       }); 
-

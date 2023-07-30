@@ -15,24 +15,6 @@ let gotIt = document.getElementById('got-it');
 let fileNameInput = document.getElementById('file-name');
 let errorP = document.getElementById('error');
 
-/* RECORDING  THE CANVAS 
-let videoStream = canvas.captureStream(0);
-let mediaRecorder = new MediaRecorder(videoStream);
-let chunks = [];
-mediaRecorder.ondataavailable = function(e) {
-  chunks.push(e.data);
-};
-mediaRecorder.onstop = function(e) {
-  let blob = new Blob(chunks, { 'type' : 'video/webm' });
-  let videoURL = URL.createObjectURL(blob);
-  let a = document.createElement('a');
-  a.href = videoURL;
-  a.download = `Pulchra-${sessionStorage.getItem('sessions')}.webm`;
-  a.click();
-  a.remove();
-  chunks = [];
-};*/
-
 sessionStorage.setItem('sessions', '-1');
 sessionStorage.setItem('photos', '-1');
 const width = window.innerWidth;
@@ -45,8 +27,7 @@ let environment = {
   background: new THREE.Color(0,0,0),
   models: new Array(),
   globalMul: null,
-  oscillators: new Array(),
-  recording: 'inactive'
+  oscillators: new Array()
 };
 const scene = new THREE.Scene();
 const aspect = width / height;
@@ -58,6 +39,24 @@ camera.lookAt(new THREE.Vector3(0,0,0));
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( width, height);
 document.body.appendChild( renderer.domElement );
+
+/* RECORDING THE CANVAS */
+let stream = renderer.domElement.captureStream(60);
+let mediaRecorder = new MediaRecorder(stream);
+let chunks = [];
+mediaRecorder.ondataavailable = function(e) {
+  chunks.push(e.data);
+}
+mediaRecorder.onstop = function(e) {
+  let blob = new Blob(chunks, { 'type' : 'video/webm' });
+  let videoURL = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = videoURL;
+  a.download = `PulchraVideo${sessionStorage.getItem('sessions')}.webm`;
+  a.click();
+  a.remove();
+  chunks = [];
+}
 
 const isValidUrl = (url) => {
   try {
@@ -159,10 +158,6 @@ const animate = () => {
         }
       }
      }
-  }
-  if (environment.recording == 'recording'){
-    videoStream.getVideoTracks()[0].requestFrame();
-    mediaRecorder.requestData();
   }
 }
 animate();
@@ -304,15 +299,15 @@ if (typeof c === 'string'){
               let meshHeight = geometry.boundingBox.max.y - geometry.boundingBox.min.y;
               let x  = (coords[0] + 1.0) / 2.0;
               let y  = (coords[1] + 1.0) / 2.0;
-              let realX = posFromPixels(width * x,height * y).x * modelObj.transform.elements[0];
-              let realY = posFromPixels(width * x,height * y).y * -1.0 * modelObj.transform.elements[0];
-              /*if (realX!=0){
+              let realX = posFromPixels(width * x,height * y).x / modelObj.transform.elements[0];
+              let realY = posFromPixels(width * x,height * y).y * -1.0 / modelObj.transform.elements[0];
+              if (realX!=0){
                 //realX -= (meshWidth * modelObj.transform.elements[0]);
-                realX *= modelObj.transform.elements[0];
+                //realX *= modelObj.transform.elements[0];
               } else if (realY!=0){
                 //realY -= (meshHeight * modelObj.transform.elements[0]);
-                realY *= modelObj.transform.elements[1];
-              }*/
+                //realY *= modelObj.transform.elements[1];
+              }
               matrix.multiply(new THREE.Matrix4().makeTranslation(realX,realY,0));
               modelObj.transform = matrix;
             } else {
@@ -599,24 +594,25 @@ const interpret = () => {
         interpret();
        } else if (e.ctrlKey && e.key == 'd'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener,noreferrer');
-       } /*else if (e.ctrlKey && e.key == 'r'){
+       } else if (e.ctrlKey && e.key == 'r'){
         let sessions = parseInt(sessionStorage.getItem('sessions'));
         sessions += 1;
         sessionStorage.setItem('sessions', sessions.toString());
         mediaRecorder.start();
-        environment.recording = 'recording';
+        alert('To stop recording press CTRL + S');
        } else if (e.ctrlKey && e.key == 'p'){
-        let photoNum = parseInt(sessionStorage.getItem('photos'));
-        photoNum += 1;
-        sessionStorage.setItem('photos', photoNum.toString());
-        let image = canvas.toDataURL('image/jpeg');
-        let a = document.createElement('a');
-        a.href = image;
-        a.download = `Pulchra-Photo-${sessionStorage.getItem('photos')}.jpg`;
-        a.click();
-        a.remove();
+        requestAnimationFrame(() => {
+          let photoNum = parseInt(sessionStorage.getItem('photos'));
+          photoNum += 1;
+          sessionStorage.setItem('photos', photoNum.toString());
+          let image = renderer.domElement.toDataURL('image/jpeg',0.95);
+          let a = document.createElement('a');
+          a.href = image;
+          a.download = `PulchraPhoto${sessionStorage.getItem('photos')}.jpg`;
+          a.click();
+          a.remove();
+        });
        } else if (e.ctrlKey && e.key == 's'){
-        environment.recording = 'inactive';
         mediaRecorder.stop();
-       } */
+       } 
       }); 

@@ -3,6 +3,8 @@
 Shortcuts (executed only when the textarea is on focus):
 - Ctrl + Enter: Render 
 - Ctrl + D: Open this doc in a new tab
+- Ctrl + R: Record canvas
+- Ctrl + P: Take a photo
 # Language
 Individual functions are written into the textarea and are always separated by semicolon.
 Let's go!

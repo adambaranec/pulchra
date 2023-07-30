@@ -3,8 +3,6 @@
 Shortcuts (executed only when the textarea is on focus):
 - Ctrl + Enter: Render 
 - Ctrl + D: Open this doc in a new tab
-- Ctrl + R: Record a video of the canvas (in progress)
-- Ctrl + P: Take a photo of the canvas (in progress)
 # Language
 Individual functions are written into the textarea and are always separated by semicolon.
 Let's go!
@@ -44,7 +42,6 @@ Possible parameters (optional, in whatever order):
   - noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
 - coordinates ([**x**,**y**] from -1 to 1)
 - rotation (samples: rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
-- tex("{insert a URL here}") - an image texture
 
 Examples:
 ```

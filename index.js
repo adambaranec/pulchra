@@ -15,7 +15,26 @@ let gotIt = document.getElementById('got-it');
 let fileNameInput = document.getElementById('file-name');
 let errorP = document.getElementById('error');
 
+/* RECORDING  THE CANVAS 
+let videoStream = canvas.captureStream(0);
+let mediaRecorder = new MediaRecorder(videoStream);
+let chunks = [];
+mediaRecorder.ondataavailable = function(e) {
+  chunks.push(e.data);
+};
+mediaRecorder.onstop = function(e) {
+  let blob = new Blob(chunks, { 'type' : 'video/webm' });
+  let videoURL = URL.createObjectURL(blob);
+  let a = document.createElement('a');
+  a.href = videoURL;
+  a.download = `Pulchra-${sessionStorage.getItem('sessions')}.webm`;
+  a.click();
+  a.remove();
+  chunks = [];
+};*/
+
 sessionStorage.setItem('sessions', '-1');
+sessionStorage.setItem('photos', '-1');
 const width = window.innerWidth;
 const height = window.innerHeight;
 
@@ -27,7 +46,7 @@ let environment = {
   models: new Array(),
   globalMul: null,
   oscillators: new Array(),
-  recording: false
+  recording: 'inactive'
 };
 const scene = new THREE.Scene();
 const aspect = width / height;
@@ -109,9 +128,6 @@ const getNormalizedScale = (geometry, targetSize) => {
 }
 
 /* MAIN FUNCTION FOR ANIMATION */ 
-let stream = canvas.captureStream();
-let recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
-let chunks = [];
 const animate = () => {
 	requestAnimationFrame( animate );
   if (environment.globalMul != null){
@@ -144,33 +160,12 @@ const animate = () => {
       }
      }
   }
-  if (environment.recording == true){
-    if (recorder.state == 'inactive'){
-      recorder.start();
-    }
-    //canvas.captureStream().getVideoTracks()[0].requestFrame();
-  } else {
-    if (recorder.state == 'recording'){
-      recorder.stop();
-    }
+  if (environment.recording == 'recording'){
+    videoStream.getVideoTracks()[0].requestFrame();
+    mediaRecorder.requestData();
   }
 }
 animate();
-recorder.ondataavailable = (event) =>{
-  chunks.push(event.data);
-};
-recorder.onstop = () => {
-  let video = new Blob(chunks, {'type': 'video/webm'});
-  let videoURL = URL.createObjectURL(video);
-  let downloadElem = document.getElementById('file');
-  downloadElem.href = videoURL;
-  let name = fileNameInput.value;
-  name = '.webm' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.webm` :
-  downloadElem.download = `${name}.webm`;
-  downloadElem.onclick = (e) => {
-    recSaveDialog.close();
-  }
-};
 
 /* INTERPRETING */
 const sendErr = (err) => {
@@ -369,7 +364,7 @@ if (typeof c === 'string'){
           texture.needsUpdate = true;
           texture.generateMipmaps = true;
           material = new THREE.MeshPhongMaterial({ map: texture});
-        } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
+        } /*else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
           let url = command[i].slice(5,command[i].length - 2);
           if (isValidUrl(url)){
             const image = document.createElement('img');
@@ -384,7 +379,7 @@ if (typeof c === 'string'){
           } else {
             sendErr("Invalid URL");
           }
-        }else {
+        }*/ else {
           sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
         }
       }
@@ -589,66 +584,39 @@ const interpret = () => {
       closeRecSaveD.onclick = (e) => {recSaveDialog.close();}
       gotIt.onclick = (e) => {welcomeDialog.close();}
       approveRecord.onclick = (e) => {
-        environment.recording = true;
         canvasRecDialog.close();
-        let sessions = parseInt(sessionStorage.getItem('sessions'));
-        sessions += 1;
-        sessionStorage.setItem('sessions', sessions.toString());
-        /*let stream = canvas.captureStream();
-        let recorder = new MediaRecorder(stream, {mimeType: 'video/webm;codecs=vp9'});
-        recorder.start();
-        let file = new Array();
-        recorder.ondataavailable = (e)=>{
-          file.push(e.data);
-        }
-        recorder.onstop = (e)=>{
-          let video = new Blob(file, {'type': 'video/webm'});
-          let videoURL = URL.createObjectURL(video);
-          recSaveDialog.showModal();
-          saveFile.onclick = (c)=>{
-            let downloadElem = document.getElementById('file');
-            downloadElem.href = videoURL;
-            let name = fileNameInput.value;
-            name = '.webm' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.webm` :
-            downloadElem.download = `${name}.webm`;
-            downloadElem.onclick = (e) => {
-              recSaveDialog.close();
-            }
-          }
-        }
-        input.addEventListener('keydown', (e) =>{
-         if (e.ctrlKey && e.key == 's'){
-           recorder.stop();
-          }
-        });*/
       }
-
-
+      /*saveFile.onclick = (e) => {
+        let name = fileNameInput.value;
+        if (name != "" && name != null){
+        }
+        else {
+        }
+        recSaveDialog.close();
+      }*/
       input.addEventListener('keydown', (e)=>{
        if (e.ctrlKey && e.key == 'Enter'){
         interpret();
        } else if (e.ctrlKey && e.key == 'd'){
         window.open('https://github.com/adambaranec/pulchra/blob/main/docs.md', '_blank', 'noopener,noreferrer');
-       } else if (e.ctrlKey && e.key == 'r'){
-        canvasRecDialog.showModal();
-       }
-       else if (e.ctrlKey && e.key == 'p'){
-        /*
-         recSaveDialog.showModal();
-         saveFile.onclick = (c)=>{
-         canvas.toBlob((img)=>{
-          let sessions = parseInt(sessionStorage.getItem('sessions'));
-          sessions += 1;
-          sessionStorage.setItem('sessions', sessions.toString());
-            let downloadElem = document.getElementById('file');
-            downloadElem.href = URL.createObjectURL(img);
-            let name = fileNameInput.value;
-            name = '.jpg' ? downloadElem.download = `pulchra-${sessionStorage.getItem('sessions')}.jpg` :
-            downloadElem.download = `${name}.jpg`;
-          }, 'image/jpg');
-         }
-         downloadElem.onclick = (e) => {
-          recSaveDialog.close();
-        }*/
-       }
+       } /*else if (e.ctrlKey && e.key == 'r'){
+        let sessions = parseInt(sessionStorage.getItem('sessions'));
+        sessions += 1;
+        sessionStorage.setItem('sessions', sessions.toString());
+        mediaRecorder.start();
+        environment.recording = 'recording';
+       } else if (e.ctrlKey && e.key == 'p'){
+        let photoNum = parseInt(sessionStorage.getItem('photos'));
+        photoNum += 1;
+        sessionStorage.setItem('photos', photoNum.toString());
+        let image = canvas.toDataURL('image/jpeg');
+        let a = document.createElement('a');
+        a.href = image;
+        a.download = `Pulchra-Photo-${sessionStorage.getItem('photos')}.jpg`;
+        a.click();
+        a.remove();
+       } else if (e.ctrlKey && e.key == 's'){
+        environment.recording = 'inactive';
+        mediaRecorder.stop();
+       } */
       }); 

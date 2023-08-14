@@ -16,6 +16,7 @@ Background color or texture.
 - screen rgb(**red**,**green**,**blue**) - RGB (all numbers range from 0 - 1)
 - screen **name of color** - color from English name of the color 
 - screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
+- tex("*insert URL here*") - whatever image from the Internet as a texture
 
 Examples:
 ```
@@ -44,6 +45,7 @@ Possible parameters (optional, in whatever order):
   - noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
 - coordinates ([**x**,**y**] from -1 to 1)
 - rotation (samples: rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
+- tex("*insert URL here*") - whatever image from the Internet as a texture
 
 Examples:
 ```

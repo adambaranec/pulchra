@@ -267,8 +267,8 @@ if (typeof c === 'string'){
           material.color = color(command[i]);
         } else if (command[i].startsWith("rgb(") && command[i].endsWith(")")){
           let values = floats(command[i].slice(command[i].indexOf("(")+1,command[i].indexOf(")")));
-          if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
-            material.color = new THREE.MeshPhongMaterial({color: new THREE.Color(values[0],values[1],values[2])});
+          if (values[0]+values[1]+values[2] >= 0.0 && values[0]+values[1]+values[2] <= 3.0){
+            material.color = new THREE.Color(values[0],values[1],values[2]);
           } else {
             sendErr("Allowed range is 0 - 1");
           }
@@ -348,7 +348,7 @@ if (typeof c === 'string'){
           for ( let i = 0; i < width * height; i ++ ) {
             x = i;
             if (i % width == 0 && i != 0){y += 1;}
-            const noiseValue = noise(x,y) + 1.0 / 2.0;
+            const noiseValue = noise(x,y);
             const stride = i * compSize;
             data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
             data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;
@@ -359,22 +359,16 @@ if (typeof c === 'string'){
           texture.needsUpdate = true;
           texture.generateMipmaps = true;
           material = new THREE.MeshPhongMaterial({ map: texture});
-        } /*else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
+        } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
           let url = command[i].slice(5,command[i].length - 2);
           if (isValidUrl(url)){
-            const image = document.createElement('img');
-            image.src = url;
-            const texture = new THREE.Texture(image);
-            image.onload = () => {
-              texture.needsUpdate = true;
-              texture.generateMipmaps = true;
-              material = new THREE.MeshPhongMaterial({ map: texture});
-              image.remove();
-            }
+            const textureLoader = new THREE.TextureLoader();
+            const normalMap = textureLoader.load(url);
+            material = new THREE.MeshPhongMaterial( { map: normalMap } );
           } else {
             sendErr("Invalid URL");
           }
-        }*/ else {
+        } else {
           sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
         }
       }
@@ -452,6 +446,15 @@ const screen = (c) => {
         texture.needsUpdate = true;
         texture.generateMipmaps = true;
         return texture;
+      } else if (command[1].startsWith("tex(") && command[1].endsWith(")")) {
+        let url = command[1].slice(5,command[1].length - 2);
+        if (isValidUrl(url)){
+          const textureLoader = new THREE.TextureLoader();
+          const normalMap = textureLoader.load(url);
+          return normalMap;
+        } else {
+          sendErr("Invalid URL");
+        }
       } else {
         sendErr("Unknown parameter. Allowed: grayscale, RGB or texture");
         return null;
@@ -485,6 +488,69 @@ const mul = (c) => {
     sendErr("Too many parameters");
     return null;
    }
+  } else {
+    return null;
+  }
+}
+
+const param = (w) => {
+if (typeof w === 'string'){
+
+} else {
+  return null;
+}
+}
+
+const domain = (c) => {
+  if (typeof c === 'string'){
+  if (c.includes("(") && c.includes(")")){
+    const name = c.slice(0,c.indexOf("("));
+    const params = c.slice(c.indexOf("(")+1,c.indexOf(")")).split(',');
+    let domain = {};
+    switch(name){
+     case "rgb": ()=>{
+       params.map((p,i)=>{
+        if (isNaN(parseFloat(p))){
+          let beginName;
+         if (p.includes("(") && p.includes(")")){
+           beginName = p.slice(0,p.indexOf("("));
+           const param = p.slice(p.indexOf("(")+1,p.indexOf(")"));
+           if (param.length != 0){
+             domain.multiplier = parseFloat(param);
+           } else {
+             sendErr("No parameter for the function at ${i} in rgb()");
+           }
+          } else {
+            beginName = p;
+            domain.muliplier = 1.0;
+          }
+          switch(beginName){
+            case "sin": domain.function = "sin"; break;
+            case "cos": domain.function = "cos"; break;
+            case "tan": domain.function = "tan"; break;
+            case "amp": domain.function = "amp"; break;
+          }
+         }
+         switch(i){
+           case 0: domain.parameter = "red"; break;
+           case 1: domain.parameter = "green"; break;
+           case 2: domain.parameter = "blue"; break;
+          }
+       });
+       return domain;
+     }; break;
+     case "rotX": break;
+     case "rotY": break;
+     case "rotZ": break;
+    }
+  } else if (c.includes("[") && c.includes("]")){
+
+  } else if (c == "amp") {
+    domain.function = "amp";
+    domain.parameter = "scale";
+    domain.multiplier = 1.0;
+    return domain;
+  }
   } else {
     return null;
   }

@@ -1,12 +1,13 @@
 # Pulchra documentation
 # How to use
-Shortcuts (executed only when the textarea is on focus):
+Shortcuts (executed only when the text input field is on focus):
 - Ctrl + Enter: Render 
 - Ctrl + D: Open this doc in a new tab
 - Ctrl + R: Record canvas
 - Ctrl + P: Take a photo
+(Unable to write? Try clicking Tab.) 
 # Language
-Individual functions are written into the textarea and are always separated by semicolon.
+Code is written into the text field input and individual functions are always separated by semicolon.
 Let's go!
 ## Screen
 Background color or texture.
@@ -15,8 +16,8 @@ Background color or texture.
 - screen **scale** - grayscale (range from 0 - 1)
 - screen rgb(**red**,**green**,**blue**) - RGB (all numbers range from 0 - 1)
 - screen **name of color** - color from English name of the color 
-- screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
-- tex("*insert URL here*") - whatever image from the Internet as a texture
+- screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise used as the background photo
+- screen tex("*insert URL here*") - whatever image from the Internet as the background photo
 
 Examples:
 ```
@@ -56,8 +57,13 @@ torus rgb(1,0.2,0.2) [0,1]
 circle 0.3 magenta [-0.5,1] rotZ(1) 
 ```
 ## Effects
-`mul` divides the current scene in rows and columns
+`mul` divides the current scene in rows and columns - within their borders through the scene rendering happens repeatedly 
 ### Functions
 *All parameters must not be floating-point numbers.*
 - mul **integer** - number of rows and columns is the same
 - mul **rows** **columns**
+# Using assets from the Internet
+- Perfect source of photos is e.g. [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)
+- If you want to use a particular photo, click "More details".
+- Find the URL of the photo (if you paste the URL to a new tab, you should see the photo only) and copy it.
+- That's it! The only current way to use assets is setting textures to models or background photo. 

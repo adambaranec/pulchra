@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "osc-js": "^2.4.0",
     "simplex-noise": "^4.0.1",
     "three": "^0.152.2"
   }

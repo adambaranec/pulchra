@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+import * as THREE from "three";
 import {createNoise2D} from "simplex-noise";
 import { randFloat, randInt } from 'three/src/math/MathUtils';
 const noise = createNoise2D();

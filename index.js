@@ -26,7 +26,6 @@ const height = window.innerHeight;
 let environment = {
   background: new THREE.Color(0,0,0),
   models: new Array(),
-  globalMul: null,
   oscillators: new Array()
 };
 const scene = new THREE.Scene();
@@ -562,15 +561,15 @@ const interpret = () => {
   light.position.set(0,0,2);
   scene.add(light);
   environment.models = new Array();
-  environment.globalMul = null;
-  const code = String(input.value);
+  const code = String(input.value).trim();
   errorP.innerHTML = '';
   if (code != ""){
     let lines = code.split('\n');
     for (let l in lines){
-     if (lines[l].includes(';')){
+      lines[l].trim();
+      if (lines[l].includes(';')){
       let commands = lines[l].split(';');
-      if (code[code.length - 1] == ";"){
+      if (code[code.length - 1] == ";" || lines[l][lines[l].length - 1] == ";"){
         commands.pop();
       }
       for (let c in commands){

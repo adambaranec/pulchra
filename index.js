@@ -125,6 +125,7 @@ const getNormalizedScale = (geometry, targetSize) => {
   return new THREE.Matrix4().makeScale(scaleFactor, scaleFactor, scaleFactor);
 }
 
+let angle = 0.0;
 /* MAIN FUNCTION FOR ANIMATION */ 
 const animate = () => {
 	requestAnimationFrame( animate );
@@ -155,9 +156,29 @@ const animate = () => {
           case "Z": environment.models[m].mesh.rotation.z -= environment.models[m].rotation.speed / 10.0; break;
           default: break;
         }
-      }
+        const speed = environment.models[m].rotation.orbitSpeed;
+        if (environment.models[m].rotation.around){
+          angle += (360/60)*speed;
+          if (angle == 360.0){ angle = 0.0;}
+        }
+        switch (environment.models[m].rotation.around){
+          case "X": 
+          environment.models[m].mesh.position.y = Math.sin(angle * Math.PI / 180.0);
+          environment.models[m].mesh.position.z = Math.cos(angle * Math.PI / 180.0);
+          break;
+          case "Y": 
+          environment.models[m].mesh.position.x = Math.cos(angle * Math.PI / 180.0);
+          environment.models[m].mesh.position.z = Math.sin(angle * Math.PI / 180.0);
+          break;
+          case "Z":  
+          environment.models[m].mesh.position.x = Math.sin(angle * Math.PI / 180.0);
+          environment.models[m].mesh.position.y = Math.cos(angle * Math.PI / 180.0);
+          break;
+          default: break;
      }
   }
+}
+}
 }
 animate();
 
@@ -171,22 +192,22 @@ const sendErr = (err) => {
 const color = (word) => {
 if (typeof word === 'string'){
   switch (word){
-    case  "red":return new THREE.Color(1.0,0.0,0.0); 
-      case "green":return new THREE.Color(0.0,1.0,0.0); 
-     case"blue":return new THREE.Color(0.0,0.0,1.0); 
-       case  "yellow":return new THREE.Color(1.0,1.0,0.0); 
-        case "magenta":return new THREE.Color(1.0,0.0,1.0); 
-     case    "cyan":return new THREE.Color(0.0,1.0,1.0); 
-       case  "orange":return new THREE.Color(1.0,0.4,0.0); 
-     case    "pink":return new THREE.Color(1.0,0.6,0.8); 
-       case  "purple":return new THREE.Color(0.2,0.0,0.5); 
-      case   "brown":return new THREE.Color(0.3,0.2,0.1); 
-      case   "beige":return new THREE.Color(0.5,0.4,0.3); 
-      case   "black":return new THREE.Color(0.0,0.0,0.0); 
-      case   "white":return new THREE.Color(1.0,1.0,1.0); 
-     case    "grey":return new THREE.Color(0.3,0.3,0.3); 
-     case    "gray":return new THREE.Color(0.3,0.3,0.3); 
-     default: return null;
+    case "red":return new THREE.Color(1.0,0.0,0.0); 
+    case "green":return new THREE.Color(0.0,1.0,0.0); 
+    case "blue":return new THREE.Color(0.0,0.0,1.0); 
+    case "yellow":return new THREE.Color(1.0,1.0,0.0); 
+    case "magenta":return new THREE.Color(1.0,0.0,1.0); 
+    case "cyan":return new THREE.Color(0.0,1.0,1.0); 
+    case "orange":return new THREE.Color(1.0,0.4,0.0); 
+    case "pink":return new THREE.Color(1.0,0.6,0.8); 
+    case "purple":return new THREE.Color(0.2,0.0,0.5); 
+    case "brown":return new THREE.Color(0.3,0.2,0.1); 
+    case "beige":return new THREE.Color(0.5,0.4,0.3); 
+    case "black":return new THREE.Color(0.0,0.0,0.0); 
+    case "white":return new THREE.Color(1.0,1.0,1.0); 
+    case "grey":return new THREE.Color(0.3,0.3,0.3); 
+    case "gray":return new THREE.Color(0.3,0.3,0.3); 
+    default: return null;
      }
 } else {
   return null;
@@ -200,6 +221,9 @@ if (typeof word === 'string'){
   if (result != null){
     const values = [];
     result.forEach((n)=>{
+    if (n.startsWith(".")){
+      n = "0" + n;
+    }
     values.push(parseFloat(n));
     });
     return values;
@@ -238,6 +262,7 @@ if (typeof c === 'string'){
     let geometry = undefined;
     let material = new THREE.MeshPhongMaterial();
     modelObj.transform = new THREE.Matrix4();
+    modelObj.rotation = {};
     switch (medium(command[0]).variant){
       case "cube": geometry = new THREE.BoxGeometry(1,1,1); break;
       case "sphere": geometry = new THREE.SphereGeometry(1,60,60); break;
@@ -253,123 +278,142 @@ if (typeof c === 'string'){
       geometry.scale(1.0,1.0,1.0);
     } else {
       for (let i= 1; i<command.length; i++){
-        if (!isNaN(parseFloat(command[i]))){
-          let value = parseFloat(command[i]);
-          if (value >= 0.0 && value <= 1.0){
-              let matrix = modelObj.transform;
-              matrix.multiply(new THREE.Matrix4().makeScale(parseFloat(command[i]),parseFloat(command[i]),parseFloat(command[i])));
-              modelObj.transform = matrix;
-          } else {
-            sendErr("Allowed range is 0 - 1");
-          }
-        } else if (color(command[i]) != null){
-          material.color = color(command[i]);
-        } else if (command[i].startsWith("rgb(") && command[i].endsWith(")")){
-          let values = floats(command[i].slice(command[i].indexOf("(")+1,command[i].indexOf(")")));
-          if (values[0]+values[1]+values[2] >= 0.0 && values[0]+values[1]+values[2] <= 3.0){
-            material.color = new THREE.Color(values[0],values[1],values[2]);
-          } else {
-            sendErr("Allowed range is 0 - 1");
-          }
-        } else if (command[i].startsWith("rot") && command[i].includes('(') && command[i].endsWith(")")){
-          if (command[i][3] == "X" || command[i][3] == "Y" || command[i][3] == "Z"){
-            modelObj.rotation = {speed: floats(command[i])[0], axis: command[i][3]};
-          } /*else if (command[i][5] == "X" || command[i][5] == "Y" || command[i][5] == "Z" && command[i].slice(3,4) == "Ar"){
-            modelObj.rotation = {speed: floats(command[i])[0], axis: command[i][5]};
-            if (modelObj.transform.elements[13] != 1 || modelObj.transform.elements[14] != 1){
-              geometry.translate(modelObj.transform.elements[13],modelObj.transform.elements[14],0);
-            }
-          }*/ else {
-            if (command[i][3] == "(" /*|| command[i][5] == "("*/){
-              sendErr("Provide an axis to rotate around - either X, Y or Z.");
-            } else if (command[i][4] == "("/*|| command[i][6] == "("*/){
-              sendErr("Such axis does not exist - choose from X, Y or Z.");     
-            }    
-          }
-        } else if (command[i].startsWith('[') && command[i].endsWith(']')){
-          const coords = floats(command[i]);
-          if (coords.length == 2){
-            if (coords[0] >= -1.0 && coords[0] <= 1.0 && coords[1] >= -1.0 && coords[1] <= 1.0){
-              let matrix = modelObj.transform;
-              if (geometry.boundingBox === null){
-                geometry.computeBoundingBox();
-              }
-              let meshWidth = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
-              let meshHeight = geometry.boundingBox.max.y - geometry.boundingBox.min.y;
-              let x  = (coords[0] + 1.0) / 2.0;
-              let y  = (coords[1] + 1.0) / 2.0;
-              let realX = posFromPixels(width * x,height * y).x / modelObj.transform.elements[0];
-              let realY = posFromPixels(width * x,height * y).y * -1.0 / modelObj.transform.elements[0];
-              if (realX!=0){
-                //realX -= (meshWidth * modelObj.transform.elements[0]);
-                //realX *= modelObj.transform.elements[0];
-              } else if (realY!=0){
-                //realY -= (meshHeight * modelObj.transform.elements[0]);
-                //realY *= modelObj.transform.elements[1];
-              }
-              matrix.multiply(new THREE.Matrix4().makeTranslation(realX,realY,0));
-              modelObj.transform = matrix;
+        if (command[i].includes("sin") || command[i].includes("cos") || command[i].includes("tan") || command[i].includes("amp") ){
+          const d = domain(command[i]);
+           if (d != null){
+
+           }else{
+             sendErr("Invalid domain. Allowed: sin, cos, tan, amp");
+           }
+         } else {
+          if (!isNaN(parseFloat(command[i]))){
+            let value = parseFloat(command[i]);
+            if (value >= 0.0 && value <= 1.0){
+                let matrix = modelObj.transform;
+                matrix.multiply(new THREE.Matrix4().makeScale(parseFloat(command[i]),parseFloat(command[i]),parseFloat(command[i])));
+                modelObj.transform = matrix;
             } else {
-              sendErr("Allowed range -1 - 1");
+              sendErr("Allowed range is 0 - 1");
+            }
+          } else if (color(command[i]) != null){
+            material.color = color(command[i]);
+          } else if (command[i].startsWith("rgb(") && command[i].endsWith(")")){
+            let values = floats(command[i].slice(command[i].indexOf("(")+1,command[i].indexOf(")")));
+            if (values[0]+values[1]+values[2] >= 0.0 && values[0]+values[1]+values[2] <= 3.0 && values.length == 3){
+              material.color = new THREE.Color(values[0],values[1],values[2]);
+            } else {
+              sendErr("Allowed range is 0 - 1");
+            }
+          } else if (command[i].startsWith("rot") && command[i].includes('(') && command[i].endsWith(")")){
+            if (command[i][3] == "X" || command[i][3] == "Y" || command[i][3] == "Z"){
+              if (floats(command[i]).length == 0){
+                sendErr("Provide a speed to rotate");
+              }else{
+                modelObj.rotation.speed = floats(command[i])[0];
+                modelObj.rotation.axis = command[i][3];
+              }
+            } else if (command[i][5] == "X" || command[i][5] == "Y" || command[i][5] == "Z"){
+              if (command[i][3] == "A" && command[i][4] == "r"){
+                if (floats(command[i]).length == 0){
+                  sendErr("Provide a speed to rotate around");
+                }else{
+                  modelObj.rotation.orbitSpeed = floats(command[i])[0];
+                  modelObj.rotation.around = command[i][5];
+                }
+              }
+            } else {
+              if (command[i][3] == "(" || command[i][5] == "("){
+                sendErr("Provide an axis to rotate around - either X, Y or Z.");
+              } else if (command[i][4] == "(" || command[i][6] == "("){
+                sendErr("Such axis does not exist - choose either X, Y or Z.");     
+              } 
+            }
+          } else if (command[i].startsWith('[') && command[i].endsWith(']')){
+            const coords = floats(command[i]);
+            if (coords.length == 2){
+              if (coords[0] >= -1.0 && coords[0] <= 1.0 && coords[1] >= -1.0 && coords[1] <= 1.0){
+                let matrix = modelObj.transform;
+                if (geometry.boundingBox === null){
+                  geometry.computeBoundingBox();
+                }
+                let meshWidth = geometry.boundingBox.max.x - geometry.boundingBox.min.x;
+                let meshHeight = geometry.boundingBox.max.y - geometry.boundingBox.min.y;
+                let x  = (coords[0] + 1.0) / 2.0;
+                let y  = (coords[1] + 1.0) / 2.0;
+                let realX = posFromPixels(width * x,height * y).x / modelObj.transform.elements[0];
+                let realY = posFromPixels(width * x,height * y).y * -1.0 / modelObj.transform.elements[0];
+                if (realX!=0){
+                  //realX -= (meshWidth * modelObj.transform.elements[0]);
+                  //realX *= modelObj.transform.elements[0];
+                } else if (realY!=0){
+                  //realY -= (meshHeight * modelObj.transform.elements[0]);
+                  //realY *= modelObj.transform.elements[1];
+                }
+                matrix.multiply(new THREE.Matrix4().makeTranslation(realX,realY,0));
+                modelObj.transform = matrix;
+                if(modelObj.rotation == {}){modelObj.rotation = undefined}
+              } else {
+                sendErr("Allowed range -1 - 1");
+              }
+            } else {
+              sendErr("Expected two coordinates to translate");
+            }
+          } else if (command[i].startsWith("mat(") && command[i].endsWith(")")){
+            const slice = command[i].slice(4,command[i].length - 1);
+            let colors = new Array();
+            if (slice.includes(',')){
+              const colorNames = slice.split(',');
+              for (let c in colorNames){
+                color(colorNames[c]) != null ? colors.push(color(colorNames[c])) : sendErr("Invalid name for color - e.g. RGB is not allowed");
+              }
+              const count = geometry.attributes.position.count;
+              geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * count), 3));
+              let colorAttrib = geometry.attributes.color;
+              for (let i=0; i<count; i++){
+                let index = randInt(0,colors.length - 1);
+                colorAttrib.setXYZ(i, colors[index].r,colors[index].g,colors[index].b);
+              }
+              material.vertexColors = true;
+            } else {
+              sendErr("Just a color name would be enough - use at least two colors for this");
+            }
+          } else if (command[i].startsWith("noise(") && command[i].endsWith(")")){
+            const colors = command[i].slice(6,command[i].length - 1).split(',');
+            const first = color(colors[0]);
+            const second = color(colors[1]);
+            const width = 512;
+            const height = 512;
+            let x = 0;
+            let y = 0;
+            const compSize = 4;
+            const data = new Uint8Array(compSize * width * height);
+            for ( let i = 0; i < width * height; i ++ ) {
+              x = i;
+              if (i % width == 0 && i != 0){y += 1;}
+              const noiseValue = noise(x,y);
+              const stride = i * compSize;
+              data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
+              data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;
+              data[ stride + 2 ] = new THREE.Color().lerpColors(first,second,255).b * noiseValue; 
+              data[ stride + 3 ] = 255;
+            }
+            const texture = new THREE.DataTexture(data, width, height);
+            texture.needsUpdate = true;
+            texture.generateMipmaps = true;
+            material = new THREE.MeshPhongMaterial({ map: texture});
+          } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
+            let url = command[i].slice(5,command[i].length - 2);
+            if (isValidUrl(url)){
+              const textureLoader = new THREE.TextureLoader();
+              const normalMap = textureLoader.load(url);
+              material = new THREE.MeshPhongMaterial( { map: normalMap } );
+            } else {
+              sendErr("Invalid URL");
             }
           } else {
-            sendErr("Expected two coordinates to translate");
+            sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
           }
-        } else if (command[i].startsWith("mat(") && command[i].endsWith(")")){
-          const slice = command[i].slice(4,command[i].length - 1);
-          let colors = new Array();
-          if (slice.includes(',')){
-            const colorNames = slice.split(',');
-            for (let c in colorNames){
-              color(colorNames[c]) != null ? colors.push(color(colorNames[c])) : sendErr("Invalid name for color - e.g. RGB is not allowed");
-            }
-            const count = geometry.attributes.position.count;
-            geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(3 * count), 3));
-            let colorAttrib = geometry.attributes.color;
-            for (let i=0; i<count; i++){
-              let index = randInt(0,colors.length - 1);
-              colorAttrib.setXYZ(i, colors[index].r,colors[index].g,colors[index].b);
-            }
-            material.vertexColors = true;
-          } else {
-            sendErr("Just a color name would be enough - use at least two colors for this");
-          }
-        } else if (command[i].startsWith("noise(") && command[i].endsWith(")")){
-          const colors = command[i].slice(6,command[i].length - 1).split(',');
-          const first = color(colors[0]);
-          const second = color(colors[1]);
-          const width = 512;
-          const height = 512;
-          let x = 0;
-          let y = 0;
-          const compSize = 4;
-          const data = new Uint8Array(compSize * width * height);
-          for ( let i = 0; i < width * height; i ++ ) {
-            x = i;
-            if (i % width == 0 && i != 0){y += 1;}
-            const noiseValue = noise(x,y);
-            const stride = i * compSize;
-            data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
-            data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;
-            data[ stride + 2 ] = new THREE.Color().lerpColors(first,second,255).b * noiseValue; 
-            data[ stride + 3 ] = 255;
-          }
-          const texture = new THREE.DataTexture(data, width, height);
-          texture.needsUpdate = true;
-          texture.generateMipmaps = true;
-          material = new THREE.MeshPhongMaterial({ map: texture});
-        } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
-          let url = command[i].slice(5,command[i].length - 2);
-          if (isValidUrl(url)){
-            const textureLoader = new THREE.TextureLoader();
-            const normalMap = textureLoader.load(url);
-            material = new THREE.MeshPhongMaterial( { map: normalMap } );
-          } else {
-            sendErr("Invalid URL");
-          }
-        } else {
-          sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
-        }
+         }
       }
     }
     if (typeof geometry !== 'undefined'){
@@ -399,65 +443,74 @@ const screen = (c) => {
       sendErr("Too many parameters");
       return null;
     } else {
-      if (!isNaN(parseFloat(command[1]))){
-        let scale = parseFloat(command[1]);
-        if (scale <= 1.0 && scale >= 0.0){
-          return new THREE.Color(scale,scale,scale);
+      if (command[1].includes("sin") || command[1].includes("cos") || command[1].includes("tan") || command[1].includes("amp") ){
+        const d = domain(command[1]);
+         if (d != null){
+
+         }else{
+           sendErr("Invalid domain. Allowed: sin, cos, tan, amp");
+         } 
         } else {
-          sendErr("Allowed range 0 - 1");
-        }
-      } else if (command[1].startsWith("rgb(") && command[1].endsWith(")")){
-        let values = floats(command[1].slice(command[1].indexOf("(")+1,command[1].indexOf(")")));
-        if (values.length == 3){
-          if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
-            return new THREE.Color(values[0],values[1],values[2]);
+          if (!isNaN(parseFloat(command[1]))){
+            let scale = parseFloat(command[1]);
+            if (scale <= 1.0 && scale >= 0.0){
+              return new THREE.Color(scale,scale,scale);
+            } else {
+              sendErr("Allowed range 0 - 1");
+            }
+          } else if (command[1].startsWith("rgb(") && command[1].endsWith(")")){
+            let values = floats(command[1].slice(command[1].indexOf("(")+1,command[1].indexOf(")")));
+            if (values.length == 3){
+              if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
+                return new THREE.Color(values[0],values[1],values[2]);
+              } else {
+                sendErr("Allowed range 0 - 1");
+                return null;
+              }
+            } else {
+              sendErr("RGB must have three parameters");
+              return null;
+            }   
+          } else if (color(command[1]) != null){
+            return color(command[1]);
+          } else if (command[1].startsWith("noise(") && command[1].endsWith(")")){
+            const colors = command[1].slice(6,command[1].length - 1).split(',');
+            const first = color(colors[0]);
+            const second = color(colors[1]);
+            const w = width;
+            const h = height;
+            let x = 0;
+            let y = 0;
+            const compSize = 4;
+            const data = new Uint8Array(compSize * width * height);
+            for ( let i = 0; i < width * height; i ++ ) {
+              x = i;
+              if (i % width == 0 && i != 0){y += 1;}
+              const noiseValue = noise(x,y) + 1.0 / 2.0;
+              const stride = i * 4;
+              data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
+              data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;;
+              data[ stride + 2 ] = new THREE.Color().lerpColors(first,second,255).b * noiseValue; 
+              data[ stride + 3 ] = 255;
+            }
+            const texture = new THREE.DataTexture(data, w, h);
+            texture.needsUpdate = true;
+            texture.generateMipmaps = true;
+            return texture;
+          } else if (command[1].startsWith("tex(") && command[1].endsWith(")")) {
+            let url = command[1].slice(5,command[1].length - 2);
+            if (isValidUrl(url)){
+              const textureLoader = new THREE.TextureLoader();
+              const normalMap = textureLoader.load(url);
+              return normalMap;
+            } else {
+              sendErr("Invalid URL");
+            }
           } else {
-            sendErr("Allowed range 0 - 1");
+            sendErr("Unknown parameter. Allowed: grayscale, RGB or texture");
             return null;
           }
-        } else {
-          sendErr("RGB must have three parameters");
-          return null;
-        }   
-      } else if (color(command[1]) != null){
-        return color(command[1]);
-      } else if (command[1].startsWith("noise(") && command[1].endsWith(")")){
-        const colors = command[1].slice(6,command[1].length - 1).split(',');
-        const first = color(colors[0]);
-        const second = color(colors[1]);
-        const w = width;
-        const h = height;
-        let x = 0;
-        let y = 0;
-        const compSize = 4;
-        const data = new Uint8Array(compSize * width * height);
-        for ( let i = 0; i < width * height; i ++ ) {
-          x = i;
-          if (i % width == 0 && i != 0){y += 1;}
-          const noiseValue = noise(x,y) + 1.0 / 2.0;
-          const stride = i * 4;
-          data[ stride ] = new THREE.Color().lerpColors(first,second,255).r * noiseValue;
-          data[ stride + 1 ] = new THREE.Color().lerpColors(first,second,255).g * noiseValue;;
-          data[ stride + 2 ] = new THREE.Color().lerpColors(first,second,255).b * noiseValue; 
-          data[ stride + 3 ] = 255;
         }
-        const texture = new THREE.DataTexture(data, w, h);
-        texture.needsUpdate = true;
-        texture.generateMipmaps = true;
-        return texture;
-      } else if (command[1].startsWith("tex(") && command[1].endsWith(")")) {
-        let url = command[1].slice(5,command[1].length - 2);
-        if (isValidUrl(url)){
-          const textureLoader = new THREE.TextureLoader();
-          const normalMap = textureLoader.load(url);
-          return normalMap;
-        } else {
-          sendErr("Invalid URL");
-        }
-      } else {
-        sendErr("Unknown parameter. Allowed: grayscale, RGB or texture");
-        return null;
-      }
     }
   } else {
     return null;
@@ -502,53 +555,102 @@ if (typeof w === 'string'){
 
 const domain = (c) => {
   if (typeof c === 'string'){
+  let domain = {};
+  domain.multiplier = 1.0;
   if (c.includes("(") && c.includes(")")){
     const name = c.slice(0,c.indexOf("("));
     const params = c.slice(c.indexOf("(")+1,c.indexOf(")")).split(',');
-    let domain = {};
     switch(name){
-     case "rgb": ()=>{
+     case "rgb": 
        params.map((p,i)=>{
-        if (isNaN(parseFloat(p))){
-          let beginName;
-         if (p.includes("(") && p.includes(")")){
-           beginName = p.slice(0,p.indexOf("("));
-           const param = p.slice(p.indexOf("(")+1,p.indexOf(")"));
-           if (param.length != 0){
-             domain.multiplier = parseFloat(param);
-           } else {
-             sendErr("No parameter for the function at ${i} in rgb()");
-           }
-          } else {
-            beginName = p;
-            domain.muliplier = 1.0;
+          switch(p.slice(0,3)){
+            case "sin": domain.function = "sin"; 
+            switch(i){
+              case 0: domain.parameter = "red"; break;
+              case 1: domain.parameter = "green"; break;
+              case 2: domain.parameter = "blue"; break;
+             } 
+            break;
+            case "cos": domain.function = "cos"; 
+            switch(i){
+              case 0: domain.parameter = "red"; break;
+              case 1: domain.parameter = "green"; break;
+              case 2: domain.parameter = "blue"; break;
+             } 
+            break;
+            case "tan": domain.function = "tan"; 
+            switch(i){
+              case 0: domain.parameter = "red"; break;
+              case 1: domain.parameter = "green"; break;
+              case 2: domain.parameter = "blue"; break;
+             } 
+            break;
+            case "amp": domain.function = "amp";
+            switch(i){
+              case 0: domain.parameter = "red"; break;
+              case 1: domain.parameter = "green"; break;
+              case 2: domain.parameter = "blue"; break;
+             } 
+            break;
           }
-          switch(beginName){
-            case "sin": domain.function = "sin"; break;
-            case "cos": domain.function = "cos"; break;
-            case "tan": domain.function = "tan"; break;
-            case "amp": domain.function = "amp"; break;
-          }
+          if (p.includes("*")){
+            const param = p.split('*');
+            param.splice(0,1);
+            let val = 1.0;
+            if (param.length != 0){
+              param.map((v)=>{val *= parseFloat(v)});
+            }
+            domain.multiplier = val;
          }
-         switch(i){
-           case 0: domain.parameter = "red"; break;
-           case 1: domain.parameter = "green"; break;
-           case 2: domain.parameter = "blue"; break;
-          }
        });
        return domain;
-     }; break;
-     case "rotX": break;
-     case "rotY": break;
-     case "rotZ": break;
     }
   } else if (c.includes("[") && c.includes("]")){
-
-  } else if (c == "amp") {
+   const params = c.slice(c.indexOf("[")+1,c.indexOf("]")).split(',');
+   params.map((p,i)=>{
+    switch(p.slice(0,3)){
+      case "sin": domain.function = "sin"; break;
+      case "cos": domain.function = "cos"; break;
+      case "tan": domain.function = "tan"; break;
+      case "amp": domain.function = "amp"; break;
+    }
+    switch(i){
+      case 0: domain.parameter = "x"; break;
+      case 1: domain.parameter = "y"; break;
+     }
+    if (p.includes("*")){
+      const param = p.split('*');
+      param.splice(0,1);
+      if (param.length != 0){
+        let val = 1.0;
+        param.map((v)=>{val *= parseFloat(v)});
+        domain.multiplier = val;
+      } 
+    }else{
+      domain.multiplier = 1.0;
+    }
+   }
+   );
+    return domain;
+  } 
+  else if (c.startsWith("amp")) {
     domain.function = "amp";
     domain.parameter = "scale";
-    domain.multiplier = 1.0;
+    if (c.includes("*")){
+      const param = c.split('*');
+      param.splice(0,1);
+      if (param.length != 0){
+        let val = 1.0;
+        param.map((v)=>{val *= parseFloat(v)});
+        domain.multiplier = val;
+      } 
+    }else{
+      domain.multiplier = 1.0;
+    }
     return domain;
+  } else {
+    sendErr("Invalid domain");
+    return null;
   }
   } else {
     return null;

@@ -57,6 +57,32 @@ mediaRecorder.onstop = function(e) {
   chunks = [];
 }
 
+/* ANALYSING AUDIO */
+let audioCtx = new AudioContext();
+let analyser = audioCtx.createAnalyser();
+let source = navigator.mediaDevices.getUserMedia({audio: true, video: false});
+source.then((stream)=>{
+  const msSource = audioCtx.createMediaStreamSource(stream);
+  msSource.connect(analyser);
+  alert("Audio enabled");
+})
+.catch((err)=>{
+  alert(err);
+});
+analyser.fftSize = 256;
+let bufferLength = analyser.frequencyBinCount;
+let dataArray = new Float32Array(bufferLength);
+const getAverageVolume = (array) => {
+  let values = 0;
+  let average;
+  let length = array.length;
+  for (let i = 0; i < length; i++) {
+    values += array[i];
+  }
+  average = values / length;
+  return average;
+}
+
 const isValidUrl = (url) => {
   try {
       new URL(url);
@@ -125,8 +151,8 @@ const getNormalizedScale = (geometry, targetSize) => {
   return new THREE.Matrix4().makeScale(scaleFactor, scaleFactor, scaleFactor);
 }
 
-let angle = 0.0;
 /* MAIN FUNCTION FOR ANIMATION */ 
+let angle = 0.0;
 const animate = () => {
 	requestAnimationFrame( animate );
   if (environment.globalMul != null){
@@ -147,6 +173,48 @@ const animate = () => {
     renderer.setViewport(0,0,width,height); 
     renderer.render(scene,camera);
   }
+  if (!environment.background instanceof THREE.Color && !environment.background instanceof THREE.Texture){
+    let domain = environment.background;
+    for (let f in domain.functions){
+      switch(f){
+        case "sin":
+          switch(domain.parameters[f]){
+            case "red": environment.background = new THREE.Color(Math.sin(angle * domain.multipliers[f]),0,0); break;
+            case "green": environment.background = new THREE.Color(0,Math.sin(angle * domain.multipliers[f]),0); break;
+            case "blue": environment.background = new THREE.Color(0,0,Math.sin(angle * domain.multipliers[f])); break;
+            default: break;
+          }
+          break;
+        case "cos":
+          switch(domain.parameters[f]){
+            case "red": environment.background = new THREE.Color(Math.cos(angle * domain.multipliers[f]),0,0); break;
+            case "green": environment.background = new THREE.Color(0,Math.cos(angle * domain.multipliers[f]),0); break;
+            case "blue": environment.background = new THREE.Color(0,0,Math.cos(angle * domain.multipliers[f])); break;
+            default: break;
+          }
+          break;
+        case "tan":
+          switch(domain.parameters[f]){
+            case "red": environment.background = new THREE.Color(Math.tan(angle * domain.multipliers[f]),0,0); break;
+            case "green": environment.background = new THREE.Color(0,Math.tan(angle * domain.multipliers[f]),0); break;
+            case "blue": environment.background = new THREE.Color(0,0,Math.tan(angle * domain.multipliers[f])); break;
+            default: break;
+          }
+          break;
+        case "amp":
+          analyser.getFloatTimeDomainData(dataArray);
+          const amp = (getAverageVolume(dataArray) + 1.0 / 2.0) * domain.multipliers[f];
+          switch(domain.parameters[f]){
+            case "red": environment.background = new THREE.Color(amp,0,0); break;
+            case "green": environment.background = new THREE.Color(0,amp,0); break;
+            case "blue": environment.background = new THREE.Color(0,0,amp); break;
+            default: break;
+          }
+          break;
+        default: break;
+    }
+    }
+ }
   if (environment.models.length != 0){
      for (let m in environment.models){
       if (environment.models[m].rotation){
@@ -177,8 +245,94 @@ const animate = () => {
           default: break;
      }
   }
-}
-}
+  if (environment.models[m].domains.length > 0){
+    for (let d in environment.models[m].domains){
+      let domain = environment.models[m].domains[d];
+      for (let f in domain.functions){
+        switch(f){
+          case "sin":
+            switch(domain.parameters[f]){
+              case "red": environment.models[m].mesh.material.color = new THREE.Color(Math.sin(angle * domain.multipliers[f]),0,0); break;
+              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,Math.sin(angle * domain.multipliers[f]),0); break;
+              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,Math.sin(angle * domain.multipliers[f])); break;
+              case "scale": 
+              environment.models[m].mesh.scale.x = Math.sin(angle * domain.multipliers[f]); 
+              environment.models[m].mesh.scale.y = Math.sin(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.z = Math.sin(angle * domain.multipliers[f]);
+              break;
+              case "x":
+              environment.models[m].mesh.position.x = Math.sin(angle * domain.multipliers[f]);
+              break;
+              case "y":
+              environment.models[m].mesh.position.y = Math.sin(angle * domain.multipliers[f]);
+              break;
+              default: break;
+            }
+            break;
+          case "cos":
+            switch(domain.parameters[f]){
+              case "red": environment.models[m].mesh.material.color = new THREE.Color(Math.cos(angle * domain.multipliers[f]),0,0); break;
+              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,Math.cos(angle * domain.multipliers[f]),0); break;
+              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,Math.cos(angle * domain.multipliers[f])); break;
+              case "scale":
+              environment.models[m].mesh.scale.x = Math.cos(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.y = Math.cos(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.z = Math.cos(angle * domain.multipliers[f]);
+              break;
+              case "x":
+              environment.models[m].mesh.position.x = Math.cos(angle * domain.multipliers[f]);
+              break;
+              case "y":
+              environment.models[m].mesh.position.y = Math.cos(angle * domain.multipliers[f]);
+              break;
+              default: break;
+            }
+            break;
+          case "tan":
+            switch(domain.parameters[f]){
+              case "red": environment.models[m].mesh.material.color = new THREE.Color(Math.tan(angle * domain.multipliers[f]),0,0); break;
+              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,Math.tan(angle * domain.multipliers[f]),0); break;
+              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,Math.tan(angle * domain.multipliers[f])); break;
+              case "scale":
+              environment.models[m].mesh.scale.x = Math.tan(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.y = Math.tan(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.z = Math.tan(angle * domain.multipliers[f]);
+              break;
+              case "x":
+              environment.models[m].mesh.position.x = Math.tan(angle * domain.multipliers[f]);
+              break;
+              case "y":
+              environment.models[m].mesh.position.y = Math.tan(angle * domain.multipliers[f]);
+              break;
+              default: break;
+            }
+            break;
+          case "amp":
+            analyser.getFloatTimeDomainData(dataArray);
+            const amp = (getAverageVolume(dataArray) + 1.0 / 2.0) * domain.multipliers[f];
+            switch(domain.parameters[f]){
+              case "red": environment.models[m].mesh.material.color = new THREE.Color(amp,0,0); break;
+              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,amp,0); break;
+              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,amp); break;
+              case "scale":
+              environment.models[m].mesh.scale.x = amp;
+              environment.models[m].mesh.scale.y = amp;
+              environment.models[m].mesh.scale.z = amp;
+              break;
+              case "x":
+              environment.models[m].mesh.position.x = amp;
+              break;
+              case "y":
+              environment.models[m].mesh.position.y = amp;
+              break;
+              default: break;
+            }
+          }
+        }
+      }
+    }
+   }
+  }
 }
 animate();
 
@@ -263,6 +417,7 @@ if (typeof c === 'string'){
     let material = new THREE.MeshPhongMaterial();
     modelObj.transform = new THREE.Matrix4();
     modelObj.rotation = {};
+    modelObj.domains = [];
     switch (medium(command[0]).variant){
       case "cube": geometry = new THREE.BoxGeometry(1,1,1); break;
       case "sphere": geometry = new THREE.SphereGeometry(1,60,60); break;
@@ -278,31 +433,36 @@ if (typeof c === 'string'){
       geometry.scale(1.0,1.0,1.0);
     } else {
       for (let i= 1; i<command.length; i++){
-        if (command[i].includes("sin") || command[i].includes("cos") || command[i].includes("tan") || command[i].includes("amp") ){
-          const d = domain(command[i]);
-           if (d != null){
-
-           }else{
-             sendErr("Invalid domain. Allowed: sin, cos, tan, amp");
-           }
-         } else {
-          if (!isNaN(parseFloat(command[i]))){
-            let value = parseFloat(command[i]);
-            if (value >= 0.0 && value <= 1.0){
-                let matrix = modelObj.transform;
-                matrix.multiply(new THREE.Matrix4().makeScale(parseFloat(command[i]),parseFloat(command[i]),parseFloat(command[i])));
-                modelObj.transform = matrix;
+          if (command[i].match(/^[A-Za-z0-9_.]+$/gm)){
+            if (!isNaN(parseFloat(command[i]))){
+              let value = parseFloat(command[i]);
+              if (value >= 0.0 && value <= 1.0){
+                  let matrix = modelObj.transform;
+                  matrix.multiply(new THREE.Matrix4().makeScale(parseFloat(command[i]),parseFloat(command[i]),parseFloat(command[i])));
+                  modelObj.transform = matrix;
+              } else {
+                sendErr("Allowed range is 0 - 1");
+              }
             } else {
-              sendErr("Allowed range is 0 - 1");
+              domain(command[i]) != null ? modelObj.domains.push(domain(command[i])) : sendErr("Invalid domain");
             }
+            /**/
           } else if (color(command[i]) != null){
             material.color = color(command[i]);
           } else if (command[i].startsWith("rgb(") && command[i].endsWith(")")){
             let values = floats(command[i].slice(command[i].indexOf("(")+1,command[i].indexOf(")")));
-            if (values[0]+values[1]+values[2] >= 0.0 && values[0]+values[1]+values[2] <= 3.0 && values.length == 3){
-              material.color = new THREE.Color(values[0],values[1],values[2]);
-            } else {
-              sendErr("Allowed range is 0 - 1");
+            if (values.length == 3){
+              if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
+                material.color = new THREE.Color(values[0],values[1],values[2]);
+              } else {
+                sendErr("Allowed range 0 - 1");
+              }
+            }else{
+             if (command[i].includes(",") && command[i].split(',').length <= 2){
+              sendErr("RGB must have three parameters");
+             } else if (command[i].includes(',') && command[i].split(',').length == 3){
+              domain(command[i]) != null ? modelObj.domains.push(domain(command[i])) : sendErr("Invalid domain");             
+            }
             }
           } else if (command[i].startsWith("rot") && command[i].includes('(') && command[i].endsWith(")")){
             if (command[i][3] == "X" || command[i][3] == "Y" || command[i][3] == "Z"){
@@ -356,7 +516,11 @@ if (typeof c === 'string'){
                 sendErr("Allowed range -1 - 1");
               }
             } else {
-              sendErr("Expected two coordinates to translate");
+              if (command[i].includes(",") && command[i].split(',').length <= 1){
+                sendErr("Expected two coordinates");
+               } else if (command[i].includes(',') && command[i].split(',').length == 2){
+                 domain(command[i]) != null ? modelObj.domains.push(domain(command[i])) : sendErr("Invalid domain");
+               }
             }
           } else if (command[i].startsWith("mat(") && command[i].endsWith(")")){
             const slice = command[i].slice(4,command[i].length - 1);
@@ -413,7 +577,6 @@ if (typeof c === 'string'){
           } else {
             sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
           }
-         }
       }
     }
     if (typeof geometry !== 'undefined'){
@@ -443,14 +606,6 @@ const screen = (c) => {
       sendErr("Too many parameters");
       return null;
     } else {
-      if (command[1].includes("sin") || command[1].includes("cos") || command[1].includes("tan") || command[1].includes("amp") ){
-        const d = domain(command[1]);
-         if (d != null){
-
-         }else{
-           sendErr("Invalid domain. Allowed: sin, cos, tan, amp");
-         } 
-        } else {
           if (!isNaN(parseFloat(command[1]))){
             let scale = parseFloat(command[1]);
             if (scale <= 1.0 && scale >= 0.0){
@@ -468,8 +623,17 @@ const screen = (c) => {
                 return null;
               }
             } else {
-              sendErr("RGB must have three parameters");
-              return null;
+              if (command[i].includes(",") && command[i].split(',').length <= 2){
+                sendErr("RGB must have three parameters");
+                return null;
+               } else if (command[i].includes(',') && command[i].split(',').length == 3){
+                if (domain(command[i]) != null){
+                  return domain(command[i]);
+                }else{
+                  sendErr("Invalid domain");
+                  return null;
+                }           
+              }
             }   
           } else if (color(command[1]) != null){
             return color(command[1]);
@@ -510,7 +674,6 @@ const screen = (c) => {
             sendErr("Unknown parameter. Allowed: grayscale, RGB or texture");
             return null;
           }
-        }
     }
   } else {
     return null;
@@ -555,8 +718,11 @@ if (typeof w === 'string'){
 
 const domain = (c) => {
   if (typeof c === 'string'){
-  let domain = {};
-  domain.multiplier = 1.0;
+  let domain = {
+    functions: [],
+    parameters: [],
+    multipliers: []
+  };
   if (c.includes("(") && c.includes(")")){
     const name = c.slice(0,c.indexOf("("));
     const params = c.slice(c.indexOf("(")+1,c.indexOf(")")).split(',');
@@ -564,32 +730,32 @@ const domain = (c) => {
      case "rgb": 
        params.map((p,i)=>{
           switch(p.slice(0,3)){
-            case "sin": domain.function = "sin"; 
+            case "sin": domain.functions.push("sin"); 
             switch(i){
-              case 0: domain.parameter = "red"; break;
-              case 1: domain.parameter = "green"; break;
-              case 2: domain.parameter = "blue"; break;
+              case 0: domain.parameters.push("red"); break;
+              case 1: domain.parameters.push("green"); break;
+              case 2: domain.parameters.push("blue"); break;
              } 
             break;
-            case "cos": domain.function = "cos"; 
+            case "cos": domain.functions.push("cos"); 
             switch(i){
-              case 0: domain.parameter = "red"; break;
-              case 1: domain.parameter = "green"; break;
-              case 2: domain.parameter = "blue"; break;
+              case 0: domain.parameters.push("red"); break;
+              case 1: domain.parameters.push("green"); break;
+              case 2: domain.parameters.push("blue"); break;
              } 
             break;
-            case "tan": domain.function = "tan"; 
+            case "tan": domain.functions.push("tan"); 
             switch(i){
-              case 0: domain.parameter = "red"; break;
-              case 1: domain.parameter = "green"; break;
-              case 2: domain.parameter = "blue"; break;
+              case 0: domain.parameters.push("red"); break;
+              case 1: domain.parameters.push("green"); break;
+              case 2: domain.parameters.push("blue"); break;
              } 
             break;
-            case "amp": domain.function = "amp";
+            case "amp": domain.functions.push("amp");
             switch(i){
-              case 0: domain.parameter = "red"; break;
-              case 1: domain.parameter = "green"; break;
-              case 2: domain.parameter = "blue"; break;
+              case 0: domain.parameters.push("red"); break;
+              case 1: domain.parameters.push("green"); break;
+              case 2: domain.parameters.push("blue"); break;
              } 
             break;
           }
@@ -600,7 +766,9 @@ const domain = (c) => {
             if (param.length != 0){
               param.map((v)=>{val *= parseFloat(v)});
             }
-            domain.multiplier = val;
+            domain.multipliers.push(val);
+         } else {
+            domain.multipliers.push(1.0);
          }
        });
        return domain;
@@ -609,14 +777,14 @@ const domain = (c) => {
    const params = c.slice(c.indexOf("[")+1,c.indexOf("]")).split(',');
    params.map((p,i)=>{
     switch(p.slice(0,3)){
-      case "sin": domain.function = "sin"; break;
-      case "cos": domain.function = "cos"; break;
-      case "tan": domain.function = "tan"; break;
-      case "amp": domain.function = "amp"; break;
+      case "sin": domain.functions.push("sin"); break;
+      case "cos": domain.functions.push("cos"); break;
+      case "tan": domain.functions.push("tan"); break;
+      case "amp": domain.functions.push("amp"); break;
     }
     switch(i){
-      case 0: domain.parameter = "x"; break;
-      case 1: domain.parameter = "y"; break;
+      case 0: domain.parameters.push("x"); break;
+      case 1: domain.parameters.push("y"); break;
      }
     if (p.includes("*")){
       const param = p.split('*');
@@ -624,28 +792,28 @@ const domain = (c) => {
       if (param.length != 0){
         let val = 1.0;
         param.map((v)=>{val *= parseFloat(v)});
-        domain.multiplier = val;
+        domain.multipliers.push(val);
       } 
     }else{
-      domain.multiplier = 1.0;
+      domain.multipliers.push(1.0);
     }
    }
    );
     return domain;
   } 
   else if (c.startsWith("amp")) {
-    domain.function = "amp";
-    domain.parameter = "scale";
+    domain.functions.push("amp");
+    domain.parameters.push("scale");
     if (c.includes("*")){
       const param = c.split('*');
       param.splice(0,1);
       if (param.length != 0){
         let val = 1.0;
         param.map((v)=>{val *= parseFloat(v)});
-        domain.multiplier = val;
+        domain.multipliers.push(val);
       } 
     }else{
-      domain.multiplier = 1.0;
+      domain.multipliers.push(1.0);
     }
     return domain;
   } else {

@@ -61,14 +61,15 @@ mediaRecorder.onstop = function(e) {
 let audioCtx = new AudioContext();
 let analyser = audioCtx.createAnalyser();
 let source = navigator.mediaDevices.getUserMedia({audio: true, video: false});
-source.then((stream)=>{
+audioCtx.resume();
+/*source.then((stream)=>{
   const msSource = audioCtx.createMediaStreamSource(stream);
   msSource.connect(analyser);
   alert("Audio enabled");
 })
 .catch((err)=>{
   alert(err);
-});
+});*/
 analyser.fftSize = 256;
 let bufferLength = analyser.frequencyBinCount;
 let dataArray = new Float32Array(bufferLength);
@@ -173,47 +174,49 @@ const animate = () => {
     renderer.setViewport(0,0,width,height); 
     renderer.render(scene,camera);
   }
-  if (!environment.background instanceof THREE.Color && !environment.background instanceof THREE.Texture){
+  if (environment.background.functions && environment.background.parameters && environment.background.multipliers && environment.background.speeds){
+    angle += (360/60) * environment.background.speeds[0];
+    if (angle >= 360.0){ angle = 0.0;}
     let domain = environment.background;
-    for (let f in domain.functions){
+    domain.functions.forEach((f,i)=>{
       switch(f){
         case "sin":
-          switch(domain.parameters[f]){
-            case "red": environment.background = new THREE.Color(Math.sin(angle * domain.multipliers[f]),0,0); break;
-            case "green": environment.background = new THREE.Color(0,Math.sin(angle * domain.multipliers[f]),0); break;
-            case "blue": environment.background = new THREE.Color(0,0,Math.sin(angle * domain.multipliers[f])); break;
+          switch(domain.parameters[i]){
+            case "red": scene.background.r = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+            case "green": scene.background.g = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+            case "blue": scene.background.b = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i]; break;
             default: break;
           }
           break;
         case "cos":
-          switch(domain.parameters[f]){
-            case "red": environment.background = new THREE.Color(Math.cos(angle * domain.multipliers[f]),0,0); break;
-            case "green": environment.background = new THREE.Color(0,Math.cos(angle * domain.multipliers[f]),0); break;
-            case "blue": environment.background = new THREE.Color(0,0,Math.cos(angle * domain.multipliers[f])); break;
+          switch(domain.parameters[i]){
+            case "red": scene.background.r = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+            case "green": scene.background.g = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+            case "blue": scene.background.b = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i]; break;
             default: break;
           }
           break;
         case "tan":
-          switch(domain.parameters[f]){
-            case "red": environment.background = new THREE.Color(Math.tan(angle * domain.multipliers[f]),0,0); break;
-            case "green": environment.background = new THREE.Color(0,Math.tan(angle * domain.multipliers[f]),0); break;
-            case "blue": environment.background = new THREE.Color(0,0,Math.tan(angle * domain.multipliers[f])); break;
+          switch(domain.parameters[i]){
+            case "red": scene.background.r = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+            case "green": scene.background.g = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+            case "blue": scene.background.b = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i]; break;
             default: break;
           }
           break;
         case "amp":
           analyser.getFloatTimeDomainData(dataArray);
-          const amp = (getAverageVolume(dataArray) + 1.0 / 2.0) * domain.multipliers[f];
+          const amp = (getAverageVolume(dataArray) + 1.0 / 2.0) * domain.multipliers[i];
           switch(domain.parameters[f]){
-            case "red": environment.background = new THREE.Color(amp,0,0); break;
-            case "green": environment.background = new THREE.Color(0,amp,0); break;
-            case "blue": environment.background = new THREE.Color(0,0,amp); break;
+            case "red": scene.background.r = amp; break;
+            case "green": scene.background.g = amp; break;
+            case "blue": scene.background.b = amp; break;
             default: break;
           }
           break;
         default: break;
     }
-    }
+    });
  }
   if (environment.models.length != 0){
      for (let m in environment.models){
@@ -623,12 +626,12 @@ const screen = (c) => {
                 return null;
               }
             } else {
-              if (command[i].includes(",") && command[i].split(',').length <= 2){
+              if (command[1].includes(",") && command[1].split(',').length <= 2){
                 sendErr("RGB must have three parameters");
                 return null;
-               } else if (command[i].includes(',') && command[i].split(',').length == 3){
-                if (domain(command[i]) != null){
-                  return domain(command[i]);
+               } else if (command[1].includes(',') && command[1].split(',').length == 3){
+                if (domain(command[1]) != null){
+                  return domain(command[1]);
                 }else{
                   sendErr("Invalid domain");
                   return null;
@@ -721,105 +724,147 @@ const domain = (c) => {
   let domain = {
     functions: [],
     parameters: [],
-    multipliers: []
+    multipliers: [],
+    speeds: []
   };
-  if (c.includes("(") && c.includes(")")){
+  const paramRegex = /(amp|sin|cos|tan)\*\-?(\d+(\.\d*)?|\.\d+)?|(amp|sin|cos|tan)|(\(((\d+(\.\d*)?|\.\d+)),(\d+(\.\d*)?|\.\d+)\))|((\d+(\.\d*)?|\.\d+))/g;
+  if (c.indexOf("(") == 3 && c.endsWith(")")){
     const name = c.slice(0,c.indexOf("("));
-    const params = c.slice(c.indexOf("(")+1,c.indexOf(")")).split(',');
+    const args = c.slice(c.indexOf('(')+1,c.lastIndexOf(')'));
     switch(name){
      case "rgb": 
-       params.map((p,i)=>{
-          switch(p.slice(0,3)){
-            case "sin": domain.functions.push("sin"); 
-            switch(i){
-              case 0: domain.parameters.push("red"); break;
-              case 1: domain.parameters.push("green"); break;
-              case 2: domain.parameters.push("blue"); break;
-             } 
-            break;
-            case "cos": domain.functions.push("cos"); 
-            switch(i){
-              case 0: domain.parameters.push("red"); break;
-              case 1: domain.parameters.push("green"); break;
-              case 2: domain.parameters.push("blue"); break;
-             } 
-            break;
-            case "tan": domain.functions.push("tan"); 
-            switch(i){
-              case 0: domain.parameters.push("red"); break;
-              case 1: domain.parameters.push("green"); break;
-              case 2: domain.parameters.push("blue"); break;
-             } 
-            break;
-            case "amp": domain.functions.push("amp");
-            switch(i){
-              case 0: domain.parameters.push("red"); break;
-              case 1: domain.parameters.push("green"); break;
-              case 2: domain.parameters.push("blue"); break;
-             } 
-            break;
+     const params = args.match(paramRegex);
+     params.map((p,i)=>{
+      if (p.startsWith('amp') || p.startsWith('sin') || p.startsWith('cos') || p.startsWith('tan')){
+        switch(p.slice(0,3)){
+          case "sin": domain.functions.push("sin"); 
+          switch(domain.functions.length - 1){
+            case 0: domain.parameters.push("red"); break;
+            case 1: domain.parameters.push("green"); break;
+            case 2: domain.parameters.push("blue"); break;
+           } 
+          break;
+          case "cos": domain.functions.push("cos"); 
+          switch(domain.functions.length - 1){
+            case 0: domain.parameters.push("red"); break;
+            case 1: domain.parameters.push("green"); break;
+            case 2: domain.parameters.push("blue"); break;
+           } 
+          break;
+          case "tan": domain.functions.push("tan"); 
+          switch(domain.functions.length - 1){
+            case 0: domain.parameters.push("red"); break;
+            case 1: domain.parameters.push("green"); break;
+            case 2: domain.parameters.push("blue"); break;
+           } 
+          break;
+          case "amp": domain.functions.push("amp");
+          switch(domain.functions.length - 1){
+            case 0: domain.parameters.push("red"); break;
+            case 1: domain.parameters.push("green"); break;
+            case 2: domain.parameters.push("blue"); break;
+           } 
+          break;
+      }
+      if (p.includes('*')){
+        const param = p.split('*');
+        param.splice(0,1);
+        let val = 1.0;
+        if (param.length != 0){
+          param.map((v)=>{val *= parseFloat(v)});
+        }
+        domain.multipliers.push(val);
+        if (domain.functions[domain.functions.length - 1] == 'amp'){
+          domain.speeds.push(null);
+        } else {
+          domain.speeds.push(1.0);
+        }
+     }
+     } else if (p.startsWith('(') && p.endsWith(')')){
+        const args = p.slice(p.indexOf("(")+1,p.indexOf(")")).split(',');
+        if (args.length != 2){
+          sendErr("Invalid number of arguments - expected speed and multiplier");
+        } else {
+          if (domain.functions[domain.functions.length - 1] != 'amp'){
+            parseFloat(args[0]) ? domain.speeds.push(parseFloat(args[0])) : sendErr("Could not parse the speed");
+            parseFloat(args[1]) ? domain.multipliers.push(parseFloat(args[1])) : sendErr("Could not parse the multiplier");
+          }else{
+            sendErr("Amplitude argument needs only a multiplier");
           }
-          if (p.includes("*")){
-            const param = p.split('*');
-            param.splice(0,1);
-            let val = 1.0;
-            if (param.length != 0){
-              param.map((v)=>{val *= parseFloat(v)});
-            }
-            domain.multipliers.push(val);
-         } else {
-            domain.multipliers.push(1.0);
-         }
-       });
+        }
+     } 
+    });
        return domain;
     }
-  } else if (c.includes("[") && c.includes("]")){
-   const params = c.slice(c.indexOf("[")+1,c.indexOf("]")).split(',');
-   params.map((p,i)=>{
-    switch(p.slice(0,3)){
-      case "sin": domain.functions.push("sin"); break;
-      case "cos": domain.functions.push("cos"); break;
-      case "tan": domain.functions.push("tan"); break;
-      case "amp": domain.functions.push("amp"); break;
-    }
-    switch(i){
-      case 0: domain.parameters.push("x"); break;
-      case 1: domain.parameters.push("y"); break;
-     }
-    if (p.includes("*")){
-      const param = p.split('*');
-      param.splice(0,1);
-      if (param.length != 0){
+  } else if (c.startsWith("[") && c.endsWith("]")){;
+    const args = c.slice(c.indexOf('[')+1,c.lastIndexOf(']'));
+    const params = args.match(paramRegex);
+    params.map((p,i)=>{
+    if (p.startsWith('amp') || p.startsWith('sin') || p.startsWith('cos') || p.startsWith('tan')){
+      switch(p.slice(0,3)){
+        case "sin": domain.functions.push("sin"); 
+        switch(domain.functions.length - 1){
+          case 0: domain.parameters.push("x"); break;
+          case 1: domain.parameters.push("y"); break;
+         }
+        break;
+        case "cos": domain.functions.push("cos"); 
+        switch(domain.functions.length - 1){
+          case 0: domain.parameters.push("x"); break;
+          case 1: domain.parameters.push("y"); break;
+         }
+        break;
+        case "tan": domain.functions.push("tan"); 
+        switch(domain.functions.length - 1){
+          case 0: domain.parameters.push("x"); break;
+          case 1: domain.parameters.push("y"); break;
+         }
+        break;
+        case "amp": domain.functions.push("amp"); 
+        switch(domain.functions.length - 1){
+          case 0: domain.parameters.push("x"); break;
+          case 1: domain.parameters.push("y"); break;
+         }
+        break;
+      }
+      if (p.includes('*')){
+        const param = p.split('*');
+        param.splice(0,1);
         let val = 1.0;
-        param.map((v)=>{val *= parseFloat(v)});
+        if (param.length != 0){
+          param.map((v)=>{val *= parseFloat(v)});
+        }
         domain.multipliers.push(val);
-      } 
-    }else{
-      domain.multipliers.push(1.0);
+        if (domain.functions[domain.functions.length - 1] == 'amp'){
+          domain.speeds.push(null);
+        } else {
+          domain.speeds.push(1.0);
+        }
+      } else {
+        domain.multipliers.push(1.0);
+        if (domain.functions[domain.functions.length - 1] == 'amp'){
+          domain.speeds.push(null);
+        } else {
+          domain.speeds.push(1.0);
+        }
+      }
+    } else if (p.startsWith('(') && p.endsWith(')')){
+      const args = p.slice(p.indexOf("(")+1,p.indexOf(")")).split(',');
+      if (args.length != 2){
+        sendErr("Invalid number of arguments - expected speed and multiplier");
+      } else {
+        if (domain.functions[domain.functions.length - 1] != 'amp'){
+          parseFloat(args[0]) ? domain.speeds[domain.functions.length - 1] = parseFloat(args[0]) : sendErr("Could not parse the speed");
+          parseFloat(args[1]) ? domain.multipliers[domain.functions.length - 1] = parseFloat(args[1]) : sendErr("Could not parse the multiplier");
+        }else{
+          sendErr("Amplitude argument needs only a multiplier");
+        }
+      }
     }
    }
    );
-    return domain;
+   return domain;
   } 
-  else if (c.startsWith("amp")) {
-    domain.functions.push("amp");
-    domain.parameters.push("scale");
-    if (c.includes("*")){
-      const param = c.split('*');
-      param.splice(0,1);
-      if (param.length != 0){
-        let val = 1.0;
-        param.map((v)=>{val *= parseFloat(v)});
-        domain.multipliers.push(val);
-      } 
-    }else{
-      domain.multipliers.push(1.0);
-    }
-    return domain;
-  } else {
-    sendErr("Invalid domain");
-    return null;
-  }
   } else {
     return null;
   }
@@ -895,7 +940,9 @@ const interpret = () => {
   } else {
     environment.background = new THREE.Color(0,0,0);
   }
-  scene.background = environment.background;
+  if (!environment.background.functions && !environment.background.parameters && !environment.background.multipliers && !environment.background.speeds){
+    scene.background = environment.background;
+  }
   if (environment.models.length != 0){
     for (let m in environment.models){
       scene.add(environment.models[m].mesh);

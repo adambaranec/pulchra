@@ -251,72 +251,72 @@ const animate = () => {
   if (environment.models[m].domains.length > 0){
     for (let d in environment.models[m].domains){
       let domain = environment.models[m].domains[d];
-      for (let f in domain.functions){
+      domain.functions.forEach((f,i)=>{
         switch(f){
           case "sin":
-            switch(domain.parameters[f]){
-              case "red": environment.models[m].mesh.material.color = new THREE.Color(Math.sin(angle * domain.multipliers[f]),0,0); break;
-              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,Math.sin(angle * domain.multipliers[f]),0); break;
-              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,Math.sin(angle * domain.multipliers[f])); break;
+            switch(domain.parameters[i]){
+              case "red": environment.models[m].mesh.material.color.r = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+              case "green": environment.models[m].mesh.material.color.g = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+              case "blue": environment.models[m].mesh.material.color.b = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i]; break;
               case "scale": 
-              environment.models[m].mesh.scale.x = Math.sin(angle * domain.multipliers[f]); 
-              environment.models[m].mesh.scale.y = Math.sin(angle * domain.multipliers[f]);
-              environment.models[m].mesh.scale.z = Math.sin(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.x = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i]; 
+              environment.models[m].mesh.scale.y = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i];
+              environment.models[m].mesh.scale.z = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               case "x":
-              environment.models[m].mesh.position.x = Math.sin(angle * domain.multipliers[f]);
+              environment.models[m].mesh.position.x = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               case "y":
-              environment.models[m].mesh.position.y = Math.sin(angle * domain.multipliers[f]);
+              environment.models[m].mesh.position.y = Math.sin(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               default: break;
             }
             break;
           case "cos":
             switch(domain.parameters[f]){
-              case "red": environment.models[m].mesh.material.color = new THREE.Color(Math.cos(angle * domain.multipliers[f]),0,0); break;
-              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,Math.cos(angle * domain.multipliers[f]),0); break;
-              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,Math.cos(angle * domain.multipliers[f])); break;
+              case "red": environment.models[m].mesh.material.color.r = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+              case "green": environment.models[m].mesh.material.color.g = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+              case "blue": environment.models[m].mesh.material.color.b = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i]; break;
               case "scale":
-              environment.models[m].mesh.scale.x = Math.cos(angle * domain.multipliers[f]);
-              environment.models[m].mesh.scale.y = Math.cos(angle * domain.multipliers[f]);
-              environment.models[m].mesh.scale.z = Math.cos(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.x = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i];
+              environment.models[m].mesh.scale.y = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i];
+              environment.models[m].mesh.scale.z = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               case "x":
-              environment.models[m].mesh.position.x = Math.cos(angle * domain.multipliers[f]);
+              environment.models[m].mesh.position.x = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               case "y":
-              environment.models[m].mesh.position.y = Math.cos(angle * domain.multipliers[f]);
+              environment.models[m].mesh.position.y = Math.cos(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               default: break;
             }
             break;
           case "tan":
-            switch(domain.parameters[f]){
-              case "red": environment.models[m].mesh.material.color = new THREE.Color(Math.tan(angle * domain.multipliers[f]),0,0); break;
-              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,Math.tan(angle * domain.multipliers[f]),0); break;
-              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,Math.tan(angle * domain.multipliers[f])); break;
+            switch(domain.parameters[i]){
+              case "red": environment.models[m].mesh.material.color.r = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+              case "green": environment.models[m].mesh.material.color.g = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i]; break;
+              case "blue": environment.models[m].mesh.material.color.b = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i]; break;
               case "scale":
-              environment.models[m].mesh.scale.x = Math.tan(angle * domain.multipliers[f]);
-              environment.models[m].mesh.scale.y = Math.tan(angle * domain.multipliers[f]);
-              environment.models[m].mesh.scale.z = Math.tan(angle * domain.multipliers[f]);
+              environment.models[m].mesh.scale.x = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i];
+              environment.models[m].mesh.scale.y = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i];
+              environment.models[m].mesh.scale.z = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               case "x":
-              environment.models[m].mesh.position.x = Math.tan(angle * domain.multipliers[f]);
+              environment.models[m].mesh.position.x = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               case "y":
-              environment.models[m].mesh.position.y = Math.tan(angle * domain.multipliers[f]);
+              environment.models[m].mesh.position.y = Math.tan(angle * domain.speeds[i]) * domain.multipliers[i];
               break;
               default: break;
             }
             break;
           case "amp":
             analyser.getFloatTimeDomainData(dataArray);
-            const amp = (getAverageVolume(dataArray) + 1.0 / 2.0) * domain.multipliers[f];
+            const amp = (getAverageVolume(dataArray) + 1.0 / 2.0) * domain.multipliers[i];
             switch(domain.parameters[f]){
-              case "red": environment.models[m].mesh.material.color = new THREE.Color(amp,0,0); break;
-              case "green": environment.models[m].mesh.material.color = new THREE.Color(0,amp,0); break;
-              case "blue": environment.models[m].mesh.material.color = new THREE.Color(0,0,amp); break;
+              case "red": environment.models[m].mesh.material.color.r = amp; break;
+              case "green": environment.models[m].mesh.material.color.g = amp; break;
+              case "blue": environment.models[m].mesh.material.color.b = amp; break;
               case "scale":
               environment.models[m].mesh.scale.x = amp;
               environment.models[m].mesh.scale.y = amp;
@@ -331,7 +331,7 @@ const animate = () => {
               default: break;
             }
           }
-        }
+        });
       }
     }
    }

@@ -347,7 +347,7 @@ if (typeof word === 'string'){
     case "magenta":return new THREE.Color(1.0,0.0,1.0); 
     case "cyan":return new THREE.Color(0.0,1.0,1.0); 
     case "orange":return new THREE.Color(1.0,0.4,0.0); 
-    case "pink":return new THREE.Color(1.0,0.6,0.8); 
+    case "pink":return new THREE.Color(1.0,0.2,0.4); 
     case "purple":return new THREE.Color(0.2,0.0,0.5); 
     case "brown":return new THREE.Color(0.3,0.2,0.1); 
     case "beige":return new THREE.Color(0.5,0.4,0.3); 
@@ -427,7 +427,6 @@ if (typeof c === 'string'){
       geometry.scale(1.0,1.0,1.0);
     } else {
       for (let i= 1; i<command.length; i++){
-          if (command[i].match(/^[A-Za-z0-9_.]+$/gm)){
             if (!isNaN(parseFloat(command[i]))){
               let value = parseFloat(command[i]);
               if (value >= 0.0 && value <= 1.0){
@@ -437,26 +436,39 @@ if (typeof c === 'string'){
               } else {
                 sendErr("Allowed range is 0 - 1");
               }
-            } else if (domain(command[i]) != null){
-              modelObj.domains.push(domain(command[i]));
-            }
-            /**/
           } else if (color(command[i]) != null){
             material.color = color(command[i]);
           } else if (command[i].startsWith("rgb(") && command[i].endsWith(")")){
-            let values = floats(command[i].slice(command[i].indexOf("(")+1,command[i].indexOf(")")));
-            if (values.length == 3){
+            let values = floats(command[i].slice(command[i].indexOf("(")+i,command[i].indexOf(")")));
+            if (values == null || values.length <= 2){
+              if (command[i].includes("amp") || command[i].includes("sin") || command[i].includes("cos") || command[i].includes("tan")){
+                const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
+                const result = command[i].match(paramRegex);
+                if (result != null){
+                  result.map((r)=>{
+                    if (!isNaN(parseFloat(r))){
+                      if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
+                        sendErr("Allowed range 0 - 1");
+                      }
+                    }
+                  });
+                  modelObj.domains.push(domain(command[i]));
+                } else {
+                  sendErr("Invalid domain");
+                }
+              }
+            } 
+            else if (values.length == 3){
               if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
                 material.color = new THREE.Color(values[0],values[1],values[2]);
               } else {
                 sendErr("Allowed range 0 - 1");
               }
-            }else if (values.length != 3 || values == null){
-             if (command[i].includes(",") && command[i].split(',').length <= 2){
-              sendErr("RGB must have three parameters");
-             } else if (command[i].includes('amp') || command[i].includes('sin') || command[i].includes('cos') || command[i].includes('tan')){
-              domain(command[i]) != null ? modelObj.domains.push(domain(command[i])) : sendErr("Invalid domain");             
-            }
+            } else if (values.length != 3) {
+              if (command[1].includes(",") && command[1].split(',').length <= 2){
+                sendErr("RGB must have three parameters");
+                return null;
+              } 
             }
           } else if (command[i].startsWith("rot") && command[i].includes('(') && command[i].endsWith(")")){
             if (command[i][3] == "X" || command[i][3] == "Y" || command[i][3] == "Z"){
@@ -568,7 +580,22 @@ if (typeof c === 'string'){
             } else {
               sendErr("Invalid URL");
             }
-          } else {
+          } else if (command[i].includes("amp") || command[i].includes("sin") || command[i].includes("cos") || command[i].includes("tan")){
+            const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
+            const result = command[i].match(paramRegex);
+            if (result != null){
+              result.map((r)=>{
+                if (!isNaN(parseFloat(r))){
+                  if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
+                    sendErr("Allowed range 0 - 1");
+                  }
+                }
+              });
+              modelObj.domains.push(domain(command[i]));
+            } else {
+              sendErr("Invalid domain");
+            }
+          }else {
             sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
           }
       }
@@ -609,27 +636,38 @@ const screen = (c) => {
             }
           } else if (command[1].startsWith("rgb(") && command[1].endsWith(")")){
             let values = floats(command[1].slice(command[1].indexOf("(")+1,command[1].indexOf(")")));
-            if (values.length == 3){
+            if (values == null || values.length <= 2){
+              if (command[1].includes("amp") || command[1].includes("sin") || command[1].includes("cos") || command[1].includes("tan")){
+                const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
+                const result = command[1].match(paramRegex);
+                if (result != null){
+                  result.map((r)=>{
+                    if (!isNaN(parseFloat(r))){
+                      if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
+                        sendErr("Allowed range 0 - 1");
+                      }
+                    }
+                  });
+                  return domain(command[1]);
+                } else {
+                  sendErr("Invalid domain");
+                  return null;
+                }
+              }
+            } 
+            else if (values.length == 3){
               if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
                 return new THREE.Color(values[0],values[1],values[2]);
               } else {
                 sendErr("Allowed range 0 - 1");
                 return null;
               }
-            } else if (values.length != 3 || values == null) {
+            } else if (values.length != 3) {
               if (command[1].includes(",") && command[1].split(',').length <= 2){
                 sendErr("RGB must have three parameters");
                 return null;
-               } else if (command[1].includes('amp') || command[1].includes('sin') || command[1].includes('cos') || command[1].includes('tan')){
-                if (domain(command[1]) != null){
-                  console.log(domain(command[1]));
-                  return domain(command[1]);
-                }else{
-                  sendErr("Invalid domain");
-                  return null;
-                }           
-              }
-            }   
+              } 
+            }
           } else if (color(command[1]) != null){
             return color(command[1]);
           } else if (command[1].startsWith("noise(") && command[1].endsWith(")")){
@@ -720,8 +758,6 @@ const domain = (c) => {
     speeds: []
   };
   const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
-  //const paramRegex = /(amp|sin|cos|tan)\*\.2/g;
-  console.log(c.match(paramRegex));
   if (c.indexOf("(") == 3 && c.endsWith(")")){
     let paramIndex = -1;
     const name = c.slice(0,c.indexOf("("));
@@ -730,7 +766,6 @@ const domain = (c) => {
      case "rgb": 
      const params = args.match(paramRegex);
      params.map((p,i)=>{
-      console.log(p.includes('*'));
       if (p.startsWith('amp') || p.startsWith('sin') || p.startsWith('cos') || p.startsWith('tan')){
         paramIndex++;
         switch(p.slice(0,3)){
@@ -871,13 +906,33 @@ const domain = (c) => {
    }
    );
    return domain;
-  } else if (c == 'amp' || c == 'sin' || c == 'cos' || c == 'tan'){
+  } else if (c.startsWith('amp') || c.startsWith('sin') || c.startsWith('cos') || c.startsWith('tan')){
     domain.functions.push(c);
     domain.parameters.push('scale');
-    domain.speeds.push(null);
+    c.startsWith('amp') ? domain.speeds.push(null) : domain.speeds.push(1.0);
     if (c.includes('*')){
-
-    }
+      const param = c.split('*');
+      param.splice(0,1);
+      let val = 1.0;
+      if (param.length != 0){
+        param.map((v)=>{val *= parseFloat(v)});
+      }
+      domain.multipliers.push(val);
+    } else if (c.includes('(') && c.includes(')')){
+      const args = c.slice(c.indexOf("(")+1,c.indexOf(")")).split(',');
+      if (args.length != 2){
+        sendErr("Invalid number of arguments - expected speed and multiplier");
+      } else {
+        if (domain.functions[domain.functions.length - 1] != 'amp'){
+          parseFloat(args[0]) ? domain.speeds[domain.functions.length - 1] = parseFloat(args[0]) : sendErr("Could not parse the speed");
+          parseFloat(args[1]) ? domain.multipliers[domain.functions.length - 1] = parseFloat(args[1]) : sendErr("Could not parse the multiplier");
+        }else{
+          sendErr("Amplitude argument needs only a multiplier");
+        }
+      }
+    } else {
+      domain.multipliers.push(1.0);
+    };
     return domain;
   } 
   } else {
@@ -1028,7 +1083,3 @@ const interpret = () => {
         mediaRecorder.stop();
        } 
       }); 
-      /*let text = 'rgb(amp*.1,cos,sin(0,0))';
-      let regex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
-      let params = text.match(regex);
-      params.map((p,i)=>{console.log(p.includes('*'))});*/

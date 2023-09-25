@@ -240,6 +240,8 @@ const animate = () => {
      }
   }
   if (environment.models[m].domains.length > 0){
+    angle += (360/60);
+    if (angle >= 360.0){ angle = 0.0;}
     for (let d in environment.models[m].domains){
       let domain = environment.models[m].domains[d];
       domain.functions.forEach((f,i)=>{
@@ -439,26 +441,26 @@ if (typeof c === 'string'){
           } else if (color(command[i]) != null){
             material.color = color(command[i]);
           } else if (command[i].startsWith("rgb(") && command[i].endsWith(")")){
-            let values = floats(command[i].slice(command[i].indexOf("(")+i,command[i].indexOf(")")));
-            if (values == null || values.length <= 2){
-              if (command[i].includes("amp") || command[i].includes("sin") || command[i].includes("cos") || command[i].includes("tan")){
-                const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
-                const result = command[i].match(paramRegex);
-                if (result != null){
-                  result.map((r)=>{
-                    if (!isNaN(parseFloat(r))){
-                      if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
-                        sendErr("Allowed range 0 - 1");
-                      }
+            if (domain(command[i]).functions.length > 0 && domain(command[i]).multipliers.length > 0 &&
+              domain(command[i]).speeds.length > 0 && domain(command[i]).parameters.length > 0){
+              const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
+              const result = command[1].match(paramRegex);
+              if (result != null){
+                result.map((r)=>{
+                  if (!isNaN(parseFloat(r))){
+                    if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
+                      sendErr("Allowed range 0 - 1");
                     }
-                  });
-                  modelObj.domains.push(domain(command[i]));
-                } else {
-                  sendErr("Invalid domain");
-                }
+                  }
+                });
+                material.color = new THREE.Color(0.0,0.0,0.0);
+                modelObj.domains.push(domain(command[i]));
+              } else {
+                sendErr("Invalid domain");
               }
-            } 
-            else if (values.length == 3){
+            } else {
+            let values = floats(command[1].slice(command[1].indexOf("(")+1,command[1].indexOf(")")));
+            if (values.length == 3){
               if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
                 material.color = new THREE.Color(values[0],values[1],values[2]);
               } else {
@@ -467,9 +469,9 @@ if (typeof c === 'string'){
             } else if (values.length != 3) {
               if (command[1].includes(",") && command[1].split(',').length <= 2){
                 sendErr("RGB must have three parameters");
-                return null;
               } 
-            }
+            }   
+            } 
           } else if (command[i].startsWith("rot") && command[i].includes('(') && command[i].endsWith(")")){
             if (command[i][3] == "X" || command[i][3] == "Y" || command[i][3] == "Z"){
               if (floats(command[i]).length == 0){
@@ -595,7 +597,7 @@ if (typeof c === 'string'){
             } else {
               sendErr("Invalid domain");
             }
-          }else {
+          } else {
             sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
           }
       }
@@ -635,27 +637,26 @@ const screen = (c) => {
               sendErr("Allowed range 0 - 1");
             }
           } else if (command[1].startsWith("rgb(") && command[1].endsWith(")")){
-            let values = floats(command[1].slice(command[1].indexOf("(")+1,command[1].indexOf(")")));
-            if (values == null || values.length <= 2){
-              if (command[1].includes("amp") || command[1].includes("sin") || command[1].includes("cos") || command[1].includes("tan")){
-                const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
-                const result = command[1].match(paramRegex);
-                if (result != null){
-                  result.map((r)=>{
-                    if (!isNaN(parseFloat(r))){
-                      if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
-                        sendErr("Allowed range 0 - 1");
-                      }
+            if (domain(command[1]).functions.length > 0 && domain(command[1]).multipliers.length > 0 &&
+              domain(command[1]).speeds.length > 0 && domain(command[1]).parameters.length > 0){
+              const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
+              const result = command[1].match(paramRegex);
+              if (result != null){
+                result.map((r,i)=>{
+                  if (!isNaN(parseFloat(r))){
+                    if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
+                      sendErr("Allowed range 0 - 1");
                     }
-                  });
-                  return domain(command[1]);
-                } else {
-                  sendErr("Invalid domain");
-                  return null;
-                }
+                  }
+                });
+                return domain(command[1]);
+              } else {
+                sendErr("Invalid domain");
+                return null;
               }
-            } 
-            else if (values.length == 3){
+            } else {
+            let values = floats(command[1].slice(command[1].indexOf("(")+1,command[1].indexOf(")")));
+            if (values.length == 3){
               if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
                 return new THREE.Color(values[0],values[1],values[2]);
               } else {
@@ -667,7 +668,8 @@ const screen = (c) => {
                 sendErr("RGB must have three parameters");
                 return null;
               } 
-            }
+            }   
+            } 
           } else if (color(command[1]) != null){
             return color(command[1]);
           } else if (command[1].startsWith("noise(") && command[1].endsWith(")")){
@@ -907,7 +909,7 @@ const domain = (c) => {
    );
    return domain;
   } else if (c.startsWith('amp') || c.startsWith('sin') || c.startsWith('cos') || c.startsWith('tan')){
-    domain.functions.push(c);
+    domain.functions.push(c.slice(0,3));
     domain.parameters.push('scale');
     c.startsWith('amp') ? domain.speeds.push(null) : domain.speeds.push(1.0);
     if (c.includes('*')){
@@ -1040,6 +1042,8 @@ const interpret = () => {
       }
       window.onresize = (e) =>{
       renderer.setSize(window.innerWidth, window.innerHeight );
+      camera.aspect = window.innerWidth / window.innerHeight;
+      //camera.updateProjectionMatrix();
       renderer.setViewport(0,0,window.innerWidth,window.innerHeight);
       }
       closeCanvasRecD.onclick = (e) => {canvasRecDialog.close();}
@@ -1082,4 +1086,5 @@ const interpret = () => {
        } else if (e.ctrlKey && e.key == 's'){
         mediaRecorder.stop();
        } 
-      }); 
+      });
+      console.log(domain('rgb(0,sin(.1,.2),0)'));

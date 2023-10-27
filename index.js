@@ -223,16 +223,20 @@ const animate = () => {
           angle += (360/60)*speed;
           if (angle == 360.0){ angle = 0.0;}
         }
+        let translation;
         switch (environment.models[m].rotation.around){
           case "X": 
-          environment.models[m].mesh.position.y = Math.sin(angle * Math.PI / 180.0);
-          environment.models[m].mesh.position.z = Math.cos(angle * Math.PI / 180.0);
+          translation = environment.models[m].transform.elements[12];
+          environment.models[m].mesh.position.y = Math.sin(angle * Math.PI / 180.0) * translation;
+          environment.models[m].mesh.position.z = Math.cos(angle * Math.PI / 180.0) * translation;
           break;
           case "Y": 
-          environment.models[m].mesh.position.x = Math.cos(angle * Math.PI / 180.0);
-          environment.models[m].mesh.position.z = Math.sin(angle * Math.PI / 180.0);
+          translation = environment.models[m].transform.elements[13];
+          environment.models[m].mesh.position.x = Math.cos(angle * Math.PI / 180.0) * translation;
+          environment.models[m].mesh.position.z = Math.sin(angle * Math.PI / 180.0) * translation;
           break;
           case "Z":  
+          //translation = environment.models[m].transform.elements[14];
           environment.models[m].mesh.position.x = Math.sin(angle * Math.PI / 180.0);
           environment.models[m].mesh.position.y = Math.cos(angle * Math.PI / 180.0);
           break;
@@ -446,15 +450,25 @@ if (typeof c === 'string'){
               const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
               const result = command[1].match(paramRegex);
               if (result != null){
-                result.map((r)=>{
+                let stable = {};
+                result.map((r,i)=>{
                   if (!isNaN(parseFloat(r))){
                     if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
                       sendErr("Allowed range 0 - 1");
+                    } else {
+                      switch(i){
+                        case i == 0: stable.red = parseFloat(r); break;
+                        case i == 1: stable.green = parseFloat(r); break;
+                        case i == 2: stable.blue = parseFloat(r); break;
+                        default: break;
+                      }
                     }
                   }
                 });
                 material.color = new THREE.Color(0.0,0.0,0.0);
-                modelObj.domains.push(domain(command[i]));
+                let domain = domain(command[i])
+                domain.stable = stable;
+                modelObj.domains.push(domain);
               } else {
                 sendErr("Invalid domain");
               }
@@ -642,14 +656,24 @@ const screen = (c) => {
               const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
               const result = command[1].match(paramRegex);
               if (result != null){
+                let stable = {};
                 result.map((r,i)=>{
                   if (!isNaN(parseFloat(r))){
                     if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
                       sendErr("Allowed range 0 - 1");
+                    } else {
+                      switch(i){
+                        case i == 0: stable.red = parseFloat(r); break;
+                        case i == 1: stable.green = parseFloat(r); break;
+                        case i == 2: stable.blue = parseFloat(r); break;
+                        default: break; 
+                      }
                     }
                   }
                 });
-                return domain(command[1]);
+                returnObj = domain(command[1]);
+                returnObj.stable = stable;
+                return returnObj;
               } else {
                 sendErr("Invalid domain");
                 return null;
@@ -699,9 +723,33 @@ const screen = (c) => {
           } else if (command[1].startsWith("tex(") && command[1].endsWith(")")) {
             let url = command[1].slice(5,command[1].length - 2);
             if (isValidUrl(url)){
-              const textureLoader = new THREE.TextureLoader();
-              const normalMap = textureLoader.load(url);
-              return normalMap;
+              if (url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.svg')){
+                const textureLoader = new THREE.TextureLoader();
+                const normalMap = textureLoader.load(url);
+                return normalMap;
+              }else if (url.endsWith('.gif') || url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mpg')){
+                let redundantVideos = document.querySelectorAll('video');
+                if (redundantVideos.length > 0){
+                  redundantVideos.forEach((v)=>{
+                    v.remove();
+                  });
+                }
+                let video = document.createElement('video');
+                video.src = url;
+                video.load();
+                video.play();
+                video.loop = true;
+                video.muted = true;
+                let videoTexture = new THREE.VideoTexture(video);
+                videoTexture.minFilter = THREE.LinearFilter;
+                videoTexture.magFilter = THREE.LinearFilter;
+                videoTexture.format = THREE.RGBAFormat;
+                videoTexture.generateMipmaps = false;
+                if (video.readyState === video.HAVE_ENOUGH_DATA){
+                  videoTexture.needsUpdate = true;
+                }
+                return videoTexture;
+              }
             } else {
               sendErr("Invalid URL");
             }
@@ -1029,6 +1077,16 @@ const interpret = () => {
   }
   if (!environment.background.functions && !environment.background.parameters && !environment.background.multipliers && !environment.background.speeds){
     scene.background = environment.background;
+  } else {
+    const stableColors = environment.background.stable;
+    for (entry in Object.entries(stableColors)){
+      switch(entry[0]){
+        case "red": scene.background.r = entry[1]; break;
+        case "green": scene.background.g = entry[1]; break;
+        case "blue": scene.background.b = entry[1]; break;
+        default: break;
+      }
+    }
   }
   if (environment.models.length != 0){
     for (let m in environment.models){
@@ -1087,4 +1145,3 @@ const interpret = () => {
         mediaRecorder.stop();
        } 
       });
-      console.log(domain('rgb(0,sin(.1,.2),0)'));

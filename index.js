@@ -243,7 +243,8 @@ const animate = () => {
           default: break;
      }
   }
-  if (environment.models[m].domains.length > 0){
+ 
+  if (typeof environment.models[m].mesh.domains !== undefined){
     angle += (360/60);
     if (angle >= 360.0){ angle = 0.0;}
     for (let d in environment.models[m].domains){
@@ -450,25 +451,15 @@ if (typeof c === 'string'){
               const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
               const result = command[1].match(paramRegex);
               if (result != null){
-                let stable = {};
                 result.map((r,i)=>{
                   if (!isNaN(parseFloat(r))){
                     if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
                       sendErr("Allowed range 0 - 1");
-                    } else {
-                      switch(i){
-                        case i == 0: stable.red = parseFloat(r); break;
-                        case i == 1: stable.green = parseFloat(r); break;
-                        case i == 2: stable.blue = parseFloat(r); break;
-                        default: break;
-                      }
-                    }
+                    } 
                   }
                 });
                 material.color = new THREE.Color(0.0,0.0,0.0);
-                let domain = domain(command[i])
-                domain.stable = stable;
-                modelObj.domains.push(domain);
+                modelObj.domains.push(domain(command[i]));
               } else {
                 sendErr("Invalid domain");
               }
@@ -590,9 +581,34 @@ if (typeof c === 'string'){
           } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
             let url = command[i].slice(5,command[i].length - 2);
             if (isValidUrl(url)){
-              const textureLoader = new THREE.TextureLoader();
-              const normalMap = textureLoader.load(url);
-              material = new THREE.MeshPhongMaterial( { map: normalMap } );
+              if (url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.svg')){
+                const textureLoader = new THREE.TextureLoader();
+                const normalMap = textureLoader.load(url);
+                material.map = normalMap;
+              }else if (url.endsWith('.gif') || url.endsWith('.mp4') || url.endsWith('.webm') || url.endsWith('.mpg')){
+                let redundantVideos = document.querySelectorAll('video');
+                if (redundantVideos.length > 0){
+                  redundantVideos.forEach((v)=>{
+                    v.remove();
+                  });
+                }
+                let video = document.createElement('video');
+                video.src = url;
+                video.crossOrigin = "anonymous";
+                video.load();
+                video.play();
+                video.loop = true;
+                video.muted = true;
+                let videoTexture = new THREE.VideoTexture(video);
+                videoTexture.minFilter = THREE.LinearFilter;
+                videoTexture.magFilter = THREE.LinearFilter;
+                videoTexture.format = THREE.RGBAFormat;
+                videoTexture.generateMipmaps = false;
+                if (video.readyState === video.HAVE_ENOUGH_DATA){
+                  videoTexture.needsUpdate = true;
+                }
+                material.map = videoTexture;
+              }
             } else {
               sendErr("Invalid URL");
             }
@@ -656,24 +672,14 @@ const screen = (c) => {
               const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
               const result = command[1].match(paramRegex);
               if (result != null){
-                let stable = {};
                 result.map((r,i)=>{
                   if (!isNaN(parseFloat(r))){
                     if (parseFloat(r) > 1.0 || parseFloat(r) < 0.0){
                       sendErr("Allowed range 0 - 1");
-                    } else {
-                      switch(i){
-                        case i == 0: stable.red = parseFloat(r); break;
-                        case i == 1: stable.green = parseFloat(r); break;
-                        case i == 2: stable.blue = parseFloat(r); break;
-                        default: break; 
-                      }
                     }
                   }
                 });
-                returnObj = domain(command[1]);
-                returnObj.stable = stable;
-                return returnObj;
+                return domain(command[1]);
               } else {
                 sendErr("Invalid domain");
                 return null;
@@ -736,6 +742,7 @@ const screen = (c) => {
                 }
                 let video = document.createElement('video');
                 video.src = url;
+                video.crossOrigin = "anonymous";
                 video.load();
                 video.play();
                 video.loop = true;
@@ -808,6 +815,7 @@ const domain = (c) => {
     speeds: []
   };
   const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
+  let stable = {};
   if (c.indexOf("(") == 3 && c.endsWith(")")){
     let paramIndex = -1;
     const name = c.slice(0,c.indexOf("("));
@@ -881,8 +889,20 @@ const domain = (c) => {
             sendErr("Amplitude argument needs only a multiplier");
           }
         }
-     } else if (!isNaN(parseFloat(p)) || !isNaN(parseInt(p))){paramIndex++} 
-    });
+     } else if (!isNaN(parseFloat(p)) || !isNaN(parseInt(p))){paramIndex++;
+      if (parseFloat(p) > 1.0 || parseFloat(p) < 0.0){
+        sendErr("Allowed range 0 - 1");
+      } else {
+        switch(paramIndex){
+          case 0: stable.red = parseFloat(p); break;
+          case 1: stable.green = parseFloat(p); break;
+          case 2: stable.blue = parseFloat(p); break;
+          default: break;
+        }
+      } 
+    }
+     });
+       domain.stable = stable;
        return domain;
     }
   } else if (c.startsWith("[") && c.endsWith("]")){

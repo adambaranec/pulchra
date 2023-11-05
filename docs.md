@@ -46,7 +46,9 @@ Possible parameters (optional, in whatever order):
   - noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
 - coordinates ([**x**,**y**] from -1 to 1)
 - rotation (samples: rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
-- tex("*insert URL here*") - whatever image from the Internet as a texture
+- rotation around an axis (samples: rot + Ar + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotArY(1),rotArX(-2)
+Only works when a translation is set! (e.g. [.2,0])
+- tex("*insert URL here*") - whatever image or video from the Internet as a texture
 
 Examples:
 ```
@@ -62,8 +64,8 @@ circle 0.3 magenta [-0.5,1] rotZ(1)
 *All parameters must not be floating-point numbers.*
 - mul **integer** - number of rows and columns is the same
 - mul **rows** **columns**
-# Using assets from the Internet
-- Perfect source of photos is e.g. [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)
+# Using texture sources from the Internet
+- Perfect source of photos/videos is e.g. [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)
 - If you want to use a particular photo, click "More details".
 - Find the URL of the photo (if you paste the URL to a new tab, you should see the photo only) and copy it.
-- That's it! The only current way to use assets is setting textures to models or background photo. 
+- That's it! The only current way to use assets is setting textures to your models or as a background photo/video. 

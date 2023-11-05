@@ -218,30 +218,28 @@ const animate = () => {
           case "Z": environment.models[m].mesh.rotation.z -= environment.models[m].rotation.speed / 10.0; break;
           default: break;
         }
-        const speed = environment.models[m].rotation.orbitSpeed;
-        if (environment.models[m].rotation.around){
+        if (environment.models[m].rotation.around && environment.models[m].rotation.orbitSpeed){
+          const speed = environment.models[m].rotation.orbitSpeed;
           angle += (360/60)*speed;
           if (angle == 360.0){ angle = 0.0;}
-        }
-        let translation;
-        switch (environment.models[m].rotation.around){
-          case "X": 
-          translation = environment.models[m].transform.elements[12];
-          environment.models[m].mesh.position.y = Math.sin(angle * Math.PI / 180.0) * translation;
-          environment.models[m].mesh.position.z = Math.cos(angle * Math.PI / 180.0) * translation;
-          break;
-          case "Y": 
-          translation = environment.models[m].transform.elements[13];
-          environment.models[m].mesh.position.x = Math.cos(angle * Math.PI / 180.0) * translation;
-          environment.models[m].mesh.position.z = Math.sin(angle * Math.PI / 180.0) * translation;
-          break;
-          case "Z":  
-          //translation = environment.models[m].transform.elements[14];
-          environment.models[m].mesh.position.x = Math.sin(angle * Math.PI / 180.0);
-          environment.models[m].mesh.position.y = Math.cos(angle * Math.PI / 180.0);
-          break;
-          default: break;
-     }
+          if (environment.models[m].rotation.orbitSpeed != 0){
+            switch (environment.models[m].rotation.around){
+              case "X": 
+              environment.models[m].mesh.position.y = (Math.sin(angle * Math.PI / 180.0) * environment.models[m].transform.elements[13]);
+              environment.models[m].mesh.position.z = (Math.cos(angle * Math.PI / 180.0) * environment.models[m].transform.elements[13]);
+              break;
+              case "Y": 
+              environment.models[m].mesh.position.x = (Math.cos(angle * Math.PI / 180.0) * environment.models[m].transform.elements[12]);
+              environment.models[m].mesh.position.z = (Math.sin(angle * Math.PI / 180.0) * environment.models[m].transform.elements[12]);
+              break;
+              case "Z":  
+              environment.models[m].mesh.position.x = Math.sin(angle * Math.PI / 180.0);
+              environment.models[m].mesh.position.y = Math.cos(angle * Math.PI / 180.0);
+              break;
+              default: break;
+              }
+          }
+    }
   }
  
   if (typeof environment.models[m].mesh.domains !== undefined){
@@ -524,7 +522,6 @@ if (typeof c === 'string'){
                 }
                 matrix.multiply(new THREE.Matrix4().makeTranslation(realX,realY,0));
                 modelObj.transform = matrix;
-                if(modelObj.rotation == {}){modelObj.rotation = undefined}
               } else {
                 sendErr("Allowed range -1 - 1");
               }

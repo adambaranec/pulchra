@@ -17,7 +17,7 @@ Background color or texture.
 - screen rgb(**red**,**green**,**blue**) - RGB (all numbers range from 0 - 1)
 - screen **name of color** - color from English name of the color 
 - screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise used as the background photo
-- screen tex("*insert URL here*") - whatever image from the Internet as the background photo
+- screen tex("*insert URL here*") - whatever image/video from the Internet as the background texture
 
 Examples:
 ```
@@ -42,7 +42,7 @@ Possible parameters (optional, in whatever order):
 - color: 
   - rgb(**red**,**green**,**blue**)  (all numbers range from 0 - 1)
   - English color name
-  - mat(*at least two color names separated by comma*) - randomly puts a color from the array into the mesh
+  - mat(*at least two color names separated by comma*) - randomly puts a color from the array into the mesh, e.g. mat(yellow,black,magenta)
   - noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
 - coordinates ([**x**,**y**] from -1 to 1)
 - rotation (samples: rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
@@ -57,6 +57,8 @@ sphere 0.5
 cone 0.5 magenta
 torus rgb(1,0.2,0.2) [0,1]
 circle 0.3 magenta [-0.5,1] rotZ(1) 
+sphere mat(red,green,yellow)
+cone [0,.6] rotArZ(.8)
 ```
 ## Effects
 `mul` divides the current scene in rows and columns - within their borders through the scene rendering happens repeatedly 
@@ -64,8 +66,12 @@ circle 0.3 magenta [-0.5,1] rotZ(1)
 *All parameters must not be floating-point numbers.*
 - mul **integer** - number of rows and columns is the same
 - mul **rows** **columns**
+Examples:
+```
+mul 3
+mul 4 5
+```
 # Using texture sources from the Internet
 - Perfect source of photos/videos is e.g. [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)
-- If you want to use a particular photo, click "More details".
-- Find the URL of the photo (if you paste the URL to a new tab, you should see the photo only) and copy it.
+- Copy the URL of the file (not the page where you see the file!)
 - That's it! The only current way to use assets is setting textures to your models or as a background photo/video. 

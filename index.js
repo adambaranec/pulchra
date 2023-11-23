@@ -813,7 +813,15 @@ const domain = (c) => {
   };
   const paramRegex = /(amp|sin|cos|tan)\*(\.\d+|\d+(\.\d+)?)|(amp|sin|cos|tan)|(\.\d+|\d+(\.\d+)?)|\((\.\d+|\d+(\.\d+)?),(\.\d+|\d+(\.\d+)?)\)/g;
   let stable = {};
-  if (c.indexOf("(") == 3 && c.endsWith(")")){
+  if (c.match(paramRegex).length == 2){
+    const params = floats(c.slice(c.indexOf('(')+1,c.indexOf(')')));
+    domain.parameters.push('scale');
+    domain.functions.push(c.slice(0,c.indexOf('(')));
+    domain.speeds.push(params[1]);
+    domain.multipliers.push(params[0]);
+    return domain;
+  }
+  else if (c.indexOf("(") == 3 && c.endsWith(")")){
     let paramIndex = -1;
     const name = c.slice(0,c.indexOf("("));
     const args = c.slice(c.indexOf('(')+1,c.lastIndexOf(')'));
@@ -1001,7 +1009,7 @@ const domain = (c) => {
       domain.multipliers.push(1.0);
     };
     return domain;
-  } 
+  }
   } else {
     return null;
   }

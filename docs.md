@@ -66,6 +66,7 @@ cone [0,.6] rotArZ(.8)
 *All parameters must not be floating-point numbers.*
 - mul **integer** - number of rows and columns is the same
 - mul **rows** **columns**
+
 Examples:
 ```
 mul 3

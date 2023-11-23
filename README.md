@@ -1,9 +1,9 @@
 [![Netlify Status](https://api.netlify.com/api/v1/badges/c69cab50-feb9-42a2-ad5b-701eed639d5a/deploy-status)](https://app.netlify.com/sites/pulchra/deploys)
 
-#Why Pulchra?
+# Why Pulchra?
 Experience livecoding with 3D shapes in modern extent!
 
-#The origins of Pulchra
+# The origins of Pulchra
 It was one winter day in 2022. The production manager of [A4](https://a4.sk/), a space for contemporary culture in Bratislava, realized that he did not know about any language for generating 3D computer graphics.
 
 At that time, we were attending a course called [Music in the digital space - how to live code](https://soundsweird.org/music-in-the-digital-space-how-to-live-code/). One of the languages we were learning was Punctual, live coding system for 2D visuals.

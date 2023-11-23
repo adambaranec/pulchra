@@ -1,3 +1,8 @@
+/*
+This is the legacy code of the original
+rendering context and interpreter of Pulchra.
+Rather do not try to run it :)
+*/
 use js_sys::{JsString};
 use noise::*;
 use regex::Regex;

@@ -1,4 +1,5 @@
-# Pulchra documentation
+# Pulchra Docs
+![screenshot](screenshot.png)
 # How to use
 Shortcuts (executed only when the text input field is on focus):
 - Ctrl + Enter: Render 
@@ -16,7 +17,7 @@ Background color or texture.
 - screen **scale** - grayscale (range from 0 - 1)
 - screen rgb(**red**,**green**,**blue**) - RGB (all numbers range from 0 - 1)
 - screen **name of color** - color from English name of the color 
-- screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise used as the background photo
+- screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise used as the background texture
 - screen tex("*insert URL here*") - whatever image/video from the Internet as the background texture
 
 Examples:
@@ -74,4 +75,4 @@ mul 4 5
 # Using texture sources from the Internet
 - Perfect source of photos/videos is e.g. [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)
 - Copy the URL of the file (not the page where you see the file!)
-- That's it! The only current way to use assets is setting textures to your models or as a background photo/video. 
+- That's it! You can use the URL in the `tex()` function.

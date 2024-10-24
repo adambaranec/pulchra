@@ -1,4 +1,4 @@
-WARNING: Pulchra is currently not developed anymore.
+WARNING: This project is currently not developed anymore.
 
 [![Netlify Status](https://api.netlify.com/api/v1/badges/c69cab50-feb9-42a2-ad5b-701eed639d5a/deploy-status)](https://app.netlify.com/sites/pulchra/deploys)
 

@@ -1,3 +1,5 @@
+WARNING: This doc is deprecated, a new one will be prepared.
+
 # Pulchra Docs
 ![screenshot](screenshot.png)
 # How to use

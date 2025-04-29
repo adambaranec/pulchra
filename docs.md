@@ -6,8 +6,6 @@ WARNING: This doc is deprecated, a new one will be prepared.
 Shortcuts (executed only when the text input field is on focus):
 - Ctrl + Enter: Render 
 - Ctrl + D: Open this doc in a new tab
-- Ctrl + R: Record canvas
-- Ctrl + P: Take a photo
 (Unable to write? Try clicking Tab.) 
 # Language
 Code is written into the text field input and individual functions are always separated by semicolon.
@@ -48,9 +46,8 @@ Possible parameters (optional, in whatever order):
   - mat(*at least two color names separated by comma*) - randomly puts a color from the array into the mesh, e.g. mat(yellow,black,magenta)
   - noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
 - coordinates ([**x**,**y**] from -1 to 1)
-- rotation (samples: rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
-- rotation around an axis (samples: rot + Ar + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotArY(1),rotArX(-2)
-Only works when a translation is set! (e.g. [.2,0])
+- rotation (s
+rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
 - tex("*insert URL here*") - whatever image or video from the Internet as a texture
 
 Examples:
@@ -61,18 +58,6 @@ cone 0.5 magenta
 torus rgb(1,0.2,0.2) [0,1]
 circle 0.3 magenta [-0.5,1] rotZ(1) 
 sphere mat(red,green,yellow)
-cone [0,.6] rotArZ(.8)
-```
-## Effects
-`mul` divides the current scene in rows and columns - within their borders through the scene rendering happens repeatedly 
-### Functions
-*All parameters must not be floating-point numbers.*
-- mul **integer** - number of rows and columns is the same
-- mul **rows** **columns**
-- Examples:
-```
-mul 3
-mul 4 5
 ```
 # Using texture sources from the Internet
 - Perfect source of photos/videos is e.g. [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)

@@ -3,7 +3,6 @@
 # How to use
 Shortcuts (executed only when the text input field is on focus):
 - Ctrl + Enter: Render 
-- Ctrl + D: Open this doc in a new tab
 (Unable to write? Try clicking Tab.) 
 # Language
 Code is written into the text field input and individual functions are always separated by semicolon.

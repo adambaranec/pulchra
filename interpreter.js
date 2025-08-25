@@ -110,6 +110,13 @@ const model = (command) => {
      speed: 0,
      axis: ""
     },
+    /*
+    rotation: {
+    x: 0,
+    y: 0,
+    z: 0
+    },
+    */
     mesh: new THREE.Mesh(geometry, material)
   };
   if (command.length > 1){
@@ -130,7 +137,6 @@ const model = (command) => {
             default: break;
         }
   }
-  console.log(geometry);
   if (command.length == 1){
       geometry.scale(1.0, 1.0, 1.0);
       material.color = new THREE.Color(1.0, 1.0, 1.0);

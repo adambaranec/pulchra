@@ -105,18 +105,14 @@ const model = (command) => {
   let subjectToRender;
   let geometry = new THREE.BufferGeometry();
   let material = new THREE.MeshPhongMaterial();
+  let translation = new THREE.Vector3();
+  let radius = 1;
     let modelObj = {
     rotation: {
-     speed: 0,
-     axis: ""
+    xSpeed: 0,
+    ySpeed: 0,
+    zSpeed: 0
     },
-    /*
-    rotation: {
-    x: 0,
-    y: 0,
-    z: 0
-    },
-    */
     mesh: new THREE.Mesh(geometry, material)
   };
   if (command.length > 1){
@@ -148,6 +144,7 @@ const model = (command) => {
          let value = parseFloat(word);
          if (value >= 0.0 && value <= 1.0) {
              geometry.scale(value, value, value);
+             radius = value;
           } else {
             sendErr(errorP, "Allowed scale range is 0 - 1");
            }
@@ -207,16 +204,27 @@ const model = (command) => {
                               sendErr(errorP, "Invalid URL");
                             }
          } else if (word.startsWith("rot") && word.includes('(') && word.endsWith(")")) {
-                    if (word[3] == "X" || word[3] == "Y" || word[3] == "Z") {
-                        if (floats(word).length == 0) {
-                            sendErr(errorP, "Provide a speed to rotate");
-                        } else {
-                            modelObj.rotation.speed = floats(word)[0];
-                            modelObj.rotation.axis = word[3];
-                        }
-                    } /*else if (word.index('(') == 3){
-                      
-                    } */          
+            const speed = floats(word)
+            if (speed == null) {
+               sendErr(errorP, "Provide a speed to rotate");
+            } else {
+              if (word[3] == "X" || word[3] == "Y" || word[3] == "Z") {
+              switch (word[3]){
+                case "X": modelObj.rotation.xSpeed = parseFloat(speed); break;
+                case "Y": modelObj.rotation.ySpeed = parseFloat(speed); break;
+                case "Z": modelObj.rotation.zSpeed = parseFloat(speed); break;
+                }
+              } else if (word[3] == '('){
+                const speeds = word.slice(4,-1).split(',');
+                if (speeds.length != 3 || speeds == null){
+                  sendErr(errorP,"Rotation should be defined on all three axes (can be zero)");
+                } else {
+                  modelObj.rotation.xSpeed = parseFloat(speeds[0]);
+                  modelObj.rotation.ySpeed = parseFloat(speeds[1]);
+                  modelObj.rotation.zSpeed = parseFloat(speeds[2]);
+                }
+              }
+            }      
          } else if (word.startsWith("[") && word.endsWith("]")){
            const axes = word.slice(1, -1);
            if (!axes.includes(",")){
@@ -226,7 +234,7 @@ const model = (command) => {
             if (values.length > 2){
               sendErr(errorP,"Too many axes - only X and Y");
             } else if (values.length == 2){
-              geometry.translate(parseFloat(values[0]),parseFloat(values[1]),0);
+              translation = new THREE.Vector3(parseFloat(values[0])/radius,parseFloat(values[1])/radius,0);
             }
            }
          } else {
@@ -236,6 +244,9 @@ const model = (command) => {
     }
   }
   modelObj.mesh = new THREE.Mesh(geometry, material);
+  modelObj.mesh.translateX(translation.x);
+  modelObj.mesh.translateY(translation.y);
+  modelObj.mesh.translateZ(translation.z);
   return modelObj;
 }
 
@@ -295,8 +306,8 @@ const screen = (c) => {
 }
 
 export const interpret = (scene, meshInfosArray, input) => {
-  errorP.innerHTML = "";
-  scene.clear();
+    errorP.innerHTML = "";
+    scene.clear();
     const light = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 1.0);
     light.position.set(0, 0, 2);
     scene.add(light);

@@ -18,6 +18,7 @@ camera.position.z = 4;
 camera.lookAt(new THREE.Vector3(0,0,0));
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize( width, height);
+renderer.domElement.style.backgroundColor = "rgba(0,0,0,0.5)";
 document.body.appendChild( renderer.domElement );
 let meshInfos = new Array();
 
@@ -28,26 +29,10 @@ const animate = () => {
   renderer.render(scene,camera);
 
   meshInfos.forEach((meshInfo)=>{
-    const speed = meshInfo.rotation.speed;
-    const axis = meshInfo.rotation.axis;
-    if (axis != "" && speed != 0){
-      if (axis == "X"){
-        meshInfo.mesh.rotation.x -= speed/60;
-      }
-      else if (axis == "Y"){
-        meshInfo.mesh.rotation.y -= speed/60;
-      }
-      else if (axis == "Z"){
-        meshInfo.mesh.rotation.z -= speed/60;
-      }
-    }
+    meshInfo.mesh.rotation.x -= meshInfo.rotation.xSpeed/60;
+    meshInfo.mesh.rotation.y -= meshInfo.rotation.ySpeed/60;
+    meshInfo.mesh.rotation.z -= meshInfo.rotation.zSpeed/60;
   })
-  /*if (clickedForRendering){
-   const gl = renderer.getContext();
-   const pixels = new Uint8Array(inputBounds.width * inputBounds.height * 4); // RGBA for each pixel
-   gl.readPixels(inputBounds.left,inputBounds.bottom, inputBounds.width, inputBounds.height, gl.RGBA, gl.UNSIGNED_BYTE,pixels);
-   clickedForRendering = false;
-  }*/
 }
 
 animate();

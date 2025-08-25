@@ -41,10 +41,10 @@ Possible parameters (optional, in whatever order):
   - rgb(**red**,**green**,**blue**)  (all numbers range from 0 - 1)
   - English color name
   - mat(*at least two color names separated by comma*) - randomly puts a color from the array into the mesh, e.g. mat(yellow,black,magenta)
-  - noise(**name of color**,**name of color**) - procedural texture made with Simplex noise
-- coordinates ([**x**,**y**] from -1 to 1)
-- rotation (s
-rot + X/Y/Z + (**speed** - can also be a negative number)), e.g. rotY(1),rotX(-2)
+- coordinates
+- rotation:
+  - one axis: either rotX(**speed**),rotY("**speed**),rotZ(**speed**), e.g. rotX(1),rotY(-.2),rotZ(.3)
+  - multiple axes: rot(**x**,**y**,**z**), e.g. rot(.4,1,0)
 - tex("*insert URL here*") - whatever image or video from the Internet as a texture
 
 Examples:
@@ -54,9 +54,11 @@ sphere 0.5
 cone 0.5 magenta
 torus rgb(1,0.2,0.2) [0,1]
 circle 0.3 magenta [-0.5,1] rotZ(1) 
+torusKnot rot(.3,1,0)
 sphere mat(red,green,yellow)
+circle mat(green,purple,khaki,olive) 1 rotZ(1); sphere 0.7 [1.4,0] tex("https://upload.wikimedia.org/wikipedia/commons/3/39/%D0%9C%D0%B0%D1%8F%D0%BA_%D0%91%D0%B5%D0%BB%D1%8B%D0%B9.webm") rotY(1); sphere 0.7 [-1.4,0] rotY(-1) tex("https://upload.wikimedia.org/wikipedia/commons/3/39/%D0%9C%D0%B0%D1%8F%D0%BA_%D0%91%D0%B5%D0%BB%D1%8B%D0%B9.webm")
 ```
 # Using texture sources from the Internet
-- Perfect source of photos/videos is e.g. [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)
-- Copy the URL of the file (not the page where you see the file!)
+- Perfect source of photos/videos is [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)
+- Copy link of the image or video you want to use (it should start with *https://upload.wikimedia.org*)
 - That's it! You can use the URL in the `tex()` function.

@@ -6,8 +6,8 @@ body{
     font-family:'Courier New', Courier, monospace; 
 }
 #input{
-    border-style:none;
-    color: gray;
+    border-style:groove;
+    color: darkcyan;
     width: 100%;
     background: none;
 }
@@ -25,11 +25,10 @@ position: absolute;
 height: 100%;
 width: 100%;
 }
+.dialogFont{
+font-family: 'Courier New', Courier, monospace;
+}
 #canvas{
     display: block;
     position: absolute;
 }
-/*
-.up{}
-.question{}
-*/

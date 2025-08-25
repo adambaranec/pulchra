@@ -1,6 +1,7 @@
-import { randFloat, randInt } from 'three/src/math/MathUtils';
+import { randInt } from 'three/src/math/MathUtils';
 import * as THREE from "three";
 const errorP = document.getElementById('error');
+
 const sendErr = (errorParagraph, err) => {
     if (typeof err === 'string') {
         errorParagraph.innerHTML = err;
@@ -18,7 +19,6 @@ const isValidUrl = (url) => {
 }
 
 const color = (word) => {
-    if (typeof word === 'string') {
         if (word.startsWith("rgb(") && word.endsWith(")")) {
             let values = floats(word.slice(word.indexOf("(") + 1, word.indexOf(")")));
             if (values.length == 3) {
@@ -34,7 +34,7 @@ const color = (word) => {
                     return null;
                 }
             }
-        } else {
+        } else if (!word.includes("(") && !word.includes(")") && !word.includes("[") && !word.includes("]")) {
             switch (word) {
                 case "red": return new THREE.Color('red');
                 case "green": return new THREE.Color('green');
@@ -57,11 +57,9 @@ const color = (word) => {
                 case "olive": return new THREE.Color('olive');
                 default: sendErr(errorP, "Invalid color name");  return null;
             }
+        } else {
+          return null;
         }
-    } else {
-        sendErr(errorP, "Invalid color");
-        return null;
-    }
 }
 
 const floats = (word) => {
@@ -107,10 +105,17 @@ const model = (command) => {
   let subjectToRender;
   let geometry = new THREE.BufferGeometry();
   let material = new THREE.MeshPhongMaterial();
-  if (!command.includes(' ')){
-    subjectToRender = medium(command);
-  } else {
-    subjectToRender = medium(command.split(' ')[0]);
+    let modelObj = {
+    rotation: {
+     speed: 0,
+     axis: ""
+    },
+    mesh: new THREE.Mesh(geometry, material)
+  };
+  if (command.length > 1){
+    subjectToRender = medium(command[0]);
+  } else if (command.length == 1) {
+    subjectToRender = medium(command[0]);
   }
   if (subjectToRender.medium == "shape") {
             switch (subjectToRender.variant) {
@@ -125,12 +130,13 @@ const model = (command) => {
             default: break;
         }
   }
-  if (!command.includes(' ')){
+  console.log(geometry);
+  if (command.length == 1){
       geometry.scale(1.0, 1.0, 1.0);
       material.color = new THREE.Color(1.0, 1.0, 1.0);
   } else {
-    let words = command.split(' ');
-    if (words.length > 1){
+    let words = command.slice(1);
+    if (words.length >= 1){
       words.forEach((word,i)=>{
        if (!isNaN(parseFloat(word))) {
          let value = parseFloat(word);
@@ -139,47 +145,10 @@ const model = (command) => {
           } else {
             sendErr(errorP, "Allowed scale range is 0 - 1");
            }
-         } else if (color(command[i]) != null) {
-            material.color = color(command[i]);
-         }
-      });
-    }
-  }
-    /*if (subjectToRender.medium == "shape") {
-        let modelObj = {};
-        let geometry = undefined;
-        let material = new THREE.MeshPhongMaterial();
-        modelObj.transform = new THREE.Matrix4();
-        modelObj.rotation = {};
-        switch (medium(command[0]).variant) {
-            case "cube": geometry = new THREE.BoxGeometry(1, 1, 1); break;
-            case "sphere": geometry = new THREE.SphereGeometry(1, 60, 60); break;
-            case "square": geometry = new THREE.PlaneGeometry(1, 1); break;
-            case "circle": geometry = new THREE.CircleGeometry(1, 60); break;
-            case "cone": geometry = new THREE.ConeGeometry(1, 1, 60, 30); break;
-            case "cylinder": geometry = new THREE.CylinderGeometry(1, 1, 1, 60, 60); break;
-            case "torus": geometry = new THREE.TorusGeometry(1, undefined, 60, 60); break;
-            case "torusKnot": geometry = new THREE.TorusKnotGeometry(0.65, 0.5, 80, 80); break;
-            default: break;
-        }
-        if (command.length == 1) {
-            geometry.scale(1.0, 1.0, 1.0);
-            material.color = new THREE.Color(1.0, 1.0, 1.0);
-        } else if (command.length > 1) {
-            for (let i = 1; i < command.length; i++) {
-                if (!isNaN(parseFloat(command[i]))) {
-                    let value = parseFloat(command[i]);
-                    if (value >= 0.0 && value <= 1.0) {
-                        let matrix = modelObj.transform;
-                        matrix.multiply(new THREE.Matrix4().makeScale(parseFloat(command[i]), parseFloat(command[i]), parseFloat(command[i])));
-                        modelObj.transform = matrix;
-                    } else {
-                        sendErr(errorP, "Allowed scale range is 0 - 1");
-                    }
-                } else if (color(command[i]) != null) {
-                    material.color = color(command[i]);
-                } else if (command[i].startsWith("mat(") && command[i].endsWith(")")) {
-                    const slice = command[i].slice(4, command[i].length - 1);
+         } else if (color(word) != null) {
+            material.color = color(word);
+         } else if (word.startsWith("mat(") && word.endsWith(")")) {
+                    const slice = word.slice(4, word.length - 1);
                     let colors = new Array();
                     if (slice.includes(',')) {
                         const colorNames = slice.split(',');
@@ -197,17 +166,8 @@ const model = (command) => {
                     } else {
                         sendErr(errorP, "Just a color name would be enough - use at least two colors for this");
                     }
-                } else if (command[i].startsWith("rot") && command[i].includes('(') && command[i].endsWith(")")) {
-                    if (command[i][3] == "X" || command[i][3] == "Y" || command[i][3] == "Z") {
-                        if (floats(command[i]).length == 0) {
-                            sendErr(errorP, "Provide a speed to rotate");
-                        } else {
-                            modelObj.rotation.speed = floats(command[i])[0];
-                            modelObj.rotation.axis = command[i][3];
-                        }
-                    }
-                } else if (command[i].startsWith("tex(") && command[i].endsWith(")")) {
-                            let url = command[i].slice(5,command[i].length - 2);
+         }  else if (word.startsWith("tex(") && word.endsWith(")")) {
+              let url = word.slice(5,word.length - 2);
                             if (isValidUrl(url)){
                               if (url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.svg')){
                                 const textureLoader = new THREE.TextureLoader();
@@ -226,7 +186,7 @@ const model = (command) => {
                                 video.load();
                                 video.play();
                                 video.loop = true;
-                                video.muted = true;
+                                video.muted = true;            
                                 let videoTexture = new THREE.VideoTexture(video);
                                 videoTexture.minFilter = THREE.LinearFilter;
                                 videoTexture.magFilter = THREE.LinearFilter;
@@ -238,55 +198,60 @@ const model = (command) => {
                                 material.map = videoTexture;
                               }
                             } else {
-                              sendErr("Invalid URL");
+                              sendErr(errorP, "Invalid URL");
                             }
-                }  else {
-            sendErr("Unknown parameter. Allowed: radius, color, rotation, texture...");
-                } 
+         } else if (word.startsWith("rot") && word.includes('(') && word.endsWith(")")) {
+                    if (word[3] == "X" || word[3] == "Y" || word[3] == "Z") {
+                        if (floats(word).length == 0) {
+                            sendErr(errorP, "Provide a speed to rotate");
+                        } else {
+                            modelObj.rotation.speed = floats(word)[0];
+                            modelObj.rotation.axis = word[3];
+                        }
+                    } /*else if (word.index('(') == 3){
+                      
+                    } */          
+         } else if (word.startsWith("[") && word.endsWith("]")){
+           const axes = word.slice(1, -1);
+           if (!axes.includes(",")){
+            sendErr(errorP,"Not a recognized translation. Describe the amount of X and Y to translate");
+           } else {
+            const values = axes.split(',');
+            if (values.length > 2){
+              sendErr(errorP,"Too many axes - only X and Y");
+            } else if (values.length == 2){
+              geometry.translate(parseFloat(values[0]),parseFloat(values[1]),0);
             }
-        }
-        modelObj.geometry = geometry;
-        modelObj.material = material;
-        return modelObj;
-    }*/
+           }
+         } else {
+            sendErr(errorP, "Unknown parameter. Allowed: radius, color, rotation, texture...");
+          } 
+      });
+    }
+  }
+  modelObj.mesh = new THREE.Mesh(geometry, material);
+  return modelObj;
 }
 
 const screen = (c) => {
-  if (typeof c === 'string'){
-    let command = c.split(' ');
-    if (c == "screen"){
-      sendErr("Missing parameters");
+    if (c.length == 1){
+      sendErr(errorP,"Missing parameters");
       return null;
-    } else if (command.length > 2){
-      sendErr("Too many parameters");
+    } else if (c.length > 2){
+      sendErr(errorP,"Too many parameters");
       return null;
-    } else {
-          if (!isNaN(parseFloat(command[1]))){
-            let scale = parseFloat(command[1]);
+    } else if (c.length == 2){
+      if (!isNaN(parseFloat(c[1]))){
+            let scale = parseFloat(c[1]);
             if (scale <= 1.0 && scale >= 0.0){
               return new THREE.Color(scale,scale,scale);
             } else {
               sendErr("Allowed range 0 - 1");
             }
-          } else if (command[1].startsWith("rgb(") && command[1].endsWith(")")){
-            let values = floats(command[1].slice(command[1].indexOf("(")+1,command[1].indexOf(")")));
-            if (values.length == 3){
-              if (values[0] >= 0.0 && values[0] <= 1.0 && values[1] >= 0.0 && values[1] <= 1.0  && values[2] >= 0.0 && values[2] <= 1.0){
-                return new THREE.Color(values[0],values[1],values[2]);
-              } else {
-                sendErr("Allowed range 0 - 1");
-                return null;
-              }
-            } else if (values.length != 3) {
-              if (command[1].includes(",") && command[1].split(',').length <= 2){
-                sendErr("RGB must have three parameters");
-                return null;
-              } 
-            }   
-          } else if (color(command[1]) != null){
-            return color(command[1]);
-          } else if (command[1].startsWith("tex(") && command[1].endsWith(")")) {
-            let url = command[1].slice(5,command[1].length - 2);
+      } else if (color(c[1]) != null){
+          return color(c[1]);
+      } else if (c[1].startsWith("tex(") && c[1].endsWith(")")) {
+            let url = c[1].slice(5,c[1].length - 2);
             if (isValidUrl(url)){
               if (url.endsWith('.png') || url.endsWith('.jpg') || url.endsWith('.jpeg') || url.endsWith('.svg')){
                 const textureLoader = new THREE.TextureLoader();
@@ -319,17 +284,11 @@ const screen = (c) => {
             } else {
               sendErr("Invalid URL");
             }
-          } else {
-            sendErr("Unknown parameter. Allowed: grayscale, RGB or texture");
-            return null;
           }
     }
-  } else {
-    return null;
-  }
 }
 
-export const interpret = (scene, input) => {
+export const interpret = (scene, meshInfosArray, input) => {
   errorP.innerHTML = "";
   scene.clear();
     const light = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 1.0);
@@ -349,72 +308,34 @@ export const interpret = (scene, input) => {
             let words = commands[c].trim().split(' ');
             let subjectToRender = medium(words[0]);
             if (subjectToRender.medium == "shape"){
-             console.log(model(commands[c].trimStart()));
+              let meshInfo = model(words)
+              if (meshInfo != null || meshInfo != undefined){
+                scene.add(meshInfo.mesh)
+                meshInfosArray.push(meshInfo)
+              }
+            } else if (subjectToRender.medium == "background"){
+              let screenColor = screen(words)
+              if (screenColor != null || screenColor != undefined){
+                scene.background = screenColor;
+              }
             }
-            /*if (medium(words[0]) !== undefined){
-              switch (medium(words[0]).medium){
-                case "shape": {
-                  let shape = model(commands[c].trimStart());
-                  if (shape != null){scene.add(new THREE.Mesh(shape.geometry, shape.material))}
-                }; break;
-                case "background": {
-                  let back = screen(commands[c].trimStart());
-                  if (back != null){scene.background = back}              
-                }; break;
-                default: sendErr("What to set?"); break;
-               }
-             } else {
-              sendErr("Unknown thing to render or play with");
-             }*/
           }
         } else {
-
+          let words = input.split(' ');
+          let subjectToRender = medium(words[0]);
+          if (subjectToRender.medium == "shape"){
+              let meshInfo = model(words)
+              if (meshInfo != null || meshInfo != undefined){
+                scene.add(meshInfo.mesh)
+                meshInfosArray.push(meshInfo)
+              }
+            } else if (subjectToRender.medium == "background"){
+              let screenColor = screen(words)
+              if (screenColor != null || screenColor != undefined){
+                scene.background = screenColor;
+              }
+            }
         }
       }
     }
-    /*
-    if (input != ""){
-        let lines = input.split('\n');
-        for (let l in lines){
-          for (let c in commands){
-            let words = commands[c].trim().split(' ');
-            if (medium(words[0]) != null){
-              switch (medium(words[0]).medium){
-                case "shape": {
-                  let shape = model(commands[c].trimStart());
-                  if (shape != null){scene.add(new THREE.Mesh(shape.geometry, shape.material))}
-                }; break;
-                case "background": {
-                  let back = screen(commands[c].trimStart());
-                  if (back != null){scene.background = back}              
-                }; break;
-                default: sendErr("What to set?"); break;
-               }
-             } else {
-              sendErr("Unknown thing to render or play with");
-             }
-          }
-         } else {
-          let words = lines[l].trim().split(' ');
-          if (words[0][0] === undefined){words.shift()}      
-          if (medium(words[0]) != null){
-            switch (medium(words[0]).medium){
-              case "shape": {
-                let shape = model(lines[l].trimStart());
-                if (shape != null){scene.add(new THREE.Mesh(shape.geometry, shape.material))}
-                }; break;
-                case "background": {
-                let back = screen(lines[l].trimStart());
-                if (back != null){scene.background = back}
-                }; break;
-              default: sendErr("What to set?"); break;
-             }
-           } else {
-            sendErr("Unknown thing to render or play with");
-           }
-         }
-        }
-      } else {
-        scene.background = new THREE.Color(0,0,0);
-      }*/
 }

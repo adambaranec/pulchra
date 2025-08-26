@@ -131,8 +131,11 @@ const model = (command) => {
             case "circle": geometry = new THREE.CircleGeometry(1, 60); break;
             case "cone": geometry = new THREE.ConeGeometry(1, 1, 60, 30); break;
             case "cylinder": geometry = new THREE.CylinderGeometry(1, 1, 1, 60, 60); break;
-            case "torus": geometry = new THREE.TorusGeometry(1, undefined, 60, 60); break;
-            case "torusKnot": geometry = new THREE.TorusKnotGeometry(0.65, 0.5, 80, 80); break;
+            case "torus": geometry = new THREE.TorusGeometry(0.8, undefined, 60, 60); break;
+            case "torusKnot": geometry = new THREE.TorusKnotGeometry(0.55, 0.5, 80, 80); break;
+            case "icosahedron": geometry = new THREE.IcosahedronGeometry(1,0); break;
+            case "octahedron": geometry = new THREE.OctahedronGeometry(1,0); break;
+            case "dodecahedron": geometry = new THREE.DodecahedronGeometry(1,0); break;
             default: break;
         }
   }
@@ -308,12 +311,12 @@ const screen = (c) => {
     }
 }
 
-export const interpret = (scene, meshInfosArray, input) => {
+export const interpret = (input) => {
+  let resultObj = {
+    meshInfos: new Array(),
+    background: undefined
+  };
     errorP.innerHTML = "";
-    scene.clear();
-    const light = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 1.0);
-    light.position.set(0, 0, 2);
-    scene.add(light);
 
     if (input != ""){
       let lines = input.split('\n');
@@ -330,13 +333,12 @@ export const interpret = (scene, meshInfosArray, input) => {
             if (subjectToRender.medium == "shape"){
               let meshInfo = model(words)
               if (meshInfo != null || meshInfo != undefined){
-                scene.add(meshInfo.mesh)
-                meshInfosArray.push(meshInfo)
+                resultObj.meshInfos.push(meshInfo);
               }
             } else if (subjectToRender.medium == "background"){
               let screenColor = screen(words)
               if (screenColor != null || screenColor != undefined){
-                scene.background = screenColor;
+                resultObj.background = screenColor;
               }
             }
           }
@@ -346,16 +348,16 @@ export const interpret = (scene, meshInfosArray, input) => {
           if (subjectToRender.medium == "shape"){
               let meshInfo = model(words)
               if (meshInfo != null || meshInfo != undefined){
-                scene.add(meshInfo.mesh)
-                meshInfosArray.push(meshInfo)
+                resultObj.meshInfos.push(meshInfo);
               }
             } else if (subjectToRender.medium == "background"){
               let screenColor = screen(words)
               if (screenColor != null || screenColor != undefined){
-                scene.background = screenColor;
+                resultObj.background = screenColor;
               }
             }
         }
       }
     }
+    return resultObj;
 }

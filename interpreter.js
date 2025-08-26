@@ -94,6 +94,9 @@ const medium = (word) => {
         case "cylinder": return { medium: "shape", variant: "cylinder" };
         case "torus": return { medium: "shape", variant: "torus" };
         case "torusKnot": return { medium: "shape", variant: "torusKnot" };
+        case "icosahedron": return { medium: "shape", variant: "icosahedron" };
+        case "octahedron": return { medium: "shape", variant: "octahedron" };
+        case "dodecahedron": return { medium: "shape", variant: "dodecahedron" };
         case "screen": return { medium: "background" };
         //case "camera": return { medium: "camera" };
         //case "light": return { medium: "light" };

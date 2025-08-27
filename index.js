@@ -10,9 +10,6 @@ const width = window.innerWidth;
 const height = window.innerHeight;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color('black');
-const light = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 1.0);
-light.position.set(0, 0, 2);
-scene.add(light);
 const aspect = width / height;
 const camera = new THREE.PerspectiveCamera( 45, aspect, 0.1, 1000 );
 camera.position.x = 0;
@@ -52,25 +49,18 @@ renderer.setViewport(0,0,window.innerWidth,window.innerHeight);
 gotIt.onclick = (e) => {welcomeDialog.close();}
 input.addEventListener('keydown', (e)=>{
   if (e.ctrlKey && e.key == 'Enter'){
-    previousMeshInfos = meshInfos;
+    //previousMeshInfos = meshInfos;
+    scene.clear();
+    const light = new THREE.DirectionalLight(new THREE.Color(1, 1, 1), 1.0);
+    light.position.set(0, 0, 2);
+    scene.add(light);
     const result = interpret(input.value);
     const sceneBackground = result.background;
     if (sceneBackground != undefined){
     scene.background = result.background;
     }
-    meshInfos = result.meshInfos;
-    if (previousMeshInfos.length === 0){
-      meshInfos.forEach((_meshInfo)=>{scene.add(_meshInfo.mesh)});
-    } else if (meshInfos.length === 0){
-      scene.clear();
-    } else {
-      if (previousMeshInfos.length > meshInfos.length){
-        const redundantMeshesNum = previousMeshInfos.length - meshInfos.length;
-      } else if (previousMeshInfos.length < meshInfos.length){
-        const newMeshesNum = meshInfos.length - previousMeshInfos.length;
-      } else if (previousMeshInfos.length == meshInfos.length){
-        
-      }
-    }
+    meshInfos = result.meshInfos; 
+    meshInfos.forEach((_meshInfo)=>{scene.add(_meshInfo.mesh)})
   }
 });
+     

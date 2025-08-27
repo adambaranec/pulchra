@@ -57,3 +57,8 @@ const getNormalizedScale = (geometry, targetSize) => {
     const scaleFactor = targetSize / maxDimension;
     return new THREE.Matrix4().makeScale(scaleFactor, scaleFactor, scaleFactor);
 }
+
+export function shallowEqual(a, b) {
+  return Object.keys(a).length === Object.keys(b).length &&
+         Object.keys(a).every(key => a[key] === b[key]);
+}

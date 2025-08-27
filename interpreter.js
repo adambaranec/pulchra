@@ -140,7 +140,6 @@ const model = (command) => {
         }
   }
   if (command.length == 1){
-      geometry.scale(1.0, 1.0, 1.0);
       material.color = new THREE.Color(1.0, 1.0, 1.0);
   } else {
     let words = command.slice(1);
@@ -149,7 +148,6 @@ const model = (command) => {
        if (!isNaN(parseFloat(word))) {
          let value = parseFloat(word);
          if (value >= 0.0 && value <= 1.0) {
-             geometry.scale(value, value, value);
              radius = value;
           } else {
             sendErr(errorP, "Allowed scale range is 0 - 1");
@@ -250,9 +248,10 @@ const model = (command) => {
     }
   }
   modelObj.mesh = new THREE.Mesh(geometry, material);
-  modelObj.mesh.translateX(translation.x);
-  modelObj.mesh.translateY(translation.y);
-  modelObj.mesh.translateZ(translation.z);
+  modelObj.mesh.scale.setScalar(radius);
+  modelObj.mesh.translateX(translation.x * radius);
+  modelObj.mesh.translateY(translation.y * radius);
+  modelObj.mesh.translateZ(translation.z * radius);
   return modelObj;
 }
 

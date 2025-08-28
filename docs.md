@@ -53,14 +53,24 @@ Possible parameters (optional, in whatever order):
 Examples:
 ```
 cube
+
 sphere 0.5
+
 cone 0.5 magenta
+
 torus rgb(1,0.2,0.2) [0,1]
+
 circle 0.3 magenta [-0.5,1] rotZ(1) 
+
 torusKnot rot(.3,1,0)
+
 sphere mat(red,green,yellow)
+
 circle mat(green,purple,khaki,olive) 1 rotZ(1); sphere 0.7 [1.4,0] tex("https://upload.wikimedia.org/wikipedia/commons/3/39/%D0%9C%D0%B0%D1%8F%D0%BA_%D0%91%D0%B5%D0%BB%D1%8B%D0%B9.webm") rotY(1); sphere 0.7 [-1.4,0] rotY(-1) tex("https://upload.wikimedia.org/wikipedia/commons/3/39/%D0%9C%D0%B0%D1%8F%D0%BA_%D0%91%D0%B5%D0%BB%D1%8B%D0%B9.webm")
+
 octahedron rotY(1) mat(yellow,orange,red,olive) .81; cube [2,0] .7 rotY(2) rgb(.7,.4,1); sphere [-2,0] .7 mat(purple,blue) rot(.5,1,0)
+
+screen tex("https://upload.wikimedia.org/wikipedia/commons/7/7c/Beech_forest_male_karpaty_01.jpg"); dodecahedron rgb(.5,.8,.6) rotY(1) .79 [1,0]; sphere [-2,0] .7 mat(green,blue,brown) rotY(-1)
 ```
 # Using texture sources from the Internet
 - Perfect source of photos/videos is [Wikimedia Commons](https://commons.m.wikimedia.org/wiki/Main_Page)

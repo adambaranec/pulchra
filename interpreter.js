@@ -329,6 +329,7 @@ export const interpret = (input) => {
           for (let c in commands){
             let words = commands[c].trim().split(' ');
             let subjectToRender = medium(words[0]);
+            try {
             if (subjectToRender.medium == "shape"){
               let meshInfo = model(words)
               if (meshInfo != null || meshInfo != undefined){
@@ -338,12 +339,18 @@ export const interpret = (input) => {
               let screenColor = screen(words)
               if (screenColor != null || screenColor != undefined){
                 resultObj.background = screenColor;
-              }
+              } 
+            } else if (subjectToRender == null || subjectToRender.medium == null){
+               sendErr(errorP,"Nothing to render: Try sphere, screen etc.");
             }
+          } catch (error){
+             sendErr(errorP,"Nothing to render: Try sphere, screen etc.");
+          }
           }
         } else {
           let words = input.split(' ');
           let subjectToRender = medium(words[0]);
+          try {
           if (subjectToRender.medium == "shape"){
               let meshInfo = model(words)
               if (meshInfo != null || meshInfo != undefined){
@@ -354,7 +361,12 @@ export const interpret = (input) => {
               if (screenColor != null || screenColor != undefined){
                 resultObj.background = screenColor;
               }
+            } else if (subjectToRender == null || subjectToRender.medium == null){
+               sendErr(errorP,"Nothing to render: Try sphere, screen etc.");
             }
+          } catch (error){
+            sendErr(errorP,"Nothing to render: Try sphere, screen etc.");
+          }  
         }
       }
     }

@@ -1,15 +1,17 @@
 body{
     margin: 0;
 }
-#input,#error{
+#error{
     font-size: 1.5em;
     font-family:'Courier New', Courier, monospace; 
 }
 #input{
-    border-style:groove;
     color: darkcyan;
     width: 100%;
     background: none;
+    font-size: 1.5em;
+    font-family:'Courier New', Courier, monospace; 
+    font-weight: bold;
 }
 #error{
     color: red;

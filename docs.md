@@ -14,7 +14,6 @@ Background color or texture.
 - screen **scale** - grayscale (range from 0 - 1)
 - screen rgb(**red**,**green**,**blue**) - RGB (all numbers range from 0 - 1)
 - screen **name of color** - color from English name of the color 
-- screen noise(**name of color**,**name of color**) - procedural texture made with Simplex noise used as the background texture
 - screen tex("*insert URL here*") - whatever image/video from the Internet as the background texture
 
 Examples:

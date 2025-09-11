@@ -43,9 +43,9 @@ Possible parameters (optional, in whatever order):
   - rgb(**red**,**green**,**blue**)  (all numbers range from 0 - 1)
   - English color name
   - mat(*at least two color names separated by comma*) - randomly puts a color from the array into the mesh, e.g. mat(yellow,black,magenta)
-- coordinates
+- coordinates: [**x**,**y**], e.g. [1,0], [-.2,.4]
 - rotation:
-  - one axis: either rotX(**speed**),rotY("**speed**),rotZ(**speed**), e.g. rotX(1),rotY(-.2),rotZ(.3)
+  - one axis: either rotX(**speed**),rotY(**speed**),rotZ(**speed**), e.g. rotX(1),rotY(-.2),rotZ(.3)
   - multiple axes: rot(**x**,**y**,**z**), e.g. rot(.4,1,0)
 - tex("*insert URL here*") - whatever image or video from the Internet as a texture
 

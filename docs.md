@@ -6,7 +6,6 @@ Shortcuts (executed only when the text input field is on focus):
 (Unable to write? Try clicking Tab.) 
 # Language
 Code is written into the text field input and individual functions are always separated by semicolon.
-Let's go!
 ## Screen
 Background color or texture.
 ### Functions

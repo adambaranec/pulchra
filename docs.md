@@ -20,7 +20,7 @@ Examples:
 screen 0.5
 screen rgb(1,0.5,0)
 screen yellow
-screen noise(black,white)
+screen tex("https://upload.wikimedia.org/wikipedia/commons/0/0e/Formula_1_Turkish_GP_2021.ogg")
 ```
 ## 3D shapes
 Available shapes:
